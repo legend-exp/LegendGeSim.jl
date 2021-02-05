@@ -1,29 +1,14 @@
 # Convert mcpss HDF5 format to t1pss
-# 19.01.2021 Mariia Redchuk mariia.redchuk@pd.infn.it
+# Compiled by: Mariia Redchuk mariia.redchuk@pd.infn.it
 # Author: Lukas Hauertmann
 
-@info "Loading packages..."
+##
 
-using DSP # Julia's Digital Signal Processor (DSP) Package
-using RadiationDetectorSignals # #master branch - By Oliver Schulz
-# using RadiationDetectorDSP # By Oliver Schulz
-# Most of this notebook should be part of RadiationDetectorDSP.jl.
-# We will have to work on this....
+keV_unit = 1.0u"keV"; keV = typeof(keV_unit);
+MHz_unit = 1.0u"MHz"; MHz = typeof(MHz_unit);
+ns_unit = 1.0u"ns"; ns = typeof(ns_unit);
+μs_unit = 1.0u"μs"; μs = typeof(μs_unit);
 
-using Unitful
-using Distributions
-using StatsBase # Histograms
-using Random
-
-using ArraysOfArrays, Tables, TypedTables, Unitful
-using RadiationDetectorSignals
-using LegendDataTypes, LegendHDF5IO
-using LegendHDF5IO: readdata, writedata
-import HDF5
-
-using Plots
-
-using ProgressMeter
 
 ## Fix basic parameters
 
@@ -31,47 +16,64 @@ T = Float32
 
 germanium_ionization_energy = T(2.95)u"eV"
 
-# DAQ
+"""
+A shelf to put all the DAQ parameters in
+later to be filled from a configuration file
+"""
+@with_kw struct DAQ
+    # Let's say DAQ always stores 5000 samples. So the final waveform length is 5000.
+    # Has to be smaller than total waveform length (total_waveform_length in mcraw_to_mcpss.jl)
+    nsamples::Integer = 4000; # samples per waveform
 
-# Let's say DAQ always stores 5000 samples. So the final waveform length is 5000.
-# Has to be smaller than total waveform length (total_waveform_length in mcraw_to_mcpss.jl)
-daq_nsamples = 4000; # samples per waveform
+    baseline_length::Integer = 400;
+    sampling_rate::MHz = 250u"MHz"
+    Δt::ns = uconvert(u"ns", inv(sampling_rate));
 
-daq_baseline_length = 400;
-daq_sampling_rate = 250u"MHz"
-daq_Δt = uconvert(u"ns", inv(daq_sampling_rate));
+    daq_type = UInt16
+    max_e::keV = 10_000u"keV" # == typemax(UInt16)
+    offset::keV = 2_000u"keV";
+    # what is this parameter?
+    c = typemax(daq_type) / ((max_e-offset)/uconvert(u"keV", germanium_ionization_energy))
+end
 
-daq_type = UInt16
-daq_max_e = 10_000u"keV" # == typemax(UInt16)
-daq_offset = 2_000u"keV";
-c = typemax(daq_type) / ((daq_max_e-daq_offset)/uconvert(u"keV", germanium_ionization_energy))
+daq = DAQ()
 
-# PreAmp (pa)
-# pa_τ_decay = T(50)u"μs"; # decay constant of the preamp
-# pa_τ_rise = T(20)u"ns"; # has something to do with the bandwidth of the preamp I believe
-pa_τ_decay = T(5)*u"μs"
-pa_τ_rise = T(2)*u"ns"
 
+"""
+A shelf to put all the preamplifier parameters in
+later to be filled from a configuration file
+"""
+@with_kw mutable struct PreAmp
+    # pa_τ_decay = T(50)u"μs"; # decay constant of the preamp
+    # pa_τ_rise = T(20)u"ns"; # has something to do with the bandwidth of the preamp I believe
+    τ_decay::μs = T(5)*u"μs"
+    τ_rise::ns = T(2)*u"ns"
+end
+
+pa = PreAmp()
+
+# sigma for electronic noise
 noise_σ = uconvert(u"eV", T(3)u"keV") / germanium_ionization_energy
 
 ##
 
-function main()
-    ### Read mcpss events
-#    mc_name = "raw-IC160A-Th228-uncollimated-top-run0002-source_holder-bi-hdf5-02"
-    mc_name = "raw-IC160A-Th228-uncollimated-top-run0002-source_holder-bi-hdf5-01-test"
+"""
+mcpss_to_mcraw(mcpss, mctruth)
 
-    mcpss = read_mcpss("cache/$(mc_name)_mcpss.h5")
-    mctruth = read_mctruth("cache/$(mc_name)_mcpss.h5")
-    mcpss_to_mcraw(mcpss, mctruth, mc_name)
-end
+Process simulated waveforms to account for DAQ and electronics effects,
+resulting in a table that mimics raw data format.
 
-function mcpss_to_mcraw(mcpss, mctruth, mc_name)
+mcpss: Table with simulated waveforms (output of mcstp_to_mcpss)
+mctruth: Table with MC truth (currently used to add DAQ timestamp)
+
+Output: Table
+"""
+function mcpss_to_mcraw(mcpss::Table, mctruth::Table)
     ### Create arrays to be filled with results, and online energy
     idx_end = size(mcpss.waveform,1)
     wf_array = Array{RDWaveform}(undef, idx_end)
-    temp = 1.0u"keV"; K = typeof(temp);
-    online_energy = Array{K}(undef, idx_end)
+    # temp = 1.0u"keV"; K = typeof(temp);
+    online_energy = Array{keV}(undef, idx_end)
     baseline = Array{T}(undef, idx_end)
     baseline_rms = Array{T}(undef, idx_end)
 
@@ -79,9 +81,9 @@ function mcpss_to_mcraw(mcpss, mctruth, mc_name)
     ### loop over each wf and process it
 #    idx_end = 4099
 #    for i in 4098:idx_end
-#    for i in 1:idx_end
-    @showprogress 1 "Processing..." for i in 1:idx_end
-#        println("$i / $idx_end")
+   for i in 1:idx_end
+    # @showprogress 1 "Processing..." for i in 1:idx_end
+       if(i % 500 == 0) println("$i / $idx_end") end
 #        plot_wf = plot(mcpss.waveform[i])
 #        png(plot_wf, "step01-mcpss-wf_wf$i.png")
 
@@ -135,7 +137,7 @@ function mcpss_to_mcraw(mcpss, mctruth, mc_name)
 #        plot_wf = plot(wf_array[i], label = "Online Energy = $(online_energy[i])", title = "raw-data-like-waveform")
 #        png(plot_wf, "step06-daq-trigger_wf$i.png")
 
-        baseline[i], baseline_rms[i] = mean_and_std(wf_array[i].value[1:daq_baseline_length])
+        baseline[i], baseline_rms[i] = mean_and_std(wf_array[i].value[1:daq.baseline_length])
 
     end
 
@@ -155,26 +157,14 @@ function mcpss_to_mcraw(mcpss, mctruth, mc_name)
         tracelist = VectorOfVectors([[1] for idx in 1:length(baseline)]), # lists of ADCs that triggered, 1 for HADES all the time
         waveform = wf_final,
         wf_max = maximum.(wf_final.value), # ?
-        wf_std = std.(wf_final.value[1:daq_baseline_length]) # ?
+        wf_std = std.(wf_final.value[1:daq.baseline_length]) # ?
     )
 
-
-    ##
-
-    #
     # electruth = Table(
     #     # fill in noise and DAQ parameters
     # )
 
-    #
-
-    @info "Saving table..."
-    out_filename = "cache/$(mc_name)_mcraw.h5"
-    println("-> $out_filename")
-    HDF5.h5open(out_filename, "w") do f
-        LegendDataTypes.writedata(f, "raw", mcraw)
-    end
-    println("Done")
+    mcraw
 
 
 end
@@ -182,9 +172,17 @@ end
 
 ##
 
-function read_mcpss(filename)
-    @info "Reading mcpss"
-    println(filename)
+"""
+read_mcpss(filename)
+
+Helper function to read simulation output from an HDF5 file with mcpss format
+(to be rewritten as a mcstp_to_mcpss() function that reads from storage)
+
+filename: name of mcpss file
+Output: Table
+"""
+function read_mcpss(filename::AbstractString)
+    @info "Reading mcpss from $filename"
 
     HDF5.h5open(filename) do input
         Table(
@@ -195,9 +193,18 @@ function read_mcpss(filename)
     end
 end
 
-function read_mctruth(filename)
-    @info "Reading MC truth"
-    println(filename)
+
+"""
+read_mctruth(filename)
+
+Helper function to read mctruth from an HDF5 file with mcpss format
+(to be rewritten as a mcstp_to_mcpss() function that reads from storage)
+
+filename: name of mcpss file
+Output: Table
+"""
+function read_mctruth(filename::AbstractString)
+    @info "Reading MC truth from $filename"
 
     HDF5.h5open(filename) do input
         Table(
@@ -211,16 +218,16 @@ function read_mctruth(filename)
 end
 ##
 
-function dspjl_differentiator_filter(gain::Real)
-    # The waveform is in units of induced charge (integrated form).
-    # But we want to transform it into its differential form (current).
-    # We will use a BiQuad filter for this: https://en.wikipedia.org/wiki/Digital_biquad_filter
-    # The following functions to create filters are in general in `RadiationDetectorDSP` .jl(#dev branch)
-    T = float(typeof(gain))
-    Biquad(T(gain), T(-gain), T(0), T(0), T(0))
-end
+"""
+differentiate_wf(wf)
 
-function differentiate_wf(wf)
+Differentiate a waveform using Biquad filter
+(see function dspjl_differentiator_filter)
+
+wf: RDWaveform
+Output: RDWaveform
+"""
+function differentiate_wf(wf::SolidStateDetectors.RDWaveform)
     diff_biquad_filter = dspjl_differentiator_filter(T(1)) # We want a gain of 1 here
     filter_output = filt(diff_biquad_filter, wf.value)
     # !!! We have to implement a method do parse a RDWaveform to `filt`
@@ -228,47 +235,112 @@ function differentiate_wf(wf)
     wf_diff
 end
 
+"""
+dspjl_differentiator_filter(gain::Real)
+
+Differentiator filter (later to be part of LegendDSP)
+
+The waveform is in units of induced charge (integrated form).
+But we want to transform it into its differential form (current).
+We will use a BiQuad filter for this: https://en.wikipedia.org/wiki/Digital_biquad_filter
+
+gain: ?
+Output: ?
+"""
+function dspjl_differentiator_filter(gain::Real)
+
+    T = float(typeof(gain))
+    Biquad(T(gain), T(-gain), T(0), T(0), T(0))
+end
+
 
 ##
 
-# simulate a charge sensitive amplifier (`CSA`)
-# For this, we need a `RC` filter and an `integrator` filter (the inverser of the `dspjl_differentiator_filter`)
-# This filters can all be made by BiQuad filter (with different paramters)
-# These BiQuad filters can also be combined together nicely, see `dspjl_simple_csa_response_filter` where to filter are multiplied.
+"""
+simulate_csa(wf)
 
-function dspjl_rc_filter(RC::Real)
-    T = float(typeof(RC))
-    α = 1 / (1 + RC)
-    Biquad(T(α), T(0), T(0), T(α - 1), T(0))
+Simulate a charge sensitive amplifier (`CSA`)
+Here, the parameters τ_rise and τ_decay have to be given in units of samples,
+because the `filt`-function does not know the Δt between the samples.
+
+wf: RDWaveform
+Output: RDWaveform
+"""
+function simulate_csa(wf::SolidStateDetectors.RDWaveform)
+
+    csa_filter = dspjl_simple_csa_response_filter(
+        pa.τ_rise / step(wf.time),
+        uconvert(u"ns", pa.τ_decay) / step(wf.time))
+
+    pa_wf = RDWaveform(wf.time, filt(csa_filter, wf.value))
+    pa_wf
 end
 
-function dspjl_integrator_cr_filter(gain::Real, RC::Real)
-    T = float(promote_type(typeof(gain), typeof(RC)))
-    α = 1 / (1 + RC)
-    Biquad(T(gain), T(-α), T(0), T(α - 1), T(0))
-end
 
+"""
+dspjl_simple_csa_response_filter(τ_rise, τ_decay, gain)
+
+Simulate CSA response using the RC and integrator filters
+τ_rise: ?
+τ_decay: ?
+gain: ?
+
+Output: ?
+"""
 function dspjl_simple_csa_response_filter(τ_rise::Real, τ_decay::Real, gain::Real = one(τ_rise))
     # TODO: Use a single biquad filter
     T = float(promote_type(promote_type(typeof(τ_rise), typeof(τ_decay)), typeof(gain)))
     dspjl_rc_filter(T(τ_rise)) * dspjl_integrator_cr_filter(T(gain), T(τ_decay))
 end
 
-function simulate_csa(wf)
-    # Here, the parameters τ_rise and τ_decay have to be given in units of samples,
-    # because the `filt`-function does not know the Δt between the samples.
 
-    csa_filter = dspjl_simple_csa_response_filter(
-        pa_τ_rise / step(wf.time),
-        uconvert(u"ns", pa_τ_decay) / step(wf.time))
+"""
+dspjl_rc_filter(RC)
 
-    pa_wf = RDWaveform(wf.time, filt(csa_filter, wf.value))
-    pa_wf
+An `RC` filter made with BiQuad filter
+
+Differentiate a waveform using Biquad filter
+(see function dspjl_differentiator_filter)
+
+wf: RDWaveform
+Output: RDWaveform
+"""
+function dspjl_rc_filter(RC::Real)
+    T = float(typeof(RC))
+    α = 1 / (1 + RC)
+    Biquad(T(α), T(0), T(0), T(α - 1), T(0))
 end
 
-##
+"""
+dspjl_integrator_cr_filter(gain, RC)
 
-function simulate_noise(wf)
+An `integrator` filter (the inverser of the `dspjl_differentiator_filter`)
+
+gain: ?
+RC: ?
+
+Output: ?
+"""
+function dspjl_integrator_cr_filter(gain::Real, RC::Real)
+    T = float(promote_type(typeof(gain), typeof(RC)))
+    α = 1 / (1 + RC)
+    Biquad(T(gain), T(-α), T(0), T(α - 1), T(0))
+end
+
+
+##
+"""
+simulate_noise(wf)
+
+Simulate electronic noise
+Currently simple Gaussian noise. Parameters defined on top of the script
+(currently dummy values).
+TODO: parameters read from config file
+
+wf: RDWaveform
+Output: RDWaveform
+"""
+function simulate_noise(wf::SolidStateDetectors.RDWaveform)
     # I am no expert here. I don't know at which point one should introduce noise.
     # Also, different noise could be added at different stages. This really depends on the electronics.
     # I will just add some Gaussian Noise (σ of 3 keV defined on top)
@@ -284,29 +356,37 @@ function simulate_noise(wf)
 end
 
 ##
+"""
+daq_baseline(wf)
 
-function daq_baseline(wf)
-    o = c * uconvert(u"eV", daq_offset) / germanium_ionization_energy
+Add DAQ baseline
+
+wf: RDWaveform
+Output:
+"""
+function daq_baseline(wf::SolidStateDetectors.RDWaveform)
+    o = daq.c * uconvert(u"eV", daq.offset) / germanium_ionization_energy
 
     # invert the pulse if needed
     sign = wf.value[end] < 0 ? -1 : 1
 
-    daq_buffer_wv = RDWaveform(wf.time, daq_type.(round.(sign * wf.value .* c .+ o, digits = 0)))
+    daq_buffer_wv = RDWaveform(wf.time, daq.daq_type.(round.(sign * wf.value .* daq.c .+ o, digits = 0)))
     daq_buffer_wv
 end
 
-function daq_online_filter(values::AbstractVector, offset::Int, window_lengths::NTuple{3, Int}, threshold)
-    wl = window_lengths
-    r1 = offset+wl[1]+wl[2]:offset+wl[1]+wl[2]+wl[3]
-    r2 = offset+wl[1]+wl[2]+wl[3]:offset+sum(window_lengths)
-    r = mean(values[r2]) - mean(values[r1])
-    r, r >= threshold
-end
 
-function daq_trigger(wf)
+"""
+daq_trigger(wf)
+
+Simulate DAQ trigger. Returns a waveform with trigger and resulting online energy
+
+wf: RDWaveform
+Output: RDwaveform, float
+"""
+function daq_trigger(wf::SolidStateDetectors.RDWaveform)
     daq_trigger_window_lengths = (250,250,250)
     daq_trigger_window_length = sum(daq_trigger_window_lengths)
-    daq_trigger_threshold = noise_σ * 10 * c
+    daq_trigger_threshold = noise_σ * 10 * daq.c
 
     online_filter_output = zeros(T, length(wf.value) - daq_trigger_window_length)
     t0_idx = 0
@@ -323,23 +403,37 @@ function daq_trigger(wf)
         end
     end
 
-    ts = range(T(0)u"ns", step = daq_Δt, length = daq_nsamples)
+    ts = range(T(0)u"ns", step = daq.Δt, length = daq.nsamples)
     # in case it didn't trigger
     if(t0_idx == 0)
-        stored_waveform = RDWaveform(ts, wf.value[1:daq_nsamples]) # just to return something
+        stored_waveform = RDWaveform(ts, wf.value[1:daq.nsamples]) # just to return something
         online_energy = 0u"keV" # flag meaning didn't trigger
     else
-        online_energy = uconvert(u"keV", maximum(online_filter_output) * germanium_ionization_energy / c)
-        iStart = t0_idx-daq_baseline_length
-        stored_waveform = RDWaveform(ts, wf.value[iStart:iStart+daq_nsamples-1]);
+        online_energy = uconvert(u"keV", maximum(online_filter_output) * germanium_ionization_energy / daq.c)
+        iStart = t0_idx-daq.baseline_length
+        stored_waveform = RDWaveform(ts, wf.value[iStart:iStart+daq.nsamples-1]);
     end
 
     stored_waveform, online_energy
 end
 
-##
+"""
+daq_online_filter(values, offset, window_lengths, threshold)
 
+Used to simulate DAQ output (?)
+(see function daq_trigger)
 
-##
+values: waveform values
+offset: ?
+window_lengths: ?
+threshold: ?
 
-#main()
+Output: ?
+"""
+function daq_online_filter(values::AbstractVector, offset::Int, window_lengths::NTuple{3, Int}, threshold)
+    wl = window_lengths
+    r1 = offset+wl[1]+wl[2]:offset+wl[1]+wl[2]+wl[3]
+    r2 = offset+wl[1]+wl[2]+wl[3]:offset+sum(window_lengths)
+    r = mean(values[r2]) - mean(values[r1])
+    r, r >= threshold
+end

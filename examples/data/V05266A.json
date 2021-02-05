@@ -1,0 +1,245 @@
+{
+  "units": {
+    "length": "mm",
+    "potential": "V",
+    "angle": "deg",
+    "temperature": "K"
+  },
+  "name": "Public Inverted Coax",
+  "medium": "vacuum",
+  "objects": [
+    {
+      "material": "HPGe",
+      "charge_density_model": {
+        "name": "linear",
+        "phi": {
+          "init": 0.0,
+          "gradient": 0.0
+        },
+        "r": {
+          "init": 0.0,
+          "gradient": 0.0
+        },
+        "z": {
+          "init": -1.0e7,
+          "gradient": 5e4
+        }
+      },
+      "geometry": {
+            "parts": [
+              {
+                "parts": [
+                  {
+                    "name": "Initial Cylinder",
+                    "phi": {
+                      "to": 360.0,
+                      "from": 0.0
+                    },
+                    "r": {
+                      "to": 40,
+                      "from": 0.0
+                    },
+                    "type": "tube",
+                    "h": 75.2
+                  },
+                  {
+                    "name": "Ditch",
+                    "phi": {
+                      "to": 360.0,
+                      "from": 0.0
+                    },
+                    "r": {
+                      "to": 13.0,
+                      "from": 16.0
+                    },
+                    "type": "tube",
+                    "h": 2.0
+                  }
+                ],
+                "type": "difference"
+              },
+              {
+                "translate": {
+                  "x": 0,
+                  "z": 33.2
+                },
+                "name": "Inner Cone",
+                "phi": {
+                  "to": 360.0,
+                  "from": 0.0
+                },
+                "r": {
+                  "to": 4.0,
+                  "from": 0
+                },
+                "type": "tube",
+                "h": 42
+              }
+            ],
+            "type": "difference"
+      },
+      "type": "semiconductor",
+      "bulk_type": "p",
+      "temperature": 90.0
+    },
+    {
+      "channel": 1,
+      "material": "HPGe",
+      "geometry": {
+        "parts": [
+          {
+            "phi": {
+              "to": 360.0,
+              "from": 0.0
+            },
+            "r": {
+              "to": 13.0,
+              "from": 0.0
+            },
+            "type": "tube",
+            "h": 0.0
+          }
+        ],
+        "type": "union"
+      },
+      "potential": 0.0,
+      "type": "contact"
+    },
+    {
+      "channel": 2,
+      "material": "HPGe",
+      "geometry": {
+        "parts": [
+          {
+            "name": "bottom_contact",
+            "phi": {
+              "to": 360.0,
+              "from": 0.0
+            },
+            "r": {
+              "to": 40,
+              "from": 16.0
+            },
+            "type": "tube",
+            "h": 0.0
+          },
+          {
+            "name": "side_contact",
+            "translate": {
+              "z": 0
+            },
+            "phi": {
+              "to": 360.0,
+              "from": 0.0
+            },
+            "r": {
+              "to": 40,
+              "from": 40
+            },
+            "type": "tube",
+            "h": 75.2
+          },
+          {
+            "parts": [
+              {
+                "name": "top_cylinder",
+                "translate": {
+                  "z": 75.2
+                },
+                
+                "phi": {
+                  "to": 360.0,
+                  "from": 0.0
+                },
+                "r": {
+                  "to": 40,
+                  "from": 0.0
+                },
+                "type": "tube",
+                "h": 0.
+              },
+              {
+                "name": "top_well",
+                "translate": {
+                  "x": 0,
+                  "z": 75.2
+                },
+                "phi": {
+                  "to": 360.0,
+                  "from": 0.0
+                },
+                "r": {
+                  "to": 4,
+                  "from": 0
+                },
+                "type": "tube",
+                "h": 0.
+              }
+            ],
+            "type": "difference"
+          },
+          {
+            "name":"bottom_well",
+            "translate": {
+              "x": 0,
+              "z": 33.2
+            },
+            "phi": {
+              "to": 360.0,
+              "from": 0.0
+            },
+            "r": {
+              "to": 4.0,
+              "from": 0.0
+            },
+            "type": "tube",
+            "h": 0.0
+          },
+          {
+            "name":"side_well",
+            "translate": {
+              "x": 0,
+              "z": 33.2
+            },
+            "phi": {
+              "to": 360.0,
+              "from": 0.0
+            },
+            "r": {
+              "to": 4.0,
+              "from": 4.0
+            },
+            "type": "tube",
+            "h": 42
+          }
+        ],
+        "type": "union"
+      },
+      "potential": 5000,
+      "type": "contact"
+    }
+  ],
+  
+  "grid": {
+    "coordinates": "cylindrical",
+    "axes": {
+      "phi": {
+        "boundaries": "periodic",
+        "to": 0,
+        "from": 0
+      },
+      "r": {
+        "boundaries": "inf",
+        "to": 42.0
+      },
+      "z": {
+        "boundaries": {
+          "left": "inf",
+          "right": "inf"
+        },
+        "to": 80.0,
+        "from": -10
+      }
+    }
+  }
+}
