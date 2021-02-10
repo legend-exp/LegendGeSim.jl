@@ -1,8 +1,3 @@
-# Process mcstp events to mcpss
-# (simulate waveforms from g4simple events using SSD)
-# Author: Mariia Redchuk mariia.redchuk@pd.infn.it
-
-
 T = Float32
 
 Random.seed!(123) # only for testing
@@ -15,13 +10,13 @@ total_waveform_length = 8000;
 
 ##
 """
-cstp_to_mcpss(det_path, det_name, mc_events)
+    cstp_to_mcpss(det_path, det_name, mc_events)
 
 Simulate waveforms based on given MC events for a given detector.
 Returns the resulting simulation and MC truth
 
 det_path: path to detector json file
-det_name: detector name (e.g. "V05266A").
+det_name: detector name (e.g. "V05266A")
 The code will look for a .json file "det_path/det_name.json"
 mc_events: table in the mcstp format (output of g4_to_mcstp)
 
@@ -44,7 +39,7 @@ function mcstp_to_mcpss(det_path::AbstractString, det_name::AbstractString, mc_e
 end
 
 """
-detector_simulation(det_path, det_name)
+    detector_simulation(det_path, det_name)
 
 Read cached h5 detector simulation if exists,
 otherwise simulate detector based on json geometry.
@@ -70,7 +65,7 @@ end
 
 
 """
-simulate_detector(det_path, det_name)
+    simulate_detector(det_path, det_name)
 
 Simulate detector based on json geometry.
 
@@ -118,7 +113,7 @@ end
 
 
 """
-read_mcstp(filename)
+    read_mcstp(filename)
 
 Helper function to read MC events from an HDF5 file with mcstp format
 (g4simple events in the format compatible with SSD simulate_waveforms method)
@@ -144,7 +139,6 @@ function read_mcstp(mcfilename::AbstractString)
         @info("Reading MC events from Geant4-CSV.")
         mc_events = open(read, mctruth_filename_csv, Geant4CSVInput)
         mkpath(dirname(mctruth_filename_hdf5))
-        # println("Writing MC events to HDF5.")
         HDF5.h5open(mctruth_filename_hdf5, "w") do output
             writedata(output, "mctruth", mc_events)
         end
@@ -156,7 +150,7 @@ end
 
 ##
 """
-MCstp
+    MCstp(simulation, mc_events)
 A struct containing two things needed for waveform simulation:
     simulation: SSD detector simulation object
     mc_events: Table of mcstp format
@@ -167,7 +161,7 @@ mutable struct MCstp
 end
 
 """
-add_fnoise(mcstp)
+    add_fnoise(mcstp)
 
 Add fano noise to MC events
 
@@ -182,7 +176,7 @@ function add_fnoise(mcstp::MCstp)
 end
 
 """
-simulate_wf(mcstp)
+    simulate_wf(mcstp)
 
 Simulate waveforms based on given MC events and detector simulation,
 contained in the MCstp struct. Returns resulting mcpss table

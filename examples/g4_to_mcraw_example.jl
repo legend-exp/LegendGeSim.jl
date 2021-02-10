@@ -6,18 +6,16 @@ using LegendDataTypes
 ##
 
 det_name = "V05266A"
-det_path = "/home/sagitta/_legend/pss/LegendGeSim.jl/examples/data/"
-# det_path = "data/"
+det_path = "data/"
 mc_name = "raw-IC160A-Th228-uncollimated-top-run0002-source_holder-bi-hdf5-01-test"
-# mc_path = "data/"
-mc_path = "/home/sagitta/_legend/pss/LegendGeSim.jl/examples/data/"
+mc_path = "data/"
 
 # processed_dir = "cache"
 processed_dir = "/home/sagitta/_legend/pss/LegendGeSim.jl/examples/cache/"
 
 ##
 
-mcraw_table, mcpss_mctruth = LegendGeSim.g4_to_mcraw(det_name, det_path, mc_name, mc_path, processed_dir)
+mcraw_table, mcpss_mctruth = LegendGeSim.g4_to_mcraw(det_name, det_path, mc_name, mc_path)
 
 ##
 @info "Saving table..."

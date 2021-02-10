@@ -1,12 +1,5 @@
-##############################################
-# Written by Gulden Othman for CAGE simulation processing.
-# Should work for any g4simple output file in hdf5 format
-# July, 2020
-##############################################
-# https://github.com/legend-exp/CAGE/blob/master/sims/post_process/julia_post_process.jl
-
 """
-g4_to_mcstp(g4_filename)
+    g4_to_mcstp(g4_filename)
 
 Process a raw g4simple simulation output (hdf5) into a Table grouped grouped by event,
 which serves as input to SolidStateDetectors.simulate_waveforms() function

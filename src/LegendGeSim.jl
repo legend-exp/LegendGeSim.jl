@@ -12,7 +12,7 @@ module LegendGeSim
 using ArgCheck
 using ArraysOfArrays
 using Clustering
-using DataFrames # not in Project.toml and not supposed to use (only Tables)
+using DataFrames # remove and use only Tables 
 using Distributions
 using DSP # Julia's Digital Signal Processor (DSP) Package
 using ElasticArrays
