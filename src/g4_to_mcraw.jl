@@ -19,7 +19,7 @@ function g4_to_mcraw(det_name::AbstractString, det_path::AbstractString, mc_name
     mcpss_table, mcpss_mctruth = LegendGeSim.mcstp_to_mcpss(det_path, det_name, mcstp_table)
 
     @info "----- mcpss -> mcraw"
-    mcraw_table = LegendGeSim.mcpss_to_mcraw(mcpss_table, mcpss_mctruth) # saves the final output
+    mcraw_table = LegendGeSim.mcpss_to_mcraw(mcpss_table, mcpss_mctruth) 
 
     mcraw_table, mcpss_mctruth
 end

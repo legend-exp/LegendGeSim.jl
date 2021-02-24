@@ -28,6 +28,6 @@ out_filename = joinpath(processed_dir, base_filename) * processed_extension
 if !ispath(dirname(out_filename)) mkpath(dirname(out_filename)) end
 
 HDF5.h5open(out_filename, "w") do f
-    LegendDataTypes.writedata(f, "mctruth", mcstp_table)
+    LegendDataTypes.writedata(f, "mcstp", mcstp_table)
 end
 println("Processed file save to: $out_filename")

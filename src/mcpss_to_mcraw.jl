@@ -86,6 +86,7 @@ function mcpss_to_mcraw(mcpss::Table, mctruth::Table)
    for i in 1:idx_end
     # @showprogress 1 "Processing..." for i in 1:idx_end
        if(i % 500 == 0) println("$i / $idx_end") end
+#        println("$i / $idx_end")
 
         ### Differentiate
         wf = differentiate_wf(mcpss.waveform[i])
