@@ -5,6 +5,9 @@ using LegendDataTypes
 
 ##
 
+## full chain g4 -> mcstp -> mcpss -> mcraw
+# only the last stage is saved
+
 det_name = "V05266A"
 det_path = "data/"
 mc_name = "raw-IC160A-Th228-uncollimated-top-run0002-source_holder-bi-hdf5-01-test"

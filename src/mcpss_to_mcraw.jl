@@ -37,7 +37,7 @@ later to be filled from a configuration file
     offset::keV = 2_000u"keV";
 
     "What is this parameter?"
-    c = typemax(daq_type) / ((max_e-offset)/uconvert(u"keV", germanium_ionization_energy))
+    c = typemax(daq_type) / ((max_e+offset)/uconvert(u"keV", germanium_ionization_energy))
 end
 
 daq = DAQ()
@@ -49,10 +49,10 @@ later to be filled from a configuration file
 """
 @with_kw mutable struct PreAmp
     "PreAmp exp decay time"
-    τ_decay::μs = T(5)*u"μs"
+    τ_decay::μs = (50)*u"μs"
     
     "PreAmp rise time"
-    τ_rise::ns = T(2)*u"ns"
+    τ_rise::ns = T(15)*u"ns"
 end
 
 pa = PreAmp()
@@ -136,7 +136,9 @@ function mcpss_to_mcraw(mcpss::Table, mctruth::Table)
         tracelist = VectorOfVectors([[1] for idx in 1:length(baseline)]), # lists of ADCs that triggered, 1 for HADES all the time
         waveform = wf_final,
         wf_max = maximum.(wf_final.value), # ?
-        wf_std = std.(wf_final.value[1:daq.baseline_length]) # ?
+        # wf_std = Vector([ std(wf_final[idx].value[1:daq.baseline_length] for idx in 1:length(wf_final))])
+        wf_std = std.(wf_final.value) # ?
+        # wf_std = std.(wf_final.value[1:daq.baseline_length]) # ?
     )
 
     # electruth = Table(
@@ -165,9 +167,9 @@ function read_mcpss(filename::AbstractString)
 
     HDF5.h5open(filename) do input
         Table(
-            channel = readdata(input, "mcpss/mcpss/channel"),
-            ievt = readdata(input, "mcpss/mcpss/ievt"),
-            waveform = readdata(input, "mcpss/mcpss/waveform")
+            channel = LegendDataTypes.readdata(input, "mcpss/mcpss/channel"),
+            ievt = LegendDataTypes.readdata(input, "mcpss/mcpss/ievt"),
+            waveform = LegendDataTypes.readdata(input, "mcpss/mcpss/waveform")
         )
     end
 end
@@ -187,11 +189,11 @@ function read_mctruth(filename::AbstractString)
 
     HDF5.h5open(filename) do input
         Table(
-            detno = readdata(input, "mcpss/mctruth/detno"),
-            edep = readdata(input, "mcpss/mctruth/edep"),
-            ievt = readdata(input, "mcpss/mctruth/ievt"),
-            pos = readdata(input, "mcpss/mctruth/pos"),
-            thit = readdata(input, "mcpss/mctruth/thit")
+            detno = LegendDataTypes.readdata(input, "mcpss/mctruth/detno"),
+            edep = LegendDataTypes.readdata(input, "mcpss/mctruth/edep"),
+            ievt = LegendDataTypes.readdata(input, "mcpss/mctruth/ievt"),
+            pos = LegendDataTypes.readdata(input, "mcpss/mctruth/pos"),
+            thit = LegendDataTypes.readdata(input, "mcpss/mctruth/thit")
         )
     end
 end
@@ -347,7 +349,8 @@ function daq_baseline(wf::SolidStateDetectors.RDWaveform)
     # invert the pulse if needed
     sign = wf.value[end] < 0 ? -1 : 1
 
-    daq_buffer_wv = RDWaveform(wf.time, daq.daq_type.(round.(sign * wf.value .* daq.c .+ o, digits = 0)))
+    # daq_buffer_wv = RDWaveform(wf.time, daq.daq_type.(round.(sign * wf.value .* daq.c .+ o, digits = 0)))
+    daq_buffer_wv = RDWaveform(wf.time, daq.daq_type.(round.(sign / ustrip(germanium_ionization_energy) * wf.value .* daq.c .+ o, digits = 0)))
     daq_buffer_wv
 end
 

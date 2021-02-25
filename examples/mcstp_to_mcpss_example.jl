@@ -1,25 +1,33 @@
+
 using LegendGeSim
-
-using HDF5
 using LegendDataTypes
-
-# This example code is useful for debugging mcpss->mcraw
-# Run this code to produce and save mcpss, to save time when testing the mcpss->mcraw step
+using HDF5
 
 ##
-det_name = "V05266A"
-det_path = "data/"
+
+## Use to save time to do only one stage mcstp->mcpss
+# Reads an already existing mcstp file
+
 mc_name = "raw-IC160A-Th228-uncollimated-top-run0002-source_holder-bi-hdf5-01-test"
-mc_path = "data/"
-processed_dir = "cache"
+mc_path = "mcstp/"
+det_name = "V05266A"
+det_path = "."
+processed_dir = "mcpss/"
 
 ##
-@info "----- g4simple -> mcstp"
-g4_name = joinpath(mc_path, mc_name * ".hdf5")
-mcstp_table = LegendGeSim.g4_to_mcstp(g4_name)
+
+@info "Reading mcstp"
+mcstp_name = joinpath(mc_path, mc_name*"_mcstp.h5")
+mcstp_table = HDF5.h5open(mcstp_name, "r") do input
+    LegendDataTypes.readdata(input, "mcstp")
+end
+
 ##
+
 @info "----- mcstp -> mcpss"
 mcpss_table, mcpss_mctruth = LegendGeSim.mcstp_to_mcpss(det_path, det_name, mcstp_table)
+
+##
 
 ## save results
 println("...saving table")
