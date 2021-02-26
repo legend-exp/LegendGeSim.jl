@@ -1,7 +1,6 @@
 using LegendGeSim
 using LegendDataTypes
 using HDF5
-using Tables, TypedTables
 ##
 
 ## Use this to debug mcpss->mcraw and tune DAQ and preamp parameters
@@ -9,12 +8,15 @@ using Tables, TypedTables
 
 ##
 
-# mc_name = "raw-IC160A-Th228-uncollimated-top-run0002-source_holder-bi-hdf5-01-test"
-mc_name = "raw-IC160A-Th228-uncollimated-top-run0002-source_holder-bi-hdf5-02"
-mc_path = "mcpss/"
+mc_name = "raw-IC160A-Th228-uncollimated-top-run0002-source_holder-bi-hdf5-01-test"
+# mc_name = "raw-IC160A-Th228-uncollimated-top-run0002-source_holder-bi-hdf5-02"
+mc_path = "cache/"
 det_name = "V05266A"
-det_path = "."
-processed_dir = "mcraw/"
+det_path = "data/"
+processed_dir = "cache/"
+# daq_config = 'data/daq_config.json'
+# preamp_config = 'data/preamp_config.json'
+elec_config = "data/elec.json"
 
 ##
 mcpss_name = joinpath(mc_path, mc_name*"_mcpss.h5")
@@ -27,8 +29,7 @@ mcpss_mctruth = LegendGeSim.read_mctruth(mcpss_name)
 ##
 
 @info "----- mcpss -> mcraw"
-# the bug is here
-mcraw_table = LegendGeSim.mcpss_to_mcraw(mcpss_table, mcpss_mctruth) 
+mcraw_table = LegendGeSim.mcpss_to_mcraw(mcpss_table, mcpss_mctruth, elec_config) 
 
 ##
 

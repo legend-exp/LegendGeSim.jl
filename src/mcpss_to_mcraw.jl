@@ -1,67 +1,3 @@
-keV_unit = 1.0u"keV"; keV = typeof(keV_unit);
-MHz_unit = 1.0u"MHz"; MHz = typeof(MHz_unit);
-ns_unit = 1.0u"ns"; ns = typeof(ns_unit);
-μs_unit = 1.0u"μs"; μs = typeof(μs_unit);
-
-
-## Fix basic parameters
-
-T = Float32
-
-germanium_ionization_energy = T(2.95)u"eV"
-
-"""
-A shelf to put all the DAQ parameters in
-later to be filled from a configuration file
-"""
-@with_kw struct DAQ
-    "How many samples DAQ stores (final wf length). Has to be smaller than total wf length (defined in mcraw_to_mcpss.jl)"
-    nsamples::Int = 4000; # samples per waveform
-
-    "Length of DAQ baseline"
-    baseline_length::Int = 400;
-
-    "DAQ sampling rate. Needed to calculate Δt"
-    sampling_rate::MHz = 250u"MHz"
-
-    "Inverse of sampling rate. Needed for DAQ trigger"
-    Δt::ns = uconvert(u"ns", inv(sampling_rate));
-
-    "DAQ type. Needed to make sure the wf values are..."
-    daq_type = UInt16
-
-    "Maximum energy DAQ can register?"
-    max_e::keV = 10_000u"keV" # == typemax(UInt16)
-
-    "DAQ offset"
-    offset::keV = 2_000u"keV";
-
-    "What is this parameter?"
-    c = typemax(daq_type) / ((max_e+offset)/uconvert(u"keV", germanium_ionization_energy))
-end
-
-daq = DAQ()
-
-
-"""
-A shelf to put all the preamplifier parameters in
-later to be filled from a configuration file
-"""
-@with_kw mutable struct PreAmp
-    "PreAmp exp decay time"
-    τ_decay::μs = (50)*u"μs"
-    
-    "PreAmp rise time"
-    τ_rise::ns = T(15)*u"ns"
-end
-
-pa = PreAmp()
-
-# sigma for electronic noise
-const noise_σ = uconvert(u"eV", T(3)u"keV") / germanium_ionization_energy
-
-##
-
 """
     mcpss_to_mcraw(mcpss, mctruth)
 
@@ -73,13 +9,19 @@ mctruth: Table with MC truth (currently used to add DAQ timestamp)
 
 Output: Table
 """
-function mcpss_to_mcraw(mcpss::Table, mctruth::Table)
+function mcpss_to_mcraw(mcpss::Table, mctruth::Table, elec_conf_file::AbstractString)
     ### Create arrays to be filled with results, and online energy
     idx_end = size(mcpss.waveform,1)
     wf_array = Array{RDWaveform}(undef, idx_end)
     online_energy = Array{keV}(undef, idx_end)
     baseline = Array{T}(undef, idx_end)
     baseline_rms = Array{T}(undef, idx_end)
+
+    ## electronics configuration
+    @info "Elec config taken from: $elec_conf_file"
+    elec_conf = PropDicts.read(PropDict, elec_conf_file)
+    daq = construct_DAQ(elec_conf)
+    preamp = construct_PreAmp(elec_conf)
 
     @info "Processing waveforms..."
     ### loop over each wf and process it
@@ -95,10 +37,10 @@ function mcpss_to_mcraw(mcpss::Table, mctruth::Table)
         ### 1. PreAmp Simulation
 
         #### 1.1. Simulate a charge sensitive amplifier (`CSA`)
-        wf_array[i] = simulate_csa(wf_array[i])
+        wf_array[i] = simulate_csa(wf_array[i], preamp)
 
         #### 1.2. Noise
-        wf_array[i] = simulate_noise(wf_array[i])
+        wf_array[i] = simulate_noise(wf_array[i], preamp)
 
         ### 2. DAQ Simulation
 
@@ -110,11 +52,11 @@ function mcpss_to_mcraw(mcpss::Table, mctruth::Table)
         # We took care of this at the beginning
 
         #### 2.1. DAQ units and baseline
-        wf_array[i] = daq_baseline(wf_array[i])
+        wf_array[i] = daq_baseline(wf_array[i], daq)
 
         #### 2.2. Trigger method
         # if online energy is zero, means didn't trigger
-        wf_array[i], online_energy[i] = daq_trigger(wf_array[i])
+        wf_array[i], online_energy[i] = daq_trigger(wf_array[i], daq)
 
         baseline[i], baseline_rms[i] = mean_and_std(wf_array[i].value[1:daq.baseline_length])
 
@@ -247,11 +189,11 @@ because the `filt`-function does not know the Δt between the samples.
 wf: RDWaveform
 Output: RDWaveform
 """
-function simulate_csa(wf::SolidStateDetectors.RDWaveform)
+function simulate_csa(wf::SolidStateDetectors.RDWaveform, preamp::PreAmp)
 
     csa_filter = dspjl_simple_csa_response_filter(
-        pa.τ_rise / step(wf.time),
-        uconvert(u"ns", pa.τ_decay) / step(wf.time))
+        preamp.τ_rise / step(wf.time),
+        uconvert(u"ns", preamp.τ_decay) / step(wf.time))
 
     pa_wf = RDWaveform(wf.time, filt(csa_filter, wf.value))
     pa_wf
@@ -321,12 +263,12 @@ TODO: parameters read from config file
 wf: RDWaveform
 Output: RDWaveform
 """
-function simulate_noise(wf::SolidStateDetectors.RDWaveform)
+function simulate_noise(wf::SolidStateDetectors.RDWaveform, preamp::PreAmp)
     # I am no expert here. I don't know at which point one should introduce noise.
     # Also, different noise could be added at different stages. This really depends on the electronics.
     # I will just add some Gaussian Noise (σ of 3 keV defined on top)
     # lets generate 1000 random samples from this normal distribution
-    gaussian_noise_dist = Normal(T(0), T(noise_σ)) #  Normal() -> Distributions.jjl
+    gaussian_noise_dist = Normal(T(0), T(preamp.noise_σ)) #  Normal() -> Distributions.jjl
     samples = rand(gaussian_noise_dist, 1000)
 
     # Now, lets add this Gaussian noise to other waveform (here, after the filters (but might be also added before))
@@ -343,7 +285,7 @@ Add DAQ baseline
 wf: RDWaveform
 Output:
 """
-function daq_baseline(wf::SolidStateDetectors.RDWaveform)
+function daq_baseline(wf::SolidStateDetectors.RDWaveform, daq::DAQ)
     o = daq.c * uconvert(u"eV", daq.offset) / germanium_ionization_energy
 
     # invert the pulse if needed
@@ -363,10 +305,10 @@ Simulate DAQ trigger. Returns a waveform with trigger and resulting online energ
 wf: RDWaveform
 Output: RDwaveform, float
 """
-function daq_trigger(wf::SolidStateDetectors.RDWaveform)
+function daq_trigger(wf::SolidStateDetectors.RDWaveform, daq::DAQ)
     daq_trigger_window_lengths = (250,250,250)
     daq_trigger_window_length = sum(daq_trigger_window_lengths)
-    daq_trigger_threshold = noise_σ * 10 * daq.c
+    daq_trigger_threshold = daq.noise_σ * 10 * daq.c
 
     online_filter_output = zeros(T, length(wf.value) - daq_trigger_window_length)
     t0_idx = 0

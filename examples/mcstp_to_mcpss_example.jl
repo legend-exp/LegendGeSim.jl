@@ -9,10 +9,10 @@ using HDF5
 # Reads an already existing mcstp file
 
 mc_name = "raw-IC160A-Th228-uncollimated-top-run0002-source_holder-bi-hdf5-01-test"
-mc_path = "mcstp/"
+mc_path = "cache/"
 det_name = "V05266A"
-det_path = "."
-processed_dir = "mcpss/"
+det_path = "data/"
+processed_dir = "cache/"
 
 ##
 

@@ -1,0 +1,14 @@
+{
+    "daq": {
+        "nsamples": 4000,
+        "baseline_length": 400,
+        "sampling_rate": 250,
+        "max_e": 10000,
+        "offset": 2000
+    },
+    "preamp":{
+        "t_decay":5,
+        "t_rise":15          
+    },
+    "noise":3
+}

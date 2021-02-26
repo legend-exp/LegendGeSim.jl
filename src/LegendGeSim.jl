@@ -28,6 +28,7 @@ using LinearAlgebra
 # using RadiationDetectorDSP # By Oliver Schulz
 # using ProgressMeter
 using Parameters
+using PropDicts
 using RadiationDetectorSignals
 using RadiationSpectra
 using Random
@@ -46,6 +47,7 @@ using Unitful
 
 
 include("utils.jl")
+include("elec.jl")
 include("g4_to_mcstp.jl")
 include("mcstp_to_mcpss.jl")
 include("mcpss_to_mcraw.jl")
