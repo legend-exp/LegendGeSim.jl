@@ -47,7 +47,9 @@ using Unitful
 
 
 include("utils.jl")
-include("elec.jl")
+include("sim_config.jl")
+include("elec_chain.jl")
+include("daq.jl")
 include("g4_to_mcstp.jl")
 include("mcstp_to_mcpss.jl")
 include("mcpss_to_mcraw.jl")

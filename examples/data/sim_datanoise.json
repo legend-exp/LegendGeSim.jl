@@ -10,5 +10,5 @@
         "t_decay":5,
         "t_rise":15          
     },
-    "noise":3
+    "noise_data":15
 }

@@ -22,14 +22,16 @@ mc_events: table in the mcstp format (output of g4_to_mcstp)
 
 Output: Table, Table
 """
-function mcstp_to_mcpss(det_path::AbstractString, det_name::AbstractString, mc_events::Table)
+function mcstp_to_mcpss(det_path::AbstractString, det_name::AbstractString, mc_events::Table, sim_config::PropDict)
 
     simulation = detector_simulation(det_path, det_name)
 
     mcstp = MCstp(simulation, mc_events)
 
-    # add fano noise
-    add_fnoise(mcstp)
+    # add fano noise, don't add if data noise is applied later
+    if(sim_config.noise_data == 0)
+        add_fnoise(mcstp)
+    end
 
     # simulate waveforms
     mcpss_table, mcpss_mctruth = simulate_wf(mcstp)

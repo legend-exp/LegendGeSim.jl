@@ -16,7 +16,7 @@ det_path = "data/"
 processed_dir = "cache/"
 # daq_config = 'data/daq_config.json'
 # preamp_config = 'data/preamp_config.json'
-elec_config = "data/elec.json"
+sim_config_file = "data/sim_datanoise.json"
 
 ##
 mcpss_name = joinpath(mc_path, mc_name*"_mcpss.h5")
@@ -29,7 +29,8 @@ mcpss_mctruth = LegendGeSim.read_mctruth(mcpss_name)
 ##
 
 @info "----- mcpss -> mcraw"
-mcraw_table = LegendGeSim.mcpss_to_mcraw(mcpss_table, mcpss_mctruth, elec_config) 
+sim_config = LegendGeSim.load_config(sim_config_file)
+mcraw_table = LegendGeSim.mcpss_to_mcraw(mcpss_table, mcpss_mctruth, sim_config) 
 
 ##
 

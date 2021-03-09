@@ -1,4 +1,3 @@
-
 using LegendGeSim
 using LegendDataTypes
 using HDF5
@@ -13,6 +12,7 @@ mc_path = "cache/"
 det_name = "V05266A"
 det_path = "data/"
 processed_dir = "cache/"
+sim_config_file = "data/sim_datanoise.json"
 
 ##
 
@@ -25,7 +25,8 @@ end
 ##
 
 @info "----- mcstp -> mcpss"
-mcpss_table, mcpss_mctruth = LegendGeSim.mcstp_to_mcpss(det_path, det_name, mcstp_table)
+sim_config = LegendGeSim.load_config(sim_config_file)
+mcpss_table, mcpss_mctruth = LegendGeSim.mcstp_to_mcpss(det_path, det_name, mcstp_table, sim_config)
 
 ##
 
