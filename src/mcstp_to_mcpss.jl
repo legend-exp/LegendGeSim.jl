@@ -1,12 +1,16 @@
+abstract type PSSimulator end
+struct SSDSimulator <: PSSimulator end
+struct SiggenSimulator <: PSSimulator end
+
 T = Float32
 
 Random.seed!(123) # only for testing
 
 # for SSD baseline and tail
 # has to be larger than number of samples resulting from the online trigger filter of the DAQ
-n_baseline_samples = 2000; # SSD example was 1200;
+# n_baseline_samples = 2000; # SSD example was 1200;
 # has to be greater than DAQ waveform length (daq_nsamples in mcpss_to_t1pss.jl)
-total_waveform_length = 8000;
+# total_waveform_length = 8000;
 
 ##
 """
@@ -34,7 +38,7 @@ function mcstp_to_mcpss(det_path::AbstractString, det_name::AbstractString, mc_e
     end
 
     # simulate waveforms
-    mcpss_table, mcpss_mctruth = simulate_wf(mcstp)
+    mcpss_table, mcpss_mctruth = simulate_wf(mcstp, SSDSimulator())
 
     mcpss_table, mcpss_mctruth
 
@@ -178,17 +182,18 @@ function add_fnoise(mcstp::MCstp)
 end
 
 """
-    simulate_wf(mcstp)
+    simulate_wf(mcstp, simulator)
 
 Simulate waveforms based on given MC events and detector simulation,
 contained in the MCstp struct. Returns resulting mcpss table
 and a secon table containing MC truth
 
 mcstp: MCstp struct
+simulator: Simulator object inheriting from PSSimulator for multiple dispatch
 
 Output: Table, Table
 """
-function simulate_wf(mcstp::MCstp)
+function simulate_wf(mcstp::MCstp, ::SSDSimulator)
     # We need to filter out the few events that,
     # due to numerical effects, lie outside of the detector
     # (the proper solution is to shift them slightly, this feature will be added
@@ -209,8 +214,8 @@ function simulate_wf(mcstp::MCstp)
     waveforms = ArrayOfRDWaveforms(contact_charge_signals.waveform)
 
     # extend tail
-    @info("...extending tail -> $(n_baseline_samples) baseline samples, wf length $(total_waveform_length)")
-    waveforms = ArrayOfRDWaveforms(SolidStateDetectors.add_baseline_and_extend_tail.(waveforms, n_baseline_samples, total_waveform_length));
+    # @info("...extending tail -> $(n_baseline_samples) baseline samples, wf length $(total_waveform_length)")
+    # waveforms = ArrayOfRDWaveforms(SolidStateDetectors.add_baseline_and_extend_tail.(waveforms, n_baseline_samples, total_waveform_length));
 
     # convert to Tier1 format
     mcpss_table = Table(

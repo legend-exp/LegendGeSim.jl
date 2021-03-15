@@ -22,7 +22,7 @@ later to be filled from a configuration file
     # sampling_rate::MHz = 250u"MHz"
 
     "Inverse of sampling rate. Needed for DAQ trigger"
-    Δt::ns = uconvert(u"ns", inv(sampling_rate));
+    Δt::typeof(1.0*ns_unit) = uconvert(u"ns", inv(250u"MHz"));
 
     # "DAQ type. Needed to make sure the wf values are..."
     # daq_type = UInt16

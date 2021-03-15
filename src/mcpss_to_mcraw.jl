@@ -32,8 +32,10 @@ function mcpss_to_mcraw(mcpss::Table, mctruth::Table, sim_config::PropDict)
 #        println("$i / $n_waveforms")
 
         ### Differentiate
-        wf = differentiate_wf(mcpss.waveform[i])
-        wf_array[i] = wf
+        wf_array[i] = differentiate_wf(mcpss.waveform[i])
+
+        ### Extend tail and add baseline
+        wf_array[i] = tail_and_baseline(wf_array[i], daq)
 
         ### 1. PreAmp Simulation
 
@@ -42,14 +44,9 @@ function mcpss_to_mcraw(mcpss::Table, mctruth::Table, sim_config::PropDict)
 
         #### 1.2. PreAmp/Data noise
         noise_sigma = sim_config.noise_data == 0 ? preamp.noise_σ : sim_config.noise_data
-        println("Noise: $noise_sigma")
+        # println("Noise: $noise_sigma")
         wf_array[i] = simulate_noise(wf_array[i], noise_sigma)
 
-        # if sim_config.noise_data != 0
-        #     wf_array[i] = simulate_noise(wf_array[i], sim_config.noise_data)
-        # else
-        #     wf_array[i] = simulate_noise(wf_array[i], preamp)
-        # end
 
         ### 2. DAQ Simulation
 
@@ -60,19 +57,23 @@ function mcpss_to_mcraw(mcpss::Table, mctruth::Table, sim_config::PropDict)
         # In order to do so. The waveform should be longer the than the DAQ Buffer (here, 5000 samples)
         # We took care of this at the beginning
 
-        #### 2.1. DAQ units and baseline
-        wf_array[i] = daq_baseline(wf_array[i], daq)
+        #### 2.1 Gain & offset
 
-        #### [?] Noise from data -> in DAQ units
+        wf_array[i] = amplify_and_offset(wf_array[i], daq)
+
+        #### 2.2. Resample & digitize
+
+        wf_array[i] = resample_and_digitize(wf_array[i], daq)
 
         #### 3.2. Trigger method
         # if online energy is zero, means didn't trigger
-        wf_array[i], online_energy[i] = daq_trigger(wf_array[i], daq)
+        wf_array[i], online_energy[i] = trigger(wf_array[i], daq)
 
         baseline[i], baseline_rms[i] = mean_and_std(wf_array[i].value[1:daq.baseline_length])
 
     end
 
+    # why am I doing this?
     wf_final = ArrayOfRDWaveforms(wf_array)
     wf_final = ArrayOfRDWaveforms((wf_final.time, VectorOfSimilarVectors(wf_final.value)))
 
@@ -103,54 +104,6 @@ function mcpss_to_mcraw(mcpss::Table, mctruth::Table, sim_config::PropDict)
 
 end
 
-
-##
-
-"""
-    read_mcpss(filename)
-
-Helper function to read simulation output from an HDF5 file with mcpss format
-(to be rewritten as a mcstp_to_mcpss() function that reads from storage)
-
-filename: name of mcpss file
-Output: Table
-"""
-function read_mcpss(filename::AbstractString)
-    @info "Reading mcpss from $filename"
-
-    HDF5.h5open(filename) do input
-        Table(
-            channel = LegendDataTypes.readdata(input, "mcpss/mcpss/channel"),
-            ievt = LegendDataTypes.readdata(input, "mcpss/mcpss/ievt"),
-            waveform = LegendDataTypes.readdata(input, "mcpss/mcpss/waveform")
-        )
-    end
-end
-
-
-"""
-    read_mctruth(filename)
-
-Helper function to read mctruth from an HDF5 file with mcpss format
-(to be rewritten as a mcstp_to_mcpss() function that reads from storage)
-
-filename: name of mcpss file
-Output: Table
-"""
-function read_mctruth(filename::AbstractString)
-    @info "Reading MC truth from $filename"
-
-    HDF5.h5open(filename) do input
-        Table(
-            detno = LegendDataTypes.readdata(input, "mcpss/mctruth/detno"),
-            edep = LegendDataTypes.readdata(input, "mcpss/mctruth/edep"),
-            ievt = LegendDataTypes.readdata(input, "mcpss/mctruth/ievt"),
-            pos = LegendDataTypes.readdata(input, "mcpss/mctruth/pos"),
-            thit = LegendDataTypes.readdata(input, "mcpss/mctruth/thit")
-        )
-    end
-end
-##
 
 """
     differentiate_wf(wf)
@@ -187,6 +140,18 @@ function dspjl_differentiator_filter(gain::Real)
     Biquad(T(gain), T(-gain), T(0), T(0), T(0))
 end
 
+
+##
+
+"""
+    tail_and_baseline(wf, daq)
+    Extend tail and add baseline based on DAQ number of samples and baseline length
+"""
+function tail_and_baseline(wf::SolidStateDetectors.RDWaveform, daq::DAQ)
+    # WRONG, should not use directly daq params, but convert accounting for 1ns/4ns
+    wf_tail = SolidStateDetectors.add_baseline_and_extend_tail(wf, daq.baseline_length, daq.nsamples)
+    wf_tail
+end
 
 ##
 
@@ -262,31 +227,6 @@ function dspjl_integrator_cr_filter(gain::Real, RC::Real)
 end
 
 
-##
-# """
-#     simulate_noise(wf, preamp)
-
-# Simulate noise of a generic preamp
-# Currently simple Gaussian noise. Parameters given in config file
-# (currently dummy values).
-
-# wf: RDWaveform
-# preamp: PreAmp object
-# Output: RDWaveform
-# """
-# function simulate_noise(wf::SolidStateDetectors.RDWaveform, preamp::PreAmp)
-#     # I am no expert here. I don't know at which point one should introduce noise.
-#     # Also, different noise could be added at different stages. This really depends on the electronics.
-#     # I will just add some Gaussian Noise (σ of 3 keV defined on top)
-#     # lets generate 1000 random samples from this normal distribution
-#     gaussian_noise_dist = Normal(T(0), T(preamp.noise_σ)) #  Normal() -> Distributions.jjl
-#     samples = rand(gaussian_noise_dist, 1000)
-
-#     # Now, lets add this Gaussian noise to other waveform (here, after the filters (but might be also added before))
-#     wf_noise = RDWaveform(wf.time, wf.value .+ rand!(gaussian_noise_dist, similar(wf.value)))
-#     wf_noise
-# end
-
 """
     simulate_noise(wf, noise_σ)
 
@@ -312,60 +252,88 @@ function simulate_noise(wf::SolidStateDetectors.RDWaveform, noise_σ::Real)
     wf_noise
 end
 
+
 ##
 """
-    daq_baseline(wf)
+    amplify_and_offset(wf, daq)
 
-Add DAQ baseline
+Gain & offset (currently in keV)
 
 wf: RDWaveform
-Output:
+daq: DAQ object
+Output: RDWaveform
 """
-function daq_baseline(wf::SolidStateDetectors.RDWaveform, daq::GenericDAQ)
+function amplify_and_offset(wf::SolidStateDetectors.RDWaveform, daq::DAQ)
     o = daq.gain * uconvert(u"eV", daq.offset) / germanium_ionization_energy
 
     # invert the pulse if needed
     sign = wf.value[end] < 0 ? -1 : 1
 
     # daq_buffer_wv = RDWaveform(wf.time, daq.daq_type.(round.(sign * wf.value .* daq.gain .+ o, digits = 0)))
-    daq_buffer_wv = RDWaveform(wf.time, UInt16.(round.(sign / ustrip(germanium_ionization_energy) * wf.value .* daq.gain .+ o, digits = 0)))
+    # daq_buffer_wv = RDWaveform(wf.time, UInt16.(round.(sign / ustrip(germanium_ionization_energy) * wf.value .* daq.gain .+ o, digits = 0)))
+    daq_buffer_wv = RDWaveform(wf.time, sign / ustrip(germanium_ionization_energy) * wf.value .* daq.gain .+ o)
     daq_buffer_wv
+end
+
+##
+
+"""
+    resample_and_digitize(wf, daq)
+
+SSD samples are 1ns apart -> resample based on DAQ Δt
+Afterwards digitize (currently generic DAQ has 16 (14?) bits)
+
+wf: RDWaveform
+daq: GenericDAQ object
+Output: RDWaveform
+"""
+function resample_and_digitize(wf::SolidStateDetectors.RDWaveform, daq::GenericDAQ)
+    ts = range(T(0)u"ns", step = daq.Δt, length = daq.nsamples)
+    # resample
+    wf_samp = RDWaveform(ts, wf.value[range(0, step = Int(daq.Δt/step(wf.time)), length = daq.nsamples)])
+    # digitize
+    wf_dig = RDWaveform(wf_dig.time, UInt16.(round.(wf_samp.value, digits = 0)))
+    wf_dig
+
 end
 
 
 """
-    daq_trigger(wf)
+    trigger(wf)
 
 Simulate DAQ trigger. Returns a waveform with trigger and resulting online energy
 
 wf: RDWaveform
 Output: RDwaveform, float
 """
-function daq_trigger(wf::SolidStateDetectors.RDWaveform, daq::DAQ)
-    daq_trigger_window_lengths = (250,250,250)
-    daq_trigger_window_length = sum(daq_trigger_window_lengths)
-    # daq_trigger_threshold = daq.noise_σ * 10 * daq.gain
+function trigger(wf::SolidStateDetectors.RDWaveform, daq::DAQ)
+    trigger_window_lengths = (250,250,250)
+    trigger_window_length = sum(daq_trigger_window_lengths)
 
-    online_filter_output = zeros(T, length(wf.value) - daq_trigger_window_length)
+    online_filter_output = zeros(T, length(wf.value) - trigger_window_length)
     t0_idx = 0
     trig = false
 
     for i in eachindex(online_filter_output)
-        online_filter_output[i], trig = daq_online_filter(wf.value, i-1, daq_trigger_window_lengths, daq.trigger_threshold)
+        online_filter_output[i], trig = daq_online_filter(wf.value, i-1, trigger_window_lengths, daq.trigger_threshold)
         if trig && t0_idx == 0
             t0_idx = i
         end
     end
 
-    ts = range(T(0)u"ns", step = daq.Δt, length = daq.nsamples)
+    # ts = range(T(0)u"ns", step = daq.Δt, length = daq.nsamples)
     # in case it didn't trigger
     if(t0_idx == 0)
         stored_waveform = RDWaveform(ts, wf.value[1:daq.nsamples]) # just to return something
         online_energy = 0u"keV" # flag meaning didn't trigger
     else
         online_energy = uconvert(u"keV", maximum(online_filter_output) * germanium_ionization_energy / daq.gain)
-        iStart = t0_idx-daq.baseline_length
-        stored_waveform = RDWaveform(ts, wf.value[iStart:iStart+daq.nsamples-1]);
+        # iStart = t0_idx-daq.baseline_length
+        iStart = t0_idx-daq.baseline_length*Int(daq.Δt/step(wv.time))
+
+        # stored_waveform = RDWaveform(ts, wf.value[iStart:iStart+daq.nsamples-1]);
+        stored_waveform = RDWaveform(ts, wf.value[range(iStart, step = Int(daq.Δt/step(wf.time)), length = daq.nsamples)]);
+
     end
 
     stored_waveform, online_energy
@@ -391,3 +359,55 @@ function daq_online_filter(values::AbstractVector, offset::Int, window_lengths::
     r = mean(values[r2]) - mean(values[r1])
     r, r >= threshold
 end
+
+
+
+
+#### Should not be here:
+##
+
+"""
+    read_mcpss(filename)
+
+Helper function to read simulation output from an HDF5 file with mcpss format
+(to be rewritten as a mcstp_to_mcpss() function that reads from storage)
+
+filename: name of mcpss file
+Output: Table
+"""
+function read_mcpss(filename::AbstractString)
+    @info "Reading mcpss from $filename"
+
+    HDF5.h5open(filename) do input
+        Table(
+            channel = LegendDataTypes.readdata(input, "mcpss/mcpss/channel"),
+            ievt = LegendDataTypes.readdata(input, "mcpss/mcpss/ievt"),
+            waveform = LegendDataTypes.readdata(input, "mcpss/mcpss/waveform")
+        )
+    end
+end
+
+
+"""
+    read_mctruth(filename)
+
+Helper function to read mctruth from an HDF5 file with mcpss format
+(to be rewritten as a mcstp_to_mcpss() function that reads from storage)
+
+filename: name of mcpss file
+Output: Table
+"""
+function read_mctruth(filename::AbstractString)
+    @info "Reading MC truth from $filename"
+
+    HDF5.h5open(filename) do input
+        Table(
+            detno = LegendDataTypes.readdata(input, "mcpss/mctruth/detno"),
+            edep = LegendDataTypes.readdata(input, "mcpss/mctruth/edep"),
+            ievt = LegendDataTypes.readdata(input, "mcpss/mctruth/ievt"),
+            pos = LegendDataTypes.readdata(input, "mcpss/mctruth/pos"),
+            thit = LegendDataTypes.readdata(input, "mcpss/mctruth/thit")
+        )
+    end
+end
+##
