@@ -24,7 +24,7 @@ later to be filled from a configuration file
     τ_rise::typeof(1.0*ns_unit) = T(15)*u"ns"
 
     # "sigma for electronic noise"
-    # noise_σ::Real = uconvert(u"eV", T(3)u"keV") / germanium_ionization_energy
+    noise_σ::Real = uconvert(u"eV", T(3)u"keV") / germanium_ionization_energy
 end
 
 
@@ -36,8 +36,8 @@ Construct a struct with PreAmp parameters based on given electronics config Prop
 function construct_PreAmp(sim_conf::PropDict)
     PreAmp(
         τ_decay=T(sim_conf.preamp.t_decay)*u"μs",
-        τ_rise=T(sim_conf.preamp.t_rise)*u"ns"
-        # noise_σ=uconvert(u"eV", T(elec_conf.noise)u"keV") / germanium_ionization_energy
+        τ_rise=T(sim_conf.preamp.t_rise)*u"ns",
+        noise_σ = haskey(sim_conf.preamp, :noise_sigma) ? uconvert(u"eV", T(sim_conf.preamp.noise_sigma)u"keV") / germanium_ionization_energy : 0
     )
 end
 

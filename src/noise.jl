@@ -11,9 +11,9 @@ struct NoiseSim <: NoiseModel
 end
 
 function NoiseModel(sim_config::PropDict)
-    # haskey(sim_config, "noise_data") ? NoiseData(sim_config.noise_data) : NoiseSim(sim_config.preamp.noise_σ)
-    # TEMPORARY
-    NoiseData(sim_config.noise_data)
+    noise_model = haskey(sim_config, :noise_data) ? NoiseData(sim_config.noise_data) : NoiseSim(uconvert(u"eV", T(sim_config.preamp.noise_sigma)u"keV") / germanium_ionization_energy)
+    # println(noise_model)
+    noise_model
 end
 
 

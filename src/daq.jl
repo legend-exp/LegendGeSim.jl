@@ -35,13 +35,13 @@ later to be filled from a configuration file
     # offset::keV = 2_000u"keV";
     offset::typeof(1.0*energy_unit) = 2_000u"keV";
 
-    "What is this parameter? -> DAQ gain, no units"
+    "DAQ gain"
     gain = typemax(UInt16) / ((max_e+offset)/uconvert(u"keV", germanium_ionization_energy))
 
     # noise in DAQ units?.. needed to compute trigger threshold
-    noise_σ = uconvert(u"eV", T(3)u"keV") / germanium_ionization_energy
+    # noise_σ = uconvert(u"eV", T(3)u"keV") / germanium_ionization_energy
     
-    trigger_threshold::Real = noise_σ * 10 * gain
+    # trigger_threshold::Real = noise_σ * 10 * gain
 end
 
 
@@ -57,11 +57,11 @@ function construct_GenericDAQ(sim_conf::PropDict)
         # sampling_rate=T(elec_conf.daq.sampling_rate)u"MHz",
         Δt=uconvert(u"ns", inv(T(sim_conf.daq.sampling_rate)u"MHz")),
         max_e=T(sim_conf.daq.max_e)u"keV",
-        offset=T(sim_conf.daq.offset)u"keV",
+        offset=T(sim_conf.daq.offset)u"keV"
         # sampling_rate=elec_conf.daq.sampling_rate*MHz_unit
         # noise_σ=uconvert(u"eV", T(sim_conf.daq.noise)u"keV") / germanium_ionization_energy
         # daq_trigger_threshold = sim_conf.noise_data * 10 * daq.c
-        noise_σ = sim_conf.noise_data
+        # noise_σ = sim_conf.noise_data
     )
 end
 
@@ -82,8 +82,15 @@ Output: ?
 """
 function daq_online_filter(values::AbstractVector, offset::Int, window_lengths::NTuple{3, Int}, threshold)
     wl = window_lengths
-    r1 = offset+wl[1]+wl[2]:offset+wl[1]+wl[2]+wl[3]
-    r2 = offset+wl[1]+wl[2]+wl[3]:offset+sum(window_lengths)
+    # third window
+    # r1 = offset+wl[1]+wl[2]:offset+wl[1]+wl[2]+wl[3]
+    # ???
+    # r2 = offset+wl[1]+wl[2]+wl[3]:offset+sum(window_lengths)
+
+    # first window
+    r1 = offset:offset+wl[1]
+    # third window
+    r2 = offset+wl[1]+wl[2]:offset+sum(window_lengths)
     r = mean(values[r2]) - mean(values[r1])
     r, r >= threshold
 end
@@ -94,18 +101,22 @@ function simulate_daq(wf::SolidStateDetectors.RDWaveform, daq::GenericDAQ)
     o = daq.gain * uconvert(u"eV", daq.offset) / germanium_ionization_energy
 
     # invert the pulse if needed
-    sign = wf.value[end] < 0 ? -1 : 1
+    sign = wf.value[Int(end/2)] < 0 ? -1 : 1
 
     # apply gain and offset
     # daq_buffer_wv = RDWaveform(wf.time, daq.daq_type.(round.(sign * wf.value .* daq.gain .+ o, digits = 0)))
     # daq_buffer_wv = RDWaveform(wf.time, UInt16.(round.(sign / ustrip(germanium_ionization_energy) * wf.value .* daq.gain .+ o, digits = 0)))
     wf_off = RDWaveform(wf.time, sign / ustrip(germanium_ionization_energy) * wf.value .* daq.gain .+ o)
 
-    ts = range(T(0)u"ns", step = daq.Δt, length = daq.nsamples)
+    # ts = range(T(0)u"ns", step = daq.Δt, length = daq.nsamples)
     # resample -> currently simply pick every Nth sample, more elaborate simulation later
-    wf_samp = RDWaveform(ts, wf_off.value[range(1, step = Int(daq.Δt/step(wf.time)), length = daq.nsamples)])
+    # do not cut off yet
+    wf_samp = wf_off.value[begin:Int(daq.Δt/step(wf.time)):end]
+    t_samp = range(T(0)u"ns", step = daq.Δt, length = length(wf_samp))
+    # wf_samp = RDWaveform(ts, wf_off.value[range(1, step = Int(daq.Δt/step(wf.time)), length = daq.nsamples)])
     # digitize
-    wf_dig = RDWaveform(wf_samp.time, UInt16.(round.(wf_samp.value, digits = 0)))
+    # wf_dig = RDWaveform(wf_samp.time, UInt16.(round.(wf_samp.value, digits = 0)))
+    wf_dig = RDWaveform(t_samp, UInt16.(round.(wf_samp, digits = 0)))
 
     wf_dig
 end

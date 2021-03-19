@@ -136,16 +136,17 @@ Add fano noise to MC events
 
 Output: no output, the function modifies the field mc_events
 """
-function add_noise(mc_events::Table, simulation::SolidStateDetectors.Simulation, noise_model::NoiseSim)
-    @info("...adding fano noise")
+function add_noise(mc_events::Table, simulation::SolidStateDetectors.Simulation, ::NoiseSim)
+    @info("Adding fano noise")
     det_material = simulation.detector.semiconductors[1].material
     add_fano_noise(mc_events, det_material.E_ionisation, det_material.f_fano)
 end
 
 
-function add_noise(mc_events::Table, simulation::SolidStateDetectors.Simulation, noise_model::NoiseData)
+function add_noise(mc_events::Table, ::SolidStateDetectors.Simulation, ::NoiseData)
     # do nothing since if we're using noise from data we do not simulate fano noise
     # not to double count
+    @info("Not adding fano noise because using noise levels from data")
     mc_events
 end
 

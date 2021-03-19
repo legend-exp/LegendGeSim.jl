@@ -40,24 +40,39 @@ function mcpss_to_mcraw(mcpss::Table, mctruth::Table, daq::GenericDAQ, elec_chai
     for i in 1:n_waveforms
     # @showprogress 1 "Processing..." for i in 1:n_waveforms
         if(i % 500 == 0) println("$i / $n_waveforms") end
+        # println("$i / $n_waveforms")
+
+        # plot_wf(mcpss.waveform[i],1)
 
         # println("tail and bs")
         wf_array[i] = add_tail_and_baseline(mcpss.waveform[i], daq)
+        # plot_wf(wf_array[i],2)
+
         
         # println("diff")
         wf_array[i] = differentiate(wf_array[i])
+        # plot_wf(wf_array[i],3)
+
 
         # println("elec")
         wf_array[i] = simulate_elec(wf_array[i], elec_chain)
+        # plot_wf(wf_array[i],4)
+
 
         # println("noise")
         wf_array[i] = simulate_noise(wf_array[i], noise_model)
+        # plot_wf(wf_array[i],5)
+
 
         # println("daq")
         wf_array[i] = simulate_daq(wf_array[i], daq)
+        # plot_wf(wf_array[i],6)
+
 
         # if online energy is zero, means didn't trigger
-        wf_array[i], online_energy[i] = trigger(wf_array[i], daq)
+        wf_array[i], online_energy[i] = trigger(wf_array[i], daq, noise_model)
+        # plot_wf(wf_array[i],7)
+
 
         baseline[i], baseline_rms[i] = mean_and_std(wf_array[i].value[1:daq.baseline_length])
 
@@ -121,10 +136,12 @@ end
 Extend tail and add baseline based on DAQ number of samples and baseline length
 """
 function add_tail_and_baseline(wf::RDWaveform, daq::DAQ)
-# function add_tail_and_baseline(wfs::SolidStateDetectors.ArrayOfRDWaveforms, daq::DAQ)
+# function add_tail_and_baseline(wfs::RadiationDetectorSignals.ArrayOfRDWaveforms, daq::DAQ)
     factor::Integer = uconvert(u"ns", daq.Δt) / uconvert(u"ns", step(wf.time))
-    SolidStateDetectors.add_baseline_and_extend_tail(wf, daq.baseline_length*factor, daq.nsamples*factor)    
+    SolidStateDetectors.add_baseline_and_extend_tail(wf, daq.baseline_length*factor*2, daq.nsamples*factor*2)
     # ArrayOfRDWaveforms(SolidStateDetectors.add_baseline_and_extend_tail.(wfs, daq.baseline_length*factor, daq.nsamples*factor))
+    # SolidStateDetectors.add_baseline_and_extend_tail.(wfs, daq.baseline_length*factor, daq.nsamples*factor)
+
 end
 
 
@@ -139,29 +156,46 @@ Simulate DAQ trigger. Returns a waveform with trigger and resulting online energ
 wf: RDWaveform
 Output: RDwaveform, float
 """
-function trigger(wf::SolidStateDetectors.RDWaveform, daq::DAQ)
+function trigger(wf::SolidStateDetectors.RDWaveform, daq::DAQ, noise_model::NoiseModel)
     trigger_window_lengths = (250,250,250)
     trigger_window_length = sum(trigger_window_lengths)
+    trigger_threshold = noise_model.noise_σ * 5 #* daq.gain
 
     online_filter_output = zeros(T, length(wf.value) - trigger_window_length)
-    t0_idx = 0
+    t0_idx::Int = 0
     trig = false
 
     for i in eachindex(online_filter_output)
-        online_filter_output[i], trig = daq_online_filter(wf.value, i-1, trigger_window_lengths, daq.trigger_threshold)
+        online_filter_output[i], trig = daq_online_filter(wf.value, i, trigger_window_lengths, trigger_threshold)
         if trig && t0_idx == 0
-            t0_idx = i
+            # println(online_filter_output[i])
+            t0_idx = i+trigger_window_lengths[1]+trigger_window_lengths[2]
         end
     end
 
-    # ts = range(T(0)u"ns", step = daq.Δt, length = daq.nsamples)
+    # println("Trigger threshold: $trigger_threshold")
+    # println("Trigger: $t0_idx")
+
+    ts = range(T(0)u"ns", step = daq.Δt, length = daq.nsamples)
     # in case it didn't trigger
     if(t0_idx == 0)
         stored_waveform = RDWaveform(ts, wf.value[1:daq.nsamples]) # just to return something
         online_energy = 0u"keV" # flag meaning didn't trigger
     else
+
         online_energy = uconvert(u"keV", maximum(online_filter_output) * germanium_ionization_energy / daq.gain)
-        iStart = t0_idx-daq.baseline_length
+
+        # plot_wf = plot(wf, xlims=(0,20000))
+        # vline!([ustrip(wf.time[t0_idx]),
+        #         ustrip(wf.time[t0_idx - trigger_window_lengths[2]]),
+        #         ustrip(wf.time[t0_idx - trigger_window_lengths[2] - trigger_window_lengths[1]]),
+        #         ustrip(wf.time[t0_idx+trigger_window_lengths[3]])])
+        # png(plot_wf, "wf_7a.png")
+
+        iStart = t0_idx - daq.baseline_length
+
+        # wf1 = RDWaveform(wf.time[t_:end], wf.value[iStart:end])
+        # plot!(wf1, linestype=:dot, linecolor=:red)
         # iStart = t0_idx-daq.baseline_length*Int(daq.Δt/step(wv.time))
 
         # stored_waveform = RDWaveform(ts, wf.value[iStart:iStart+daq.nsamples-1]);
@@ -172,3 +206,10 @@ function trigger(wf::SolidStateDetectors.RDWaveform, daq::DAQ)
 
     stored_waveform, online_energy
 end
+
+
+
+# function plot_wf(wf, idx)
+#     plt_wf = plot(wf, xlims=(0,20000))
+#     png(plt_wf, "wf_$idx.png")    
+# end
