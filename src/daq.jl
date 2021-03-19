@@ -51,7 +51,7 @@ end
 Construct a struct with DAQ parameters based on given electronics config PropDict
 """
 function construct_GenericDAQ(sim_conf::PropDict)
-    daq = GenericDAQ(
+    GenericDAQ(
         nsamples=sim_conf.daq.nsamples,
         baseline_length=sim_conf.daq.baseline_length,
         # sampling_rate=T(elec_conf.daq.sampling_rate)u"MHz",
@@ -63,6 +63,49 @@ function construct_GenericDAQ(sim_conf::PropDict)
         # daq_trigger_threshold = sim_conf.noise_data * 10 * daq.c
         noise_σ = sim_conf.noise_data
     )
+end
 
-    daq
+
+
+"""
+    daq_online_filter(values, offset, window_lengths, threshold)
+
+Used to simulate DAQ output (?)
+(see function daq_trigger)
+
+values: waveform values
+offset: ?
+window_lengths: ?
+threshold: ?
+
+Output: ?
+"""
+function daq_online_filter(values::AbstractVector, offset::Int, window_lengths::NTuple{3, Int}, threshold)
+    wl = window_lengths
+    r1 = offset+wl[1]+wl[2]:offset+wl[1]+wl[2]+wl[3]
+    r2 = offset+wl[1]+wl[2]+wl[3]:offset+sum(window_lengths)
+    r = mean(values[r2]) - mean(values[r1])
+    r, r >= threshold
+end
+
+
+function simulate_daq(wf::SolidStateDetectors.RDWaveform, daq::GenericDAQ)
+    # offset
+    o = daq.gain * uconvert(u"eV", daq.offset) / germanium_ionization_energy
+
+    # invert the pulse if needed
+    sign = wf.value[end] < 0 ? -1 : 1
+
+    # apply gain and offset
+    # daq_buffer_wv = RDWaveform(wf.time, daq.daq_type.(round.(sign * wf.value .* daq.gain .+ o, digits = 0)))
+    # daq_buffer_wv = RDWaveform(wf.time, UInt16.(round.(sign / ustrip(germanium_ionization_energy) * wf.value .* daq.gain .+ o, digits = 0)))
+    wf_off = RDWaveform(wf.time, sign / ustrip(germanium_ionization_energy) * wf.value .* daq.gain .+ o)
+
+    ts = range(T(0)u"ns", step = daq.Δt, length = daq.nsamples)
+    # resample -> currently simply pick every Nth sample, more elaborate simulation later
+    wf_samp = RDWaveform(ts, wf_off.value[range(1, step = Int(daq.Δt/step(wf.time)), length = daq.nsamples)])
+    # digitize
+    wf_dig = RDWaveform(wf_samp.time, UInt16.(round.(wf_samp.value, digits = 0)))
+
+    wf_dig
 end

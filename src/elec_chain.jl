@@ -10,8 +10,7 @@ ns_unit = u"ns"
 T = Float32
 germanium_ionization_energy = T(2.95)u"eV"
 
-abstract type ElecChain
-end
+abstract type ElecChain end
 
 """
 A shelf to put all the preamplifier parameters in
@@ -35,11 +34,29 @@ end
 Construct a struct with PreAmp parameters based on given electronics config PropDict
 """
 function construct_PreAmp(sim_conf::PropDict)
-    preamp = PreAmp(
+    PreAmp(
         τ_decay=T(sim_conf.preamp.t_decay)*u"μs",
         τ_rise=T(sim_conf.preamp.t_rise)*u"ns"
         # noise_σ=uconvert(u"eV", T(elec_conf.noise)u"keV") / germanium_ionization_energy
     )
+end
 
-    preamp
+
+"""
+    simulate_elec(wf, preamp)
+
+Simulate a charge sensitive amplifier (`CSA`)
+Here, the parameters τ_rise and τ_decay have to be given in units of samples,
+because the `filt`-function does not know the Δt between the samples.
+
+wf: RDWaveform
+preamp: a PreAmp struct
+Output: RDWaveform
+"""
+function simulate_elec(wf::SolidStateDetectors.RDWaveform, preamp::PreAmp)
+    csa_filter = dspjl_simple_csa_response_filter(
+        preamp.τ_rise / step(wf.time),
+        uconvert(u"ns", preamp.τ_decay) / step(wf.time))
+
+    RDWaveform(wf.time, filt(csa_filter, wf.value))
 end

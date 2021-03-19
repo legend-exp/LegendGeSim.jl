@@ -16,11 +16,16 @@ function g4_to_mcraw(det_name::AbstractString, det_path::AbstractString, mc_name
     @info "----- g4simple -> mcstp"
     mcstp_table = LegendGeSim.g4_to_mcstp(joinpath(mc_path, mc_name * ".hdf5"))
 
+    daq = construct_GenericDAQ(sim_config)
+    preamp = construct_PreAmp(sim_config)
+    noise_model = NoiseModel(sim_config)
+
     @info "----- mcstp -> mcpss"
-    mcpss_table, mcpss_mctruth = LegendGeSim.mcstp_to_mcpss(det_path, det_name, mcstp_table)
+    mcpss_table, mcpss_mctruth = LegendGeSim.mcstp_to_mcpss(det_path, det_name, mcstp_table, noise_model)
 
     @info "----- mcpss -> mcraw"
-    mcraw_table = LegendGeSim.mcpss_to_mcraw(mcpss_table, mcpss_mctruth, sim_config) 
+    mcraw_table = LegendGeSim.mcpss_to_mcraw(mcpss_table, mcpss_mctruth, daq, preamp, noise_model) 
+    # mcraw_table = LegendGeSim.mcpss_to_mcraw(mcpss_table, mcpss_mctruth, sim_config) 
 
     mcraw_table, mcpss_mctruth
 end

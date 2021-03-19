@@ -46,15 +46,17 @@ using Unitful
 
 
 
-include("utils.jl")
+include("filters.jl")
 include("sim_config.jl")
 include("elec_chain.jl")
 include("daq.jl")
+include("noise.jl")
 include("g4_to_mcstp.jl")
 include("mcstp_to_mcpss.jl")
 include("mcpss_to_mcraw.jl")
 include("g4_to_mcraw.jl")
-# include("another_source_file.jl")
-# ... more includes ...
+
+# -> LegendHDF5IO
+include("io.jl")
 
 end # module
