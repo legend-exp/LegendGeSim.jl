@@ -33,12 +33,16 @@ end
 
 Construct a struct with PreAmp parameters based on given electronics config PropDict
 """
-function construct_PreAmp(sim_conf::PropDict)
+function PreAmp(sim_conf::PropDict)
     PreAmp(
         τ_decay=T(sim_conf.preamp.t_decay)*u"μs",
         τ_rise=T(sim_conf.preamp.t_rise)*u"ns",
         noise_σ = haskey(sim_conf.preamp, :noise_sigma) ? uconvert(u"eV", T(sim_conf.preamp.noise_sigma)u"keV") / germanium_ionization_energy : 0
     )
+end
+
+function PreAmp(sim_conf::AbstractString)
+    PreAmp(LegendGeSim.load_config(sim_conf))
 end
 
 

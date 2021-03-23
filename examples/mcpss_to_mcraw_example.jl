@@ -11,7 +11,7 @@ using HDF5
 mc_name = "raw-IC160A-Th228-uncollimated-top-run0002-source_holder-bi-hdf5-01-test"
 # mc_name = "raw-IC160A-Th228-uncollimated-top-run0002-source_holder-bi-hdf5-02"
 mc_path = "cache/"
-det_name = "V05266A"
+det_name = "IC160A"
 det_path = "data/"
 processed_dir = "cache/"
 # daq_config = 'data/daq_config.json'
@@ -21,8 +21,6 @@ sim_config_file = "data/sim_datanoise.json"
 ##
 mcpss_name = joinpath(mc_path, mc_name*"_mcpss.h5")
 
-# mcpss_table = read_mcpss(mcpss_name)
-# mcpss_mctruth = read_mctruth(mcpss_name)
 mcpss_table = LegendGeSim.read_mcpss(mcpss_name)
 mcpss_mctruth = LegendGeSim.read_mctruth(mcpss_name)
 

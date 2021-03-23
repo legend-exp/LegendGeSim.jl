@@ -7,8 +7,8 @@ end
 
 function mcpss_to_mcraw(mcpss::Table, mctruth::Table, sim_config::PropDict)
     # simulation config
-    daq = construct_GenericDAQ(sim_config)
-    preamp = construct_PreAmp(sim_config)
+    daq = GenericDAQ(sim_config)
+    preamp = PreAmp(sim_config)
     noise_model = NoiseModel(sim_config)
 
     mcpss_to_mcraw(mcpss, mctruth, daq, preamp, noise_model)
@@ -58,11 +58,10 @@ function mcpss_to_mcraw(mcpss::Table, mctruth::Table, daq::GenericDAQ, elec_chai
         wf_array[i] = simulate_elec(wf_array[i], elec_chain)
         # plot_wf(wf_array[i],4)
 
-
         # println("noise")
+        # works for preamp noise, but not data noise, since that's in DAQ units...
         wf_array[i] = simulate_noise(wf_array[i], noise_model)
-        # plot_wf(wf_array[i],5)
-
+        # plot_wf(wf_array[i],5)    
 
         # println("daq")
         wf_array[i] = simulate_daq(wf_array[i], daq)
@@ -156,10 +155,12 @@ Simulate DAQ trigger. Returns a waveform with trigger and resulting online energ
 wf: RDWaveform
 Output: RDwaveform, float
 """
-function trigger(wf::SolidStateDetectors.RDWaveform, daq::DAQ, noise_model::NoiseModel)
+function trigger(wf::SolidStateDetectors.RDWaveform, daq::GenericDAQ, noise_model::NoiseModel)
     trigger_window_lengths = (250,250,250)
     trigger_window_length = sum(trigger_window_lengths)
-    trigger_threshold = noise_model.noise_σ * 5 #* daq.gain
+    # data noise is already in DAQ units; preamp noise is in units before conversion -> * gain
+    # currently data noise implemented before DAQ offset-gain-digitize
+    trigger_threshold = noise_model.noise_σ * 3 * daq.gain
 
     online_filter_output = zeros(T, length(wf.value) - trigger_window_length)
     t0_idx::Int = 0
@@ -206,8 +207,6 @@ function trigger(wf::SolidStateDetectors.RDWaveform, daq::DAQ, noise_model::Nois
 
     stored_waveform, online_energy
 end
-
-
 
 # function plot_wf(wf, idx)
 #     plt_wf = plot(wf, xlims=(0,20000))

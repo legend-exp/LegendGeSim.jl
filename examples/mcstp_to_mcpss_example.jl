@@ -9,7 +9,7 @@ using HDF5
 
 mc_name = "raw-IC160A-Th228-uncollimated-top-run0002-source_holder-bi-hdf5-01-test"
 mc_path = "cache/"
-det_name = "V05266A"
+det_name = "IC160A"
 det_path = "data/"
 processed_dir = "cache/"
 sim_config_file = "data/sim_datanoise.json"

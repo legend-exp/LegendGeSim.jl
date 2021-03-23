@@ -46,11 +46,11 @@ end
 
 
 """
-    function DAQ(elec_conf)
+    function DAQ(sim_conf)
 
 Construct a struct with DAQ parameters based on given electronics config PropDict
 """
-function construct_GenericDAQ(sim_conf::PropDict)
+function GenericDAQ(sim_conf::PropDict)
     GenericDAQ(
         nsamples=sim_conf.daq.nsamples,
         baseline_length=sim_conf.daq.baseline_length,
@@ -65,7 +65,9 @@ function construct_GenericDAQ(sim_conf::PropDict)
     )
 end
 
-
+function GenericDAQ(sim_conf::AbstractString)
+    GenericDAQ(LegendGeSim.load_config(sim_conf))
+end
 
 """
     daq_online_filter(values, offset, window_lengths, threshold)

@@ -55,13 +55,14 @@ function g4_to_mcstp(g4_filename::AbstractString)
         )
 
 
-    # println("...group by volume")
+    println("...group by volume")
     # Save only events that occur in the detector PV
     gdf = DataFrames.groupby(raw_df, :volID)
+    # TODO: use Table instead of DataFrame
+    # gdf = group_by_column(raw_df, :volID)
 
     # volID = 1 for the detectors in CAGE g4simple sims, this selects only events in the detector
-#    det_hits = DataFrame(gdf[2])
-    det_hits = Table(gdf[1]) # for HADES volID = 1
+    det_hits = DataFrame(gdf[1]) # for HADES volID = 1
 
     # Need to turn DataFrame into a Table before using internal SSD functions (group_by_evtno, cluster_detector_hits, etc)
     # Only include parameters needed by SSD
@@ -97,3 +98,10 @@ function g4_to_mcstp(g4_filename::AbstractString)
     mc_events_det1
 
 end
+
+
+# function group_by_column(table::TypedTables.Table, colname::Symbol)
+#     sorting_idxs = sortperm(getproperty(table, colname))
+#     sorted = table[sorting_idxs]
+#     TypedTables.Table(consgroupedview((getproperty(table, colname), Tables.columns(sorted))))
+# end
