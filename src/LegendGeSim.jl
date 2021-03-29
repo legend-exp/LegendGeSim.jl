@@ -12,13 +12,12 @@ module LegendGeSim
 using ArgCheck
 using ArraysOfArrays
 using Clustering
-using DataFrames # remove and use only Tables 
 using Distributions
 using DSP # Julia's Digital Signal Processor (DSP) Package
 using ElasticArrays
 using EncodedArrays
 using FillArrays
-using HDF5 # not in Project.toml and not supposed to be (LegendHDF5IO)
+using HDF5 # later not supposed to be here, use LegendHDF5IO functions
 using IntervalSets
 using JSON
 using LegendDataTypes
@@ -47,16 +46,22 @@ using Unitful
 # using Plots
 
 include("filters.jl")
+
 include("sim_config.jl")
+
+include("noise.jl")
+include("pss.jl")
+
 include("elec_chain.jl")
 include("daq.jl")
-include("noise.jl")
+
 include("g4_to_mcstp.jl")
 include("mcstp_to_mcpss.jl")
 include("mcpss_to_mcraw.jl")
+
 include("g4_to_mcraw.jl")
 
-# -> LegendHDF5IO
+# move to LegendHDF5IO?
 include("io.jl")
 
 end # module

@@ -69,7 +69,7 @@ wf: RDWaveform
 preamp: a PreAmp struct
 Output: RDWaveform
 """
-function simulate_elec(wf::SolidStateDetectors.RDWaveform, preamp::PreAmp)
+function simulate_elec(wf::RDWaveform, preamp::PreAmp)
     csa_filter = dspjl_simple_csa_response_filter(
         preamp.τ_rise / step(wf.time),
         uconvert(u"ns", preamp.τ_decay) / step(wf.time))

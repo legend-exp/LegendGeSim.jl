@@ -95,7 +95,7 @@ Simulate DAQ effects: offset, gain, sampling rate and digitization
 wf: RDWaveform object 
 daq: GenericDAQ object
 """
-function simulate_daq(wf::RadiationDetectorSignals.RDWaveform, daq::GenericDAQ)
+function simulate_daq(wf::RDWaveform, daq::GenericDAQ)
     # invert the pulse if needed
     sign = wf.value[Int(end/2)] < 0 ? -1 : 1
     wf_daq = RDWaveform(wf.time, sign * wf.value)

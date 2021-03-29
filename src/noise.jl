@@ -17,6 +17,30 @@ function NoiseModel(sim_config::PropDict)
 end
 
 
+"""
+    add_fnoise(mc_events, simulation, noise_model)
+
+Add fano noise to MC events
+
+mc_events: table in the mcstp format (output of g4_to_mcstp)
+noise_model: NoiseSim object
+
+Output: Table
+"""
+function add_fano_noise(mc_events::Table, simulation::SolidStateDetectors.Simulation, ::NoiseSim)
+    @info("Adding fano noise")
+    det_material = simulation.detector.semiconductors[1].material
+    add_fano_noise(mc_events, det_material.E_ionisation, det_material.f_fano)
+end
+
+
+function add_fano_noise(mc_events::Table, ::SolidStateDetectors.Simulation, ::NoiseData)
+    # do nothing since if we're using noise from data we do not simulate fano noise
+    # not to double count
+    @info("Not adding fano noise because using noise levels from data")
+    mc_events
+end
+
 
 """
     simulate_noise(wf, noise_model)
@@ -29,7 +53,7 @@ wf: RDWaveform
 noise_σ: value in DAQ units -> change to noise model 
 Output: RDWaveform
 """
-function simulate_noise(wf::SolidStateDetectors.RDWaveform, noise_model::NoiseModel)
+function simulate_noise(wf::RDWaveform, noise_model::NoiseModel)
     # I am no expert here. I don't know at which point one should introduce noise.
     # Also, different noise could be added at different stages. This really depends on the electronics.
     # I will just add some Gaussian Noise (σ of 3 keV defined on top)

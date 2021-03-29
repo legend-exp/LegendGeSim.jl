@@ -139,7 +139,7 @@ Differentiate a waveform using Biquad filter
 wf: RDWaveform
 Output: RDWaveform
 """
-function differentiate(wf::RadiationDetectorSignals.RDWaveform)
+function differentiate(wf::RDWaveform)
     diff_biquad_filter = dspjl_differentiator_filter(T(1)) # We want a gain of 1 here
     filter_output = filt(diff_biquad_filter, wf.value)
     # !!! We have to implement a method do parse a RDWaveform to `filt`
@@ -181,7 +181,7 @@ noise_model: NoiseModel object
 
 Output: RDWaveform, float
 """
-function trigger(wf::SolidStateDetectors.RDWaveform, daq::GenericDAQ, noise_model::NoiseModel)
+function trigger(wf::RDWaveform, daq::GenericDAQ, noise_model::NoiseModel)
     trigger_window_lengths = (250,250,250)
     trigger_window_length = sum(trigger_window_lengths)
     trigger_threshold = noise_model.noise_σ * 3 * daq.gain # noise implemented before DAQ gain

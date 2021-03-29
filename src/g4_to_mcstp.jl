@@ -19,15 +19,10 @@ function g4_to_mcstp(g4_filename::AbstractString)
     g4sntuple = g4sfile["default_ntuples"]["g4sntuple"]
 
     evtno = read(g4sntuple["event"]["pages"])
-    detno = read(g4sntuple["iRep"]["pages"]) # no such thing for HADES
+    detno = read(g4sntuple["iRep"]["pages"])
     thit = read(g4sntuple["t"]["pages"]).*u"ns"
     edep = read(g4sntuple["Edep"]["pages"]).*u"MeV"
-    ekin = read(g4sntuple["KE"]["pages"]).*u"MeV"
     volID = read(g4sntuple["volID"]["pages"])
-    stp = read(g4sntuple["step"]["pages"])
-    mom = read(g4sntuple["parentID"]["pages"])
-    trk = read(g4sntuple["trackID"]["pages"])
-    pdg = read(g4sntuple["pid"]["pages"])
 
     x = read(g4sntuple["x"]["pages"])
     y = read(g4sntuple["y"]["pages"])
@@ -38,60 +33,43 @@ function g4_to_mcstp(g4_filename::AbstractString)
     n_ind = length(evtno)
     pos = [ SVector{3}(([ x[i], y[i], z[i] ] .* u"mm")...) for i in 1:n_ind ]
 
-    # println("...constructing Table")
-    # Construct a Julia DataFrame with the arrays we just constructed from the g4sfile data to make grouping easier
-    # raw_df = TypedTables.Table(
-    raw_df = DataFrame(
+    # Construct a Table with the arrays we just constructed from the g4sfile data
+    g4_table = TypedTables.Table(
             evtno = evtno,
             detno = detno,
             thit = thit,
             edep = edep,
             pos = pos,
-            ekin = ekin,
             volID = volID,
-            stp = stp,
-            mom = mom,
-            trk = trk,
-            pdg = pdg
         )
 
-
-    println("...group by volume")
     # Save only events that occur in the detector PV
-    gdf = DataFrames.groupby(raw_df, :volID)
-    # volID = 1 for the detectors in CAGE g4simple sims, this selects only events in the detector
-    det_hits = DataFrame(gdf[1])
+    # volID = 1 selects only events in the detector
+    g4_pv = group_by_column(g4_table, :volID)[1]
 
-    # TODO: use Table instead of DataFrame
-    # gdf = group_by_column(raw_df, :volID)
-    # det_hits = gdf[1]
+    # Need to turn into a normal Table before using internal SSD functions (group_by_evtno, cluster_detector_hits, etc)
 
-    # Need to turn DataFrame into a Table before using internal SSD functions (group_by_evtno, cluster_detector_hits, etc)
-    # Only include parameters needed by SSD
+    g4_flat = Table(
+        evtno = g4_pv.evtno,
+        detno = g4_pv.detno,
+        thit = g4_pv.thit,
+        edep = g4_pv.edep,
+        pos = g4_pv.pos
+    )
 
-    # println("...constructing table")
-    hits_flat = Table(
-        evtno = det_hits.evtno,
-        detno = det_hits.detno,
-        thit = det_hits.thit,
-        edep = det_hits.edep,
-        pos = det_hits.pos
-     )
-
-     # group hits by event number and cluster hits based on distance
-    hits_by_evtno = RadiationDetectorSignals.group_by_evtno(hits_flat)
+    # group hits by event number and cluster hits based on distance
+    hits_by_evtno = RadiationDetectorSignals.group_by_evtno(g4_flat)
     @info("$(sum(length.(hits_by_evtno.edep))) hits before clustering")
     mc_events_clustered = @time SolidStateDetectors.cluster_detector_hits(hits_by_evtno, 0.2u"mm")
     @info("$(sum(length.(mc_events_clustered.edep))) hits after clustering")
 
     # Waveform generation has to be per detector.
     # Let's reshuffle the detector hits, grouping by event number and detector:
-    # println("...group by detector")
     hits = RadiationDetectorSignals.ungroup_by_evtno(mc_events_clustered)
     mc_events_per_det = RadiationDetectorSignals.group_by_evtno_and_detno(hits)
 
     # The hits are now grouped by event number, but separately for each detector, and sorted by detector number:
-    issorted(mc_events_per_det.detno)
+    issorted(mc_events_per_det.detno) # what does this do? It's not "!"
 
     #This makes it easy to group them by detector number ...
     # currently there is only 1 detector with ID = 0
@@ -102,8 +80,8 @@ function g4_to_mcstp(g4_filename::AbstractString)
 end
 
 
-# function group_by_column(table::TypedTables.Table, colname::Symbol)
-#     sorting_idxs = sortperm(getproperty(table, colname))
-#     sorted = table[sorting_idxs]
-#     TypedTables.Table(consgroupedview((getproperty(table, colname), Tables.columns(sorted))))
-# end
+function group_by_column(table::TypedTables.Table, colname::Symbol)
+    sorting_idxs = sortperm(getproperty(table, colname))
+    sorted = table[sorting_idxs]
+    TypedTables.Table(consgroupedview(getproperty(sorted, colname), Tables.columns(sorted)))
+end

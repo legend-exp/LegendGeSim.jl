@@ -42,8 +42,8 @@ An `RC` filter made with BiQuad filter
 Differentiate a waveform using Biquad filter
 (see function dspjl_differentiator_filter)
 
-wf: RDWaveform
-Output: RDWaveform
+RC: ?
+Output: ?
 """
 function dspjl_rc_filter(RC::Real)
     T = float(typeof(RC))
