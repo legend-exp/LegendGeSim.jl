@@ -4,24 +4,18 @@ struct SiggenSimulator <: PSSimulator end
 
 T = Float32
 
-Random.seed!(123) # only for testing
+# Random.seed!(123) # only for testing
 
-# for SSD baseline and tail
-# has to be larger than number of samples resulting from the online trigger filter of the DAQ
-# n_baseline_samples = 2000; # SSD example was 1200;
-# has to be greater than DAQ waveform length (daq_nsamples in mcpss_to_t1pss.jl)
-# total_waveform_length = 8000;
-
-function mcstp_to_mcpss(det_path::AbstractString, det_name::AbstractString, mc_events::Table, sim_config_file::AbstractString)
+function mcstp_to_mcpss(mc_events::Table, sim_config_file::AbstractString)
     sim_config = LegendGeSim.load_config(sim_config_file)
-    mcstp_to_mcpss(det_path, det_name, mc_events, sim_config)
+    mcstp_to_mcpss(mc_events, sim_config)
 
 end
 
 
-function mcstp_to_mcpss(det_path::AbstractString, det_name::AbstractString, mc_events::Table, sim_config::PropDict)
+function mcstp_to_mcpss(mc_events::Table, sim_config::PropDict)
     noise_model = NoiseModel(sim_config)
-    mcstp_to_mcpss(det_path, det_name, mc_events, noise_model)
+    mcstp_to_mcpss(sim_config.detector_path, sim_config.detector, mc_events, noise_model)
 end
 
 
@@ -39,10 +33,14 @@ mc_events: table in the mcstp format (output of g4_to_mcstp)
 
 Output: Table, Table
 """
-function mcstp_to_mcpss(det_path::AbstractString, det_name::AbstractString, mc_events::Table, noise_model::NoiseModel)
 
+function mcstp_to_mcpss(det_path::AbstractString, det_name::AbstractString, mc_events::Table, noise_model::NoiseModel)
     simulation = detector_simulation(det_path, det_name)
 
+    mcstp_to_mcpss(simulation, mc_events, noise_model)
+end
+
+function mcstp_to_mcpss(simulation::SolidStateDetectors.Simulation, mc_events::Table, noise_model::NoiseModel)
     # add fano noise, don't add if data noise is applied later
     mc_events = add_noise(mc_events, simulation, noise_model)
 
@@ -50,7 +48,6 @@ function mcstp_to_mcpss(det_path::AbstractString, det_name::AbstractString, mc_e
     mcpss_table, mcpss_mctruth = simulate_wf(mc_events, simulation, SSDSimulator())
 
     mcpss_table, mcpss_mctruth
-
 end
 
 
@@ -67,7 +64,7 @@ Output: SSD detector simulation object
 """
 function detector_simulation(det_path::AbstractString, det_name::AbstractString)
 
-    det_h5 = joinpath(det_path, "cache", det_name*".h5f")
+    det_h5 = joinpath(det_path, det_name*".h5f")
     if isfile(det_h5)
         @info "Reading $det_name simulation from cached h5"
         simulation = SolidStateDetectors.ssd_read(det_h5, Simulation)
@@ -117,7 +114,7 @@ function simulate_detector(det_path::AbstractString, det_name::AbstractString)
     end
 
     @info("-> Saving to cache/.h5...")
-    det_h5 = joinpath(det_path, "cache", det_name*".h5f")
+    det_h5 = joinpath(det_path, det_name*".h5f")
 
     if !ispath(dirname(det_h5)) mkpath(dirname(det_h5)) end
     SolidStateDetectors.ssd_write(det_h5, simulation)

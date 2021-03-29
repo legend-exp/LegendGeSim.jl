@@ -37,9 +37,6 @@ later to be filled from a configuration file
 
     "DAQ gain"
     gain = typemax(UInt16) / ((max_e+offset)/uconvert(u"keV", germanium_ionization_energy))
-
-    # noise in DAQ units?.. needed to compute trigger threshold
-    # noise_σ = uconvert(u"eV", T(3)u"keV") / germanium_ionization_energy
     
     # trigger_threshold::Real = noise_σ * 10 * gain
 end

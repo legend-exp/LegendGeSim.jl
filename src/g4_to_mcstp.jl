@@ -40,6 +40,7 @@ function g4_to_mcstp(g4_filename::AbstractString)
 
     # println("...constructing Table")
     # Construct a Julia DataFrame with the arrays we just constructed from the g4sfile data to make grouping easier
+    # raw_df = TypedTables.Table(
     raw_df = DataFrame(
             evtno = evtno,
             detno = detno,
@@ -58,11 +59,12 @@ function g4_to_mcstp(g4_filename::AbstractString)
     println("...group by volume")
     # Save only events that occur in the detector PV
     gdf = DataFrames.groupby(raw_df, :volID)
+    # volID = 1 for the detectors in CAGE g4simple sims, this selects only events in the detector
+    det_hits = DataFrame(gdf[1])
+
     # TODO: use Table instead of DataFrame
     # gdf = group_by_column(raw_df, :volID)
-
-    # volID = 1 for the detectors in CAGE g4simple sims, this selects only events in the detector
-    det_hits = DataFrame(gdf[1]) # for HADES volID = 1
+    # det_hits = gdf[1]
 
     # Need to turn DataFrame into a Table before using internal SSD functions (group_by_evtno, cluster_detector_hits, etc)
     # Only include parameters needed by SSD

@@ -11,21 +11,28 @@ elec_config: path to elec config json file
 
 Returns two tables: mcraw and mctruth information
 """
-function g4_to_mcraw(det_name::AbstractString, det_path::AbstractString, mc_name::AbstractString, mc_path::AbstractString, sim_config::AbstractString)
+
+function g4_to_mcraw(mc_file_path::AbstractString, sim_config_filename::AbstractString)
+    sim_config = load_config(sim_config_filename)    
+
+    g4_to_mcraw(mc_file_path, sim_config)
+end
+
+
+function g4_to_mcraw(mc_file_path::AbstractString, sim_config::PropDict)
 
     @info "----- g4simple -> mcstp"
-    mcstp_table = LegendGeSim.g4_to_mcstp(joinpath(mc_path, mc_name * ".hdf5"))
-
-    daq = construct_GenericDAQ(sim_config)
-    preamp = construct_PreAmp(sim_config)
-    noise_model = NoiseModel(sim_config)
+    mcstp_table = LegendGeSim.g4_to_mcstp(mc_file_path)
 
     @info "----- mcstp -> mcpss"
-    mcpss_table, mcpss_mctruth = LegendGeSim.mcstp_to_mcpss(det_path, det_name, mcstp_table, noise_model)
+    noise_model = LegendGeSim.NoiseModel(sim_config)
+    simulation = LegendGeSim.detector_simulation(sim_config.detector_path, sim_config.detector)
+    mcpss_table, mcpss_mctruth = LegendGeSim.mcstp_to_mcpss(simulation, mcstp_table, noise_model)
 
     @info "----- mcpss -> mcraw"
+    daq = GenericDAQ(sim_config)
+    preamp = PreAmp(sim_config)
     mcraw_table = LegendGeSim.mcpss_to_mcraw(mcpss_table, mcpss_mctruth, daq, preamp, noise_model) 
-    # mcraw_table = LegendGeSim.mcpss_to_mcraw(mcpss_table, mcpss_mctruth, sim_config) 
 
     mcraw_table, mcpss_mctruth
 end

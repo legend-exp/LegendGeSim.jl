@@ -8,7 +8,8 @@ ns_unit = u"ns"
 μs_unit = u"μs"
 
 T = Float32
-germanium_ionization_energy = T(2.95)u"eV"
+# germanium_ionization_energy = T(2.95)u"eV"
+germanium_ionization_energy = SolidStateDetectors.material_properties[:HPGe].E_ionisation # already in eV
 
 abstract type ElecChain end
 

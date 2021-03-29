@@ -1,4 +1,6 @@
 {
+    "detector": "IC160A",
+    "detector_path": "data/",
     "daq": {
         "nsamples": 4000,
         "baseline_length": 400,
