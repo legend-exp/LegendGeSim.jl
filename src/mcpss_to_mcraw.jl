@@ -1,3 +1,13 @@
+"""
+    mcpss_to_mcraw(mcpss, mctruth, sim_config_file)
+
+Process simulated waveforms to account for DAQ and electronics effects,
+resulting in a table that mimics raw data format.
+
+mcpss: Table with simulated waveforms (output of mcstp_to_mcpss)
+mctruth: Table with MC truth (currently used to add DAQ timestamp)
+sim_config_file: simulation configuration json file
+"""
 function mcpss_to_mcraw(mcpss::Table, mctruth::Table, sim_config_file::AbstractString)
     # simulation config
     sim_config = LegendGeSim.load_config(sim_config_file)
@@ -5,6 +15,16 @@ function mcpss_to_mcraw(mcpss::Table, mctruth::Table, sim_config_file::AbstractS
     mcpss_to_mcraw(mcpss, mctruth, sim_config)
 end   
 
+"""
+    mcpss_to_mcraw(mcpss, mctruth, sim_config)
+
+Process simulated waveforms to account for DAQ and electronics effects,
+resulting in a table that mimics raw data format.
+
+mcpss: Table with simulated waveforms (output of mcstp_to_mcpss)
+mctruth: Table with MC truth (currently used to add DAQ timestamp)
+sim_config: PropDict object with simulation configuration
+"""
 function mcpss_to_mcraw(mcpss::Table, mctruth::Table, sim_config::PropDict)
     # simulation config
     daq = GenericDAQ(sim_config)
@@ -16,15 +36,21 @@ end
 
 
 """
-    mcpss_to_mcraw(mcpss, mctruth)
+    mcpss_to_mcraw(mcpss, mctruth, daq, elec_chain, noise_model)
 
 Process simulated waveforms to account for DAQ and electronics effects,
 resulting in a table that mimics raw data format.
 
 mcpss: Table with simulated waveforms (output of mcstp_to_mcpss)
 mctruth: Table with MC truth (currently used to add DAQ timestamp)
+daq: GenericDAQ object with DAQ parameters for the simulation
+elec_chain: ElecChain object with parameters for the simulation of the electronics chain
+noise_model: NoiseModel object for noise simulation
+(deep simulaiton, sim based on data, baseline chunk slapping)
 
 Output: Table
+
+Work in progress
 """
 function mcpss_to_mcraw(mcpss::Table, mctruth::Table, daq::GenericDAQ, elec_chain::ElecChain, noise_model::NoiseModel)
     # Create arrays to be filled with results, and online energy
@@ -44,26 +70,21 @@ function mcpss_to_mcraw(mcpss::Table, mctruth::Table, daq::GenericDAQ, elec_chai
 
         # plot_wf(mcpss.waveform[i],1)
 
-        # println("tail and bs")
         wf_array[i] = add_tail_and_baseline(mcpss.waveform[i], daq)
         # plot_wf(wf_array[i],2)
 
         
-        # println("diff")
         wf_array[i] = differentiate(wf_array[i])
         # plot_wf(wf_array[i],3)
 
 
-        # println("elec")
         wf_array[i] = simulate_elec(wf_array[i], elec_chain)
         # plot_wf(wf_array[i],4)
 
-        # println("noise")
         # works for preamp noise, but not data noise, since that's in DAQ units...
         wf_array[i] = simulate_noise(wf_array[i], noise_model)
         # plot_wf(wf_array[i],5)    
 
-        # println("daq")
         wf_array[i] = simulate_daq(wf_array[i], daq)
         # plot_wf(wf_array[i],6)
 
@@ -118,7 +139,7 @@ Differentiate a waveform using Biquad filter
 wf: RDWaveform
 Output: RDWaveform
 """
-function differentiate(wf::SolidStateDetectors.RDWaveform)
+function differentiate(wf::RadiationDetectorSignals.RDWaveform)
     diff_biquad_filter = dspjl_differentiator_filter(T(1)) # We want a gain of 1 here
     filter_output = filt(diff_biquad_filter, wf.value)
     # !!! We have to implement a method do parse a RDWaveform to `filt`
@@ -130,9 +151,13 @@ end
 ##
 
 """
-    add_tail_and_baseline(wfs, daq)
+    add_tail_and_baseline(wf, daq)
 
 Extend tail and add baseline based on DAQ number of samples and baseline length
+To be changed to take ArrayOfRDWaveforms rather than a single RDWaveform
+
+wf: RDWaveform object 
+daq: DAW object
 """
 function add_tail_and_baseline(wf::RDWaveform, daq::DAQ)
 # function add_tail_and_baseline(wfs::RadiationDetectorSignals.ArrayOfRDWaveforms, daq::DAQ)
@@ -144,23 +169,22 @@ function add_tail_and_baseline(wf::RDWaveform, daq::DAQ)
 end
 
 
-
-
-
 """
-    trigger(wf)
+    trigger(wf, daq, noise_model)
 
-Simulate DAQ trigger. Returns a waveform with trigger and resulting online energy
+Simulate DAQ trigger.
+Returns the waveform stored by the DAQ and the resulting online energy
 
 wf: RDWaveform
-Output: RDwaveform, float
+daq: GenericDAQ object
+noise_model: NoiseModel object
+
+Output: RDWaveform, float
 """
 function trigger(wf::SolidStateDetectors.RDWaveform, daq::GenericDAQ, noise_model::NoiseModel)
     trigger_window_lengths = (250,250,250)
     trigger_window_length = sum(trigger_window_lengths)
-    # data noise is already in DAQ units; preamp noise is in units before conversion -> * gain
-    # currently data noise implemented before DAQ offset-gain-digitize
-    trigger_threshold = noise_model.noise_σ * 3 * daq.gain
+    trigger_threshold = noise_model.noise_σ * 3 * daq.gain # noise implemented before DAQ gain
 
     online_filter_output = zeros(T, length(wf.value) - trigger_window_length)
     t0_idx::Int = 0
@@ -169,13 +193,9 @@ function trigger(wf::SolidStateDetectors.RDWaveform, daq::GenericDAQ, noise_mode
     for i in eachindex(online_filter_output)
         online_filter_output[i], trig = daq_online_filter(wf.value, i, trigger_window_lengths, trigger_threshold)
         if trig && t0_idx == 0
-            # println(online_filter_output[i])
             t0_idx = i+trigger_window_lengths[1]+trigger_window_lengths[2]
         end
     end
-
-    # println("Trigger threshold: $trigger_threshold")
-    # println("Trigger: $t0_idx")
 
     ts = range(T(0)u"ns", step = daq.Δt, length = daq.nsamples)
     # in case it didn't trigger
@@ -199,8 +219,6 @@ function trigger(wf::SolidStateDetectors.RDWaveform, daq::GenericDAQ, noise_mode
         # plot!(wf1, linestype=:dot, linecolor=:red)
         # iStart = t0_idx-daq.baseline_length*Int(daq.Δt/step(wv.time))
 
-        # stored_waveform = RDWaveform(ts, wf.value[iStart:iStart+daq.nsamples-1]);
-        # stored_waveform = RDWaveform(ts, wf.value[range(iStart, step = Int(daq.Δt/step(wf.time)), length = daq.nsamples)]);
         stored_waveform = RDWaveform(ts, wf.value[iStart:iStart+daq.nsamples-1])
 
     end

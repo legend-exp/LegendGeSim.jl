@@ -1,21 +1,20 @@
-# keV_unit = 1.0u"keV"; keV = typeof(keV_unit);
-# MHz_unit = 1.0u"MHz"; MHz = typeof(MHz_unit);
-# const freq_unit = u"MHz"
-# ns_unit = 1.0u"ns"; ns = typeof(ns_unit);
-# μs_unit = 1.0u"μs"; μs = typeof(μs_unit);
-
 ns_unit = u"ns"
 μs_unit = u"μs"
-
 T = Float32
+
+
 # germanium_ionization_energy = T(2.95)u"eV"
 germanium_ionization_energy = SolidStateDetectors.material_properties[:HPGe].E_ionisation # already in eV
 
+
+"""
+Abstract Electronics Chain type for hierarchy and multiple dispatch
+"""
 abstract type ElecChain end
+
 
 """
 A shelf to put all the preamplifier parameters in
-later to be filled from a configuration file
 """
 @with_kw struct PreAmp <: ElecChain
     "PreAmp exp decay time"
@@ -24,15 +23,29 @@ later to be filled from a configuration file
     "PreAmp rise time"
     τ_rise::typeof(1.0*ns_unit) = T(15)*u"ns"
 
-    # "sigma for electronic noise"
+    "sigma for electronic noise"
     noise_σ::Real = uconvert(u"eV", T(3)u"keV") / germanium_ionization_energy
 end
 
 
 """
-    function PreAmp(elec_conf)
+    function PreAmp(sim_conf_file)
 
-Construct a struct with PreAmp parameters based on given electronics config PropDict
+Construct a struct with Preamp parameters based on given simulation configuration file
+
+sim_conf_file: json file with simulation settings    
+"""
+function PreAmp(sim_conf::AbstractString)
+    PreAmp(LegendGeSim.load_config(sim_conf))
+end
+
+
+"""
+    function PreAmp(sim_conf)
+
+Construct a struct with PreAmp parameters based on given simulation configuration 
+
+sim_conf: PropDict object with simulation settings    
 """
 function PreAmp(sim_conf::PropDict)
     PreAmp(
@@ -42,9 +55,7 @@ function PreAmp(sim_conf::PropDict)
     )
 end
 
-function PreAmp(sim_conf::AbstractString)
-    PreAmp(LegendGeSim.load_config(sim_conf))
-end
+
 
 
 """

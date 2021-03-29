@@ -46,8 +46,6 @@ using Unitful
 
 # using Plots
 
-
-
 include("filters.jl")
 include("sim_config.jl")
 include("elec_chain.jl")

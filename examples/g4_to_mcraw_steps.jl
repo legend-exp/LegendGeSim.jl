@@ -25,7 +25,7 @@ end
 
 ##
 
-# Read mcsp (if the previous step was skipped, otherwise skip this step)
+# Read mcstp (if the previous step was skipped, otherwise skip this step)
 @info "Reading mcstp"
 mcstp_name = joinpath(processed_dir, mc_name*"_mcstp.h5")
 mcstp_table = HDF5.h5open(mcstp_name, "r") do input
@@ -42,8 +42,15 @@ mcpss_table, mcpss_mctruth = LegendGeSim.mcstp_to_mcpss(mcstp_table, sim_config_
 # version 2
 @info "----- mcstp -> mcpss"
 sim_config = LegendGeSim.load_config(sim_config_filename)
+mcpss_table, mcpss_mctruth = LegendGeSim.mcstp_to_mcpss(mcstp_table, sim_config)
+
+##
+# version 3
+sim_config = LegendGeSim.load_config(sim_config_filename)
+simulation = LegendGeSim.detector_simulation(sim_config.detector_path, sim_config.detector)
+ps_simulator = LegendGeSim.PSSimulator(sim_config)
 noise_model = LegendGeSim.NoiseModel(sim_config)
-mcpss_table, mcpss_mctruth = LegendGeSim.mcstp_to_mcpss(sim_config.detector_path, sim_config.detector, mcstp_table, noise_model)
+mcpss_table, mcpss_mctruth = LegendGeSim.mcstp_to_mcpss(mcstp_table, simulation, ps_simulator, noise_model)
 
 ##
 

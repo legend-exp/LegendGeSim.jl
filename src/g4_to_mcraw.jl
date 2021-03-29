@@ -1,17 +1,11 @@
 """
-    g4_to_mcraw(det_name, det_path, mc_name, mc_path)
+    g4_to_mcraw(mc_file_path, sim_config_filename)
 
-Simulate the full chain g4->mcstp->mcpss->mcraw
+Simulate the full chain g4simple->mcstp->mcpss->mcraw
 
-det_name: detector name (e.g. "V05266A")
-det_path: path to detector json file
-mc_name: name of the g4simple hdf5 file
-mc_path: path to the folder containing the g4simple hdf5 file
-elec_config: path to elec config json file 
-
-Returns two tables: mcraw and mctruth information
+mc_file_path: full path to a g4simple file
+sim_config_filename: simulation configuration json file
 """
-
 function g4_to_mcraw(mc_file_path::AbstractString, sim_config_filename::AbstractString)
     sim_config = load_config(sim_config_filename)    
 
@@ -19,6 +13,14 @@ function g4_to_mcraw(mc_file_path::AbstractString, sim_config_filename::Abstract
 end
 
 
+"""
+    g4_to_mcraw(mc_file_path, sim_config)
+
+Simulate the full chain g4simple->mcstp->mcpss->mcraw
+
+mc_file_path: full path to a g4simple file
+sim_config: PropDict object based on the simulation configuration json file
+"""
 function g4_to_mcraw(mc_file_path::AbstractString, sim_config::PropDict)
 
     @info "----- g4simple -> mcstp"

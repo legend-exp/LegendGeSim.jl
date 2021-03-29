@@ -1,15 +1,13 @@
-# Should not be in LegendGeSim
-# -> LegendHDF5IO
-
-
 """
     read_mcstp(filename)
 
 Helper function to read MC events from an HDF5 file with mcstp format
-(g4simple events in the format compatible with SSD simulate_waveforms method)
-(to be rewritten as a g4_to_mcstp() function that reads from storage)
+(g4simple events after clustering in the format compatible with SSD simulate_waveforms method)
 
-filename: name of mcstp file
+To be rewritten as a g4_to_mcstp() function that reads from storage?
+To be moved to LegendHDF5IO?
+
+filename: full path to mcstp file
 Output: Table
 """
 function read_mcstp(mcfilename::AbstractString)
@@ -44,7 +42,11 @@ end
     read_mcpss(filename)
 
 Helper function to read simulation output from an HDF5 file with mcpss format
-(to be rewritten as a mcstp_to_mcpss() function that reads from storage)
+(simulated waveforms)
+
+
+To be rewritten as a g4_to_mcstp() function that reads from storage?
+To be moved to LegendHDF5IO?
 
 filename: name of mcpss file
 Output: Table
@@ -66,7 +68,10 @@ end
     read_mctruth(filename)
 
 Helper function to read mctruth from an HDF5 file with mcpss format
-(to be rewritten as a mcstp_to_mcpss() function that reads from storage)
+(contains mc truth in a dedicated group)
+
+To be rewritten as a g4_to_mcstp() function that reads from storage?
+To be moved to LegendHDF5IO?
 
 filename: name of mcpss file
 Output: Table

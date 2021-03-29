@@ -51,6 +51,7 @@ function dspjl_rc_filter(RC::Real)
     Biquad(T(α), T(0), T(0), T(α - 1), T(0))
 end
 
+
 """
     dspjl_integrator_cr_filter(gain, RC)
 

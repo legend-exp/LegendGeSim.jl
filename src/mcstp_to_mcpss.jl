@@ -1,51 +1,76 @@
+"""
+Abstract type for hierarchy and multiple dispatch
+that allows to choose between SolidStateDetectors and Siggen
+as waveform simulation method
+"""
 abstract type PSSimulator end
 struct SSDSimulator <: PSSimulator end
 struct SiggenSimulator <: PSSimulator end
 
-T = Float32
+function PSSimulator(sim_config::PropDict)
+    @info "Waveform simulation method: $(sim_config.sim_method)"
+    if(sim_config.sim_method == "SSD")
+        SSDSimulator()
+    elseif(sim_config.sim_method == "siggen")
+        SiggenSimulator()
+    else
+        println("This simulation method is not implemented!")
+    end
+end
 
-# Random.seed!(123) # only for testing
+Random.seed!(123) # only for testing
 
+
+"""
+    mstp_to_mcpss(mc_events, sim_config_file)
+
+Simulate waveforms based on given MC events for a given configuration.
+Returns the resulting simulated waveforms and MC truth
+
+mc_events: table in the mcstp format (output of g4_to_mcstp)
+sim_config_file: simulation configuration json file
+"""
 function mcstp_to_mcpss(mc_events::Table, sim_config_file::AbstractString)
     sim_config = LegendGeSim.load_config(sim_config_file)
     mcstp_to_mcpss(mc_events, sim_config)
 
 end
 
+"""
+    mstp_to_mcpss(mc_events, sim_config)
 
+Simulate waveforms based on given MC events for a given configuration.
+Returns the resulting simulated waveforms and MC truth
+
+mc_events: table in the mcstp format (output of g4_to_mcstp)
+sim_config: PropDict object with simulation configuration
+"""
 function mcstp_to_mcpss(mc_events::Table, sim_config::PropDict)
     noise_model = NoiseModel(sim_config)
-    mcstp_to_mcpss(sim_config.detector_path, sim_config.detector, mc_events, noise_model)
+    simulation = detector_simulation(sim_config.detector_path, sim_config.detector)
+    ps_simulator = PSSimulator(sim_config)
+    mcstp_to_mcpss(mc_events, simulation, ps_simulator, noise_model)
 end
 
 
-##
 """
-    cstp_to_mcpss(det_path, det_name, mc_events)
+    mstp_to_mcpss(mc_events, simulation, noise_model)
 
-Simulate waveforms based on given MC events for a given detector.
-Returns the resulting simulation and MC truth
+Simulate waveforms based on given MC events, detector simulation and noise model.
+Returns the resulting simulated waveforms and MC truth
 
-det_path: path to detector json file
-det_name: detector name (e.g. "V05266A")
-The code will look for a .json file "det_path/det_name.json"
 mc_events: table in the mcstp format (output of g4_to_mcstp)
+simulation: SSD simulation object
+noise_model: NoiseModel object
 
 Output: Table, Table
 """
-
-function mcstp_to_mcpss(det_path::AbstractString, det_name::AbstractString, mc_events::Table, noise_model::NoiseModel)
-    simulation = detector_simulation(det_path, det_name)
-
-    mcstp_to_mcpss(simulation, mc_events, noise_model)
-end
-
-function mcstp_to_mcpss(simulation::SolidStateDetectors.Simulation, mc_events::Table, noise_model::NoiseModel)
+function mcstp_to_mcpss(mc_events::Table, simulation::SolidStateDetectors.Simulation, ps_simulator::PSSimulator, noise_model::NoiseModel)
     # add fano noise, don't add if data noise is applied later
-    mc_events = add_noise(mc_events, simulation, noise_model)
+    mc_events = add_fano_noise(mc_events, simulation, noise_model)
 
     # simulate waveforms
-    mcpss_table, mcpss_mctruth = simulate_wf(mc_events, simulation, SSDSimulator())
+    mcpss_table, mcpss_mctruth = simulate_wf(mc_events, simulation, ps_simulator)
 
     mcpss_table, mcpss_mctruth
 end
@@ -58,7 +83,7 @@ Read cached h5 detector simulation if exists,
 otherwise simulate detector based on json geometry.
 
 det_path: path to detector json file
-det_name: detector name (e.g. "V05266A").
+det_name: detector name without extension (e.g. "IC160A")
 
 Output: SSD detector simulation object
 """
@@ -130,17 +155,19 @@ end
 
 Add fano noise to MC events
 
+mc_events: table in the mcstp format (output of g4_to_mcstp)
+noise_model: NoiseSim object
 
-Output: no output, the function modifies the field mc_events
+Output: Table
 """
-function add_noise(mc_events::Table, simulation::SolidStateDetectors.Simulation, ::NoiseSim)
+function add_fano_noise(mc_events::Table, simulation::SolidStateDetectors.Simulation, ::NoiseSim)
     @info("Adding fano noise")
     det_material = simulation.detector.semiconductors[1].material
     add_fano_noise(mc_events, det_material.E_ionisation, det_material.f_fano)
 end
 
 
-function add_noise(mc_events::Table, ::SolidStateDetectors.Simulation, ::NoiseData)
+function add_fano_noise(mc_events::Table, ::SolidStateDetectors.Simulation, ::NoiseData)
     # do nothing since if we're using noise from data we do not simulate fano noise
     # not to double count
     @info("Not adding fano noise because using noise levels from data")
@@ -200,4 +227,11 @@ function simulate_wf(mc_events::Table, simulation::SolidStateDetectors.Simulatio
     )
 
     mcpss_table, mcpss_mctruth
+end
+
+
+function simulate_wf(mc_events::Table, simulation::SolidStateDetectors.Simulation, ::SiggenSimulator)
+    # to be implemented with Julia siggen wrapper
+    # which method to use, SSD or siggen, should be in the configuration
+    println("This method is not yet implemented")
 end
