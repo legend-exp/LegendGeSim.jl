@@ -1,6 +1,5 @@
 {
-    "detector": "IC160A",
-    "detector_path": "data/",
+    "detector": "data/V02160A.json",
     "sim_method": "SSD",
     "daq": {
         "nsamples": 4000,

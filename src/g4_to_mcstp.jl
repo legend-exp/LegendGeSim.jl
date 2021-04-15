@@ -9,7 +9,7 @@ Note: should be a part of the LegendHDF5IO package in the future.
 g4_filename: path to the g4simple output hdf5 file
 Output: Table
 """
-function g4_to_mcstp(g4_filename::AbstractString)
+function g4_to_mcstp(g4_filename::AbstractString, detector::AbstractString)
 
     # Read raw g4simple HDF5 output file and construct arrays of corresponding data
     @info("Processing file: $g4_filename")
@@ -64,7 +64,8 @@ function g4_to_mcstp(g4_filename::AbstractString)
     @info("$(sum(length.(mc_events_clustered.edep))) hits after clustering")
 
     # Waveform generation has to be per detector.
-    # Let's reshuffle the detector hits, grouping by event number and detector:
+    # Let's reshuffle the detector hits, grouping by event number and detector
+    @info("Grouping by detector...")
     hits = RadiationDetectorSignals.ungroup_by_evtno(mc_events_clustered)
     mc_events_per_det = RadiationDetectorSignals.group_by_evtno_and_detno(hits)
 
@@ -75,7 +76,17 @@ function g4_to_mcstp(g4_filename::AbstractString)
     # currently there is only 1 detector with ID = 0
     mc_events_det1 = filter(evt -> evt.detno == 0, mc_events_per_det)
 
-    mc_events_det1
+    # Remove events lying outside of the detector
+    @info "Remove events outside of the detector..."
+    det_config_SSD = detector_config(detector, SSDSimulator())
+    detector_SSD = Simulation(SolidStateDetector{T}(det_config_SSD))
+    # We need to filter out the few events that,
+    # due to numerical effects, lie outside of the detector
+    # (the proper solution is to shift them slightly, this feature will be added
+    # in the future):
+    mc_events = mc_events_det1[findall(pts -> all(p -> T.(ustrip.(uconvert.(u"m", p))) in detector_SSD.detector, pts), mc_events_det1.pos)]
+
+    mc_events
 
 end
 

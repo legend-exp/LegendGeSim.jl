@@ -1,4 +1,4 @@
-Random.seed!(123) # only for testing
+# Random.seed!(123) # only for testing
 
 
 """
@@ -16,6 +16,16 @@ function mcstp_to_mcpss(mc_events::Table, sim_config_file::AbstractString)
 
 end
 
+function mcstp_to_mcpss(mc_events::Table, sim_config::PropDict)
+    ps_simulator = PSSimulator(sim_config)
+    @info("Reading geometry for $(sim_config.detector)")
+    det_config = detector_config(sim_config.detector, ps_simulator)
+    noise_model = NoiseModel(sim_config)
+
+    mcstp_to_mcpss(mc_events, det_config, ps_simulator, noise_model)
+
+end
+
 
 """
     mstp_to_mcpss(mc_events, sim_config)
@@ -26,108 +36,49 @@ Returns the resulting simulated waveforms and MC truth
 mc_events: table in the mcstp format (output of g4_to_mcstp)
 sim_config: PropDict object with simulation configuration
 """
-function mcstp_to_mcpss(mc_events::Table, sim_config::PropDict)
-    noise_model = NoiseModel(sim_config)
-    simulation = detector_simulation(sim_config.detector_path, sim_config.detector)
-    ps_simulator = PSSimulator(sim_config)
-    mcstp_to_mcpss(mc_events, simulation, ps_simulator, noise_model)
-end
-
-
-"""
-    mstp_to_mcpss(mc_events, simulation, noise_model)
-
-Simulate waveforms based on given MC events, detector simulation and noise model.
-Returns the resulting simulated waveforms and MC truth
-
-mc_events: table in the mcstp format (output of g4_to_mcstp)
-simulation: SSD simulation object
-noise_model: NoiseModel object
-
-Output: Table, Table
-"""
-function mcstp_to_mcpss(mc_events::Table, simulation::SolidStateDetectors.Simulation, ps_simulator::PSSimulator, noise_model::NoiseModel)
+function mcstp_to_mcpss(mc_events::Table, detector_config::Dict, ps_simulator::PSSimulator, noise_model::NoiseModel)
     # add fano noise, don't add if data noise is applied later
-    mc_events = add_fano_noise(mc_events, simulation, noise_model)
+    # should we do this before siggen as well? or does siggen do it by itself?
+    # noise_model = NoiseModel(sim_config)
+    mc_events = fano_noise(mc_events, detector_config, noise_model)
 
-    # simulate waveforms
-    mcpss_table, mcpss_mctruth = simulate_wf(mc_events, simulation, ps_simulator)
+    mcpss_table, mcpss_mctruth = simulate_wf(mc_events, detector_config, ps_simulator)
 
     mcpss_table, mcpss_mctruth
 end
 
 
-"""
-    detector_simulation(det_path, det_name)
-
-Read cached h5 detector simulation if exists,
-otherwise simulate detector based on json geometry.
-
-det_path: path to detector json file
-det_name: detector name without extension (e.g. "IC160A")
-
-Output: SSD detector simulation object
-"""
-function detector_simulation(det_path::AbstractString, det_name::AbstractString)
-
-    det_h5 = joinpath(det_path, det_name*".h5f")
-    if isfile(det_h5)
-        @info "Reading $det_name simulation from cached h5"
-        simulation = SolidStateDetectors.ssd_read(det_h5, Simulation)
-    else
-        @info "Simulating $det_name from scratch"
-        simulation = simulate_detector(det_path, det_name)
-    end
-
-    simulation
-end
+# function detector_simulation(det_path::AbstractString, det_name::AbstractString, ::SiggenSimulator)
+#     PropDicts.read(PropDict, joinpath(det_path, det_name*".json"))
+# end
 
 
-"""
-    simulate_detector(det_path, det_name)
+# """
+#     detector_simulation(det_path, det_name)
 
-Simulate detector based on json geometry.
+# Read cached h5 detector simulation if exists,
+# otherwise simulate detector based on json geometry.
 
-det_path: path to detector json file
-det_name: detector name (e.g. "V05266A").
-The code will look for a .json file "det_path/det_name.json"
+# det_path: path to detector json file
+# det_name: detector name without extension (e.g. "IC160A")
 
-Output: SSD detector simulation object
-"""
-function simulate_detector(det_path::AbstractString, det_name::AbstractString)
+# Output: SSD detector simulation object
+# """
+# function detector_simulation(detector::AbstractString, ::SSDSimulator)
 
-    det_geom = joinpath(det_path, det_name * ".json")
-    @info("Reading geometry from $det_geom")
+#     det_h5 = joinpath(det_path, det_name*".h5f")
+#     if isfile(det_h5)
+#         @info "Reading $det_name simulation from cached h5"
+#         simulation = SolidStateDetectors.ssd_read(det_h5, Simulation)
+#     else
+#         @info "Simulating $det_name from scratch"
+#         simulation = simulate_detector(det_path, det_name)
+#     end
 
-    simulation = Simulation{T}(det_geom)
+#     simulation
+# end
 
-    @info("-> Electric potential...")
-    calculate_electric_potential!( simulation,
-                               max_refinements = 4)
 
-    @info("-> Electric field...")
-    calculate_electric_field!(simulation, n_points_in_φ = 72)
 
-    @info("-> Capacitance...")
-    calculate_capacitance(simulation)
-
-    @info("-> Drift field...")
-    calculate_drift_fields!(simulation)
-
-    @info("-> Weighting potential...")
-    for contact in simulation.detector.contacts
-        calculate_weighting_potential!(simulation, contact.id, max_refinements = 4, n_points_in_φ = 2, verbose = false)
-    end
-
-    @info("-> Saving to cache/.h5...")
-    det_h5 = joinpath(det_path, det_name*".h5f")
-
-    if !ispath(dirname(det_h5)) mkpath(dirname(det_h5)) end
-    SolidStateDetectors.ssd_write(det_h5, simulation)
-
-    @info "Detector simulation complete"
-
-    simulation
-end
 
 

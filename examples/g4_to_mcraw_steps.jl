@@ -7,12 +7,18 @@ using LegendDataTypes
 mc_name = "raw-IC160A-Th228-uncollimated-top-run0002-source_holder-bi-hdf5-01-test"
 mc_path = "data/"
 processed_dir = "cache/"
-sim_config_filename = "data/sim_datanoise.json"
+# sim_config_filename = "data/sim_siggen.json"
+
+# sim_config_filename = "data/sim_datanoise.json"
+sim_config_filename = "data/sim_simoise.json"
+sim_config = LegendGeSim.load_config(sim_config_filename)
+
 
 ##
 
 @info "----- g4simple -> mcstp"
-mcstp_table = LegendGeSim.g4_to_mcstp(joinpath(mc_path, mc_name * ".hdf5"))
+g4_name = joinpath(mc_path, mc_name * ".hdf5")
+mcstp_table = LegendGeSim.g4_to_mcstp(g4_name, sim_config.detector)
 
 ##
 # preliminary step, you can save it to use later, or skip saving and use mcstp_table in memory for next steps
@@ -41,16 +47,14 @@ mcpss_table, mcpss_mctruth = LegendGeSim.mcstp_to_mcpss(mcstp_table, sim_config_
 ##
 # version 2
 @info "----- mcstp -> mcpss"
-sim_config = LegendGeSim.load_config(sim_config_filename)
 mcpss_table, mcpss_mctruth = LegendGeSim.mcstp_to_mcpss(mcstp_table, sim_config)
 
 ##
 # version 3
-sim_config = LegendGeSim.load_config(sim_config_filename)
-simulation = LegendGeSim.detector_simulation(sim_config.detector_path, sim_config.detector)
 ps_simulator = LegendGeSim.PSSimulator(sim_config)
+det_config = LegendGeSim.detector_config(sim_config.detector, ps_simulator)
 noise_model = LegendGeSim.NoiseModel(sim_config)
-mcpss_table, mcpss_mctruth = LegendGeSim.mcstp_to_mcpss(mcstp_table, simulation, ps_simulator, noise_model)
+mcpss_table, mcpss_mctruth = LegendGeSim.mcstp_to_mcpss(mcstp_table, det_config, ps_simulator, noise_model)
 
 ##
 

@@ -12,6 +12,7 @@ module LegendGeSim
 using ArgCheck
 using ArraysOfArrays
 using Clustering
+using DelimitedFiles
 using Distributions
 using DSP # Julia's Digital Signal Processor (DSP) Package
 using ElasticArrays
@@ -24,6 +25,7 @@ using LegendDataTypes
 using LegendHDF5IO
 # using LegendTextIO # Geant4CSVInput
 using LinearAlgebra
+using MJDSigGen
 # using RadiationDetectorDSP # By Oliver Schulz
 # using ProgressMeter
 using Parameters
@@ -45,12 +47,25 @@ using Unitful
 
 # using Plots
 
+T = Float32
+
+const energy_unit = u"keV"
+const ns_unit = u"ns"
+const μs_unit = u"μs"
+
+# germanium_ionization_energy = T(2.95)u"eV"
+const germanium_ionization_energy = SolidStateDetectors.material_properties[:HPGe].E_ionisation # already in eV
+
+Random.seed!(123) # only for testing
+
 include("filters.jl")
 
 include("sim_config.jl")
+include("pss.jl")
+
+include("detector.jl")
 
 include("noise.jl")
-include("pss.jl")
 
 include("elec_chain.jl")
 include("daq.jl")

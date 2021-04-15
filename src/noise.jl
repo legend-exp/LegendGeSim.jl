@@ -10,6 +10,10 @@ struct NoiseSim <: NoiseModel
     noise_σ::Real
 end
 
+# struct NoiseBaseline <: NoiseModel
+#     baseline_database_file::AbstractString
+# end
+
 function NoiseModel(sim_config::PropDict)
     noise_model = haskey(sim_config, :noise_data) ? NoiseData(sim_config.noise_data) : NoiseSim(uconvert(u"eV", T(sim_config.preamp.noise_sigma)u"keV") / germanium_ionization_energy)
     # println(noise_model)
@@ -27,14 +31,16 @@ noise_model: NoiseSim object
 
 Output: Table
 """
-function add_fano_noise(mc_events::Table, simulation::SolidStateDetectors.Simulation, ::NoiseSim)
+function fano_noise(mc_events::Table, det_config::Dict, ::NoiseSim)
     @info("Adding fano noise")
+    simulation = Simulation(SolidStateDetector{T}(det_config))
     det_material = simulation.detector.semiconductors[1].material
     add_fano_noise(mc_events, det_material.E_ionisation, det_material.f_fano)
+    # SolidStateDetectors.add_fano_noise(mc_events, det_material.E_ionisation, det_material.f_fano)
 end
 
 
-function add_fano_noise(mc_events::Table, ::SolidStateDetectors.Simulation, ::NoiseData)
+function fano_noise(mc_events::Table, ::Dict, ::NoiseData)
     # do nothing since if we're using noise from data we do not simulate fano noise
     # not to double count
     @info("Not adding fano noise because using noise levels from data")
@@ -64,3 +70,10 @@ function simulate_noise(wf::RDWaveform, noise_model::NoiseModel)
     # Now, lets add this Gaussian noise to other waveform (here, after the filters (but might be also added before))
     RDWaveform(wf.time, wf.value .+ rand!(gaussian_noise_dist, similar(wf.value)))
 end
+
+
+# function simulate_noise(wf::RDWaveform, noise_model::NoiseBaseline)
+#     baselines = get_baselines(noiase_model.baseline_databse_file)
+
+#     return wf + random(baselines)
+# end

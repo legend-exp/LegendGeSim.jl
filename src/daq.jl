@@ -1,4 +1,4 @@
-const energy_unit = u"keV"
+# const energy_unit = u"keV"
 
 """
 Abstract DAQ type for hierarchy and multiple dispatch
@@ -102,7 +102,7 @@ function simulate_daq(wf::RDWaveform, daq::GenericDAQ)
 
     # offset
     offset = uconvert(u"eV", daq.offset) / germanium_ionization_energy
-    wf_daq = RDWaveform(wf_daq.time, wf_daq.value ./ustrip(germanium_ionization_energy) .+ daq.offset)
+    wf_daq = RDWaveform(wf_daq.time, wf_daq.value ./ustrip(germanium_ionization_energy) .+ offset)
 
     # gain 
     wf_daq = RDWaveform(wf_daq.time, wf_daq.value .* daq.gain)
