@@ -4,19 +4,23 @@ that allows to choose between SolidStateDetectors and Siggen
 as waveform simulation method
 """
 abstract type PSSimulator end
-struct SSDSimulator <: PSSimulator end
+@with_kw struct SSDSimulator <: PSSimulator
+    crystal_t::Real = 0
+end
+
 struct SiggenSimulator <: PSSimulator
     fieldgen_input::AbstractString
+    crystal_t::Real
 end
 
 
 function PSSimulator(sim_config::PropDict)
     @info "Waveform simulation method: $(sim_config.sim_method)"
     if(sim_config.sim_method == "SSD")
-        SSDSimulator()
+        SSDSimulator(sim_config.crystal_t)
     elseif(sim_config.sim_method == "siggen")
         @info "Taking fieldgen input from $(sim_config.fieldgen_input)"
-        SiggenSimulator(sim_config.fieldgen_input)
+        SiggenSimulator(sim_config.fieldgen_input, sim_config.crystal_t)
     else
         println("This simulation method is not implemented!")
     end
@@ -36,17 +40,17 @@ simulator: Simulator object inheriting from PSSimulator for multiple dispatch
 
 Output: Table, Table
 """
-function simulate_wf(mc_events::Table, detector_config::Dict, ::SSDSimulator)
+function simulate_wf(mc_events::Table, det_config::Dict, ::SSDSimulator)
 
     # simulate detector 
-    det_name = detector_config["name"]
+    det_name = det_config["name"]
     det_h5 = joinpath("cache", basename(det_name*".h5f"))
     if isfile(det_h5)
         @info "Reading $det_name simulation from cached h5"
         simulation = SolidStateDetectors.ssd_read(det_h5, Simulation)
     else
         @info "Simulating $det_name from scratch"
-        simulation = simulate_detector(detector_config)
+        simulation = simulate_detector(det_config)
     end
 
     @info("Simulating waveforms")
@@ -78,25 +82,13 @@ function simulate_wf(mc_events::Table, detector_config::Dict, ::SSDSimulator)
 end
 
 
-function simulate_wf(mc_events::Table, detector::PropDict, siggen::SiggenSimulator)
+function simulate_wf(mc_events::Table, det_config::Dict, siggen_sim::SiggenSimulator)
     # to use the siggen function "read_config" from MJDSigGen.jl, we need to first create a config file it can read 
 
-    # read lines from user input for fieldgen 
-    fieldgen_lines = readlines(open(siggen.fieldgen_input))
-    fieldgen_lines = replace.(fieldgen_lines, "\t" => "  ")
-    # construct lines for detector related siggen input
-    detector_lines = siggen_detector_config(detector)
+    siggen_setup = detector_config(det_config, siggen_sim)
+    waveforms = simulate_wf(siggen_setup, mc_events)
 
-    total_lines = vcat(["# detector related parameters"], detector_lines, fieldgen_lines)
-
-    # write a config file 
-    sig_conf_name = siggen.fieldgen_input * ".temp"
-    DelimitedFiles.writedlm(sig_conf_name, total_lines)
-        
-
-    # launch siggen on our events
-    setup = SigGenSetup(sig_conf_name)
-    waveforms = simulate_wf(setup, mc_events)
+    
 
     mcpss_table = Table(
         # channel = contact_charge_signals.chnid,
@@ -104,39 +96,47 @@ function simulate_wf(mc_events::Table, detector::PropDict, siggen::SiggenSimulat
         waveform = waveforms
     )
 
-    mcpss_mctruth = Table()
+    #mcpss_mctruth = Table()
+    mcpss_mctruth = 0
 
     mcpss_table, mcpss_mctruth
+    
     
 end
 
 
 function simulate_wf(setup::SigGenSetup, mc_events::Table)
     # loop over events and simulate signal with siggen
-    waveforms = []
-    for i in 1:length(mc_events)
-        push!(waveforms, simulate_wf(setup, mc_events[i].pos, mc_events[i].edep))
+    waveforms = Vector{Vector{Float32}}()
+    nevents = length(mc_events)
+    for i in 1:nevents
+        if(i % 100  == 0) println("$i/$nevents") end
+        signal::Vector{Float32} = simulate_wf(setup, mc_events[i].pos, mc_events[i].edep)
+        push!(waveforms, signal)
     end
 
-    ArrayOfRDWaveforms(waveforms)
+    Δt = setup.step_time_out*u"ns"
+    t_end = length(waveforms[1]) * Δt
+    times = fill(0u"ns" : Δt : t_end, length(waveforms))
+
+    ArrayOfRDWaveforms((times, VectorOfVectors(waveforms)))
+
 end
 
 
 # change AbstractVector to more narrow type?
 function simulate_wf(setup::SigGenSetup, pos::AbstractVector, edep::AbstractVector)
     # this is not so nice, think about it
-    waveform = simulate_wf(setup, pos[1]) * ustrip(edep[1])
+    signal = simulate_wf(setup, pos[1]) * ustrip(edep[1])
 
     for i in 2:length(pos)
-        waveform = waveform .+ simulate_wf(setup, pos[i]) * ustrip(edep[i])
+        signal = signal .+ simulate_wf(setup, pos[i]) * ustrip(edep[i])
     end
-    waveform
+    signal
 end
 
 # change AbstractVector to more narrow type?
 function simulate_wf(setup::SigGenSetup, pos::AbstractVector)
-    # println(Tuple(round.(ustrip.(pos), digits=1)))
-    # MJDSigGen.get_signal!(setup, Tuple(round.(ustrip.(pos), digits=1)))
     MJDSigGen.get_signal!(setup, Tuple(ustrip.(pos)))
 end
 

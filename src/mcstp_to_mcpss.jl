@@ -42,9 +42,10 @@ function mcstp_to_mcpss(mc_events::Table, detector_config::Dict, ps_simulator::P
     # noise_model = NoiseModel(sim_config)
     mc_events = fano_noise(mc_events, detector_config, noise_model)
 
-    mcpss_table, mcpss_mctruth = simulate_wf(mc_events, detector_config, ps_simulator)
+    # mcpss_table, mcpss_mctruth = simulate_wf(mc_events, detector_config, ps_simulator)
+    simulate_wf(mc_events, detector_config, ps_simulator)
 
-    mcpss_table, mcpss_mctruth
+    # mcpss_table, mcpss_mctruth
 end
 
 

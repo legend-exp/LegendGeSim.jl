@@ -7,10 +7,11 @@ using LegendDataTypes
 mc_name = "raw-IC160A-Th228-uncollimated-top-run0002-source_holder-bi-hdf5-01-test"
 mc_path = "data/"
 processed_dir = "cache/"
-# sim_config_filename = "data/sim_siggen.json"
 
+sim_config_filename = "data/sim_siggen.json"
 # sim_config_filename = "data/sim_datanoise.json"
-sim_config_filename = "data/sim_simoise.json"
+# sim_config_filename = "data/sim_simoise.json"
+
 sim_config = LegendGeSim.load_config(sim_config_filename)
 
 
@@ -62,7 +63,7 @@ mcpss_table, mcpss_mctruth = LegendGeSim.mcstp_to_mcpss(mcstp_table, det_config,
 out_filename = joinpath(processed_dir, "$(mc_name)_mcpss.h5")
 h5open(out_filename, "w") do f
    LegendDataTypes.writedata(f, "mcpss/mcpss", mcpss_table)
-   LegendDataTypes.writedata(f, "mcpss/mctruth", mcpss_mctruth)
+#    LegendDataTypes.writedata(f, "mcpss/mctruth", mcpss_mctruth)
 end
 @info "-> $out_filename"
 

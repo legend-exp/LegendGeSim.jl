@@ -1,6 +1,7 @@
 {
     "detector": "data/V02160A.json",
     "sim_method": "SSD",
+    "crystal_t": 77.0,
     "daq": {
         "nsamples": 4000,
         "baseline_length": 400,
