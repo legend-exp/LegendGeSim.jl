@@ -44,8 +44,10 @@ using StructArrays
 using Tables
 using TypedTables
 using Unitful
-
-# using Plots
+#
+using CurveFit
+using Polynomials
+using LsqFit
 
 T = Float32
 
@@ -75,6 +77,8 @@ include("mcstp_to_mcpss.jl")
 include("mcpss_to_mcraw.jl")
 
 include("g4_to_mcraw.jl")
+
+include("baselines.jl")
 
 # move to LegendHDF5IO?
 include("io.jl")
