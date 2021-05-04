@@ -9,8 +9,8 @@ abstract type PSSimulator end
 end
 
 struct SiggenSimulator <: PSSimulator
-    fieldgen_input::AbstractString
     crystal_t::Real
+    fieldgen_input::AbstractString
 end
 
 
@@ -20,7 +20,7 @@ function PSSimulator(sim_config::PropDict)
         SSDSimulator(sim_config.crystal_t)
     elseif(sim_config.sim_method == "siggen")
         @info "Taking fieldgen input from $(sim_config.fieldgen_input)"
-        SiggenSimulator(sim_config.fieldgen_input, sim_config.crystal_t)
+        SiggenSimulator(sim_config.crystal_t, sim_config.fieldgen_input)
     else
         println("This simulation method is not implemented!")
     end
@@ -40,17 +40,17 @@ simulator: Simulator object inheriting from PSSimulator for multiple dispatch
 
 Output: Table, Table
 """
-function simulate_wf(mc_events::Table, det_config::Dict, ::SSDSimulator)
+function simulate_wf(mc_events::Table, det_json::AbstractString, ssd_sim::SSDSimulator)
 
     # simulate detector 
-    det_name = det_config["name"]
-    det_h5 = joinpath("cache", basename(det_name*".h5f"))
+    det_h5 = joinpath("cache", basename(det_json*".h5f"))
     if isfile(det_h5)
         @info "Reading $det_name simulation from cached h5"
         simulation = SolidStateDetectors.ssd_read(det_h5, Simulation)
     else
         @info "Simulating $det_name from scratch"
-        simulation = simulate_detector(det_config)
+        ssd_config = detector_config(det_json, ssd_sim)
+        simulation = simulate_detector(ssd_config)
     end
 
     @info("Simulating waveforms")
@@ -82,22 +82,28 @@ function simulate_wf(mc_events::Table, det_config::Dict, ::SSDSimulator)
 end
 
 
-function simulate_wf(mc_events::Table, det_config::Dict, siggen_sim::SiggenSimulator)
+function simulate_wf(mc_events::Table, det_json::AbstractString, siggen_sim::SiggenSimulator)
     # to use the siggen function "read_config" from MJDSigGen.jl, we need to first create a config file it can read 
 
-    siggen_setup = detector_config(det_config, siggen_sim)
+    siggen_setup = detector_config(det_json, siggen_sim)
     waveforms = simulate_wf(siggen_setup, mc_events)
 
-    
-
     mcpss_table = Table(
-        # channel = contact_charge_signals.chnid,
-        # ievt = contact_charge_signals.evtno,
+        channel = [1 for idx in 1:length(waveforms)], # lists of ADCs that triggered, 1 for HADES all the time
+        ievt = mc_events.evtno,
         waveform = waveforms
     )
 
-    #mcpss_mctruth = Table()
-    mcpss_mctruth = 0
+    # using SSD we get mc truth from SSD output
+    # with siggen, let's just return the input
+    # maybe mc truth will not be propagated to mcraw anyway
+    mcpss_mctruth = Table(
+        detno = mc_events.detno,
+        edep = mc_events.edep,
+        ievt = mc_events.evtno,
+        pos = mc_events.pos,
+        thit = mc_events.thit        
+    )
 
     mcpss_table, mcpss_mctruth
     
@@ -130,7 +136,7 @@ function simulate_wf(setup::SigGenSetup, pos::AbstractVector, edep::AbstractVect
     signal = simulate_wf(setup, pos[1]) * ustrip(edep[1])
 
     for i in 2:length(pos)
-        signal = signal .+ simulate_wf(setup, pos[i]) * ustrip(edep[i])
+        signal = signal .+ simulate_wf(setup, pos[i]) * ustrip(edep[i])*1e6 # TEMP
     end
     signal
 end

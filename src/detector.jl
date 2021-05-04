@@ -265,9 +265,35 @@ end
 
     # setup
 # end
-
 function detector_config(meta::PropDict, siggen_sim::SiggenSimulator)
+    # function detector_config(meta::PropDict, siggen_sim::SiggenSimulator)
+    siggen_geom = siggen_dict(meta, siggen_sim)
+    # construct lines for siggen config file 
+    detector_lines = Vector{String}()
+    for (param, value) in siggen_geom
+        push!(detector_lines, "$param   $value")
+    end
+
+
+    # read lines from user input for fieldgen 
+    fieldgen_lines = readlines(open(siggen_sim.fieldgen_input))
+    fieldgen_lines = replace.(fieldgen_lines, "\t" => "  ")
+
+    total_lines = vcat(["# detector related parameters"], detector_lines, fieldgen_lines)
+
+    # write a config file 
+    sig_conf_name = siggen_sim.fieldgen_input * ".temp"
+    DelimitedFiles.writedlm(sig_conf_name, total_lines)
+
+    # construct setup
+    SigGenSetup(sig_conf_name)    
+end
+
+
+function siggen_dict(meta::PropDict, siggen_sim::SiggenSimulator)
     Dict(
+    # # hack for SSD
+    #     "det_json" => meta.detector,
     # crystal
         # z length: crystal height
         "xtal_length" => meta.geometry.height_in_mm,
@@ -313,27 +339,7 @@ function detector_config(meta::PropDict, siggen_sim::SiggenSimulator)
 end
 
 
-function detector_config(siggen_geom::Dict,  siggen_sim::SiggenSimulator)
-    # construct lines for siggen config file 
-    detector_lines = Vector{String}()
-    for (param, value) in siggen_geom
-        push!(detector_lines, "$param   $value")
-    end
 
-
-    # read lines from user input for fieldgen 
-    fieldgen_lines = readlines(open(siggen_sim.fieldgen_input))
-    fieldgen_lines = replace.(fieldgen_lines, "\t" => "  ")
-
-    total_lines = vcat(["# detector related parameters"], detector_lines, fieldgen_lines)
-
-    # write a config file 
-    sig_conf_name = siggen_sim.fieldgen_input * ".temp"
-    DelimitedFiles.writedlm(sig_conf_name, total_lines)
-
-    # construct setup
-    SigGenSetup(sig_conf_name)    
-end
 
 
 """

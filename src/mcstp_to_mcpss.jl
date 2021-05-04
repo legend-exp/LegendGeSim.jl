@@ -16,13 +16,13 @@ function mcstp_to_mcpss(mc_events::Table, sim_config_file::AbstractString)
 
 end
 
+
 function mcstp_to_mcpss(mc_events::Table, sim_config::PropDict)
     ps_simulator = PSSimulator(sim_config)
     @info("Reading geometry for $(sim_config.detector)")
-    det_config = detector_config(sim_config.detector, ps_simulator)
     noise_model = NoiseModel(sim_config)
 
-    mcstp_to_mcpss(mc_events, det_config, ps_simulator, noise_model)
+    mcstp_to_mcpss(mc_events, sim_config.detector, ps_simulator, noise_model)
 
 end
 
@@ -36,48 +36,16 @@ Returns the resulting simulated waveforms and MC truth
 mc_events: table in the mcstp format (output of g4_to_mcstp)
 sim_config: PropDict object with simulation configuration
 """
-function mcstp_to_mcpss(mc_events::Table, detector_config::Dict, ps_simulator::PSSimulator, noise_model::NoiseModel)
+function mcstp_to_mcpss(mc_events::Table, det_json::AbstractString, ps_simulator::PSSimulator, noise_model::NoiseModel)
     # add fano noise, don't add if data noise is applied later
     # should we do this before siggen as well? or does siggen do it by itself?
     # noise_model = NoiseModel(sim_config)
-    mc_events = fano_noise(mc_events, detector_config, noise_model)
+    mc_events = fano_noise(mc_events, det_json, noise_model)
 
     # mcpss_table, mcpss_mctruth = simulate_wf(mc_events, detector_config, ps_simulator)
-    simulate_wf(mc_events, detector_config, ps_simulator)
+    simulate_wf(mc_events, det_json, ps_simulator)
 
-    # mcpss_table, mcpss_mctruth
 end
-
-
-# function detector_simulation(det_path::AbstractString, det_name::AbstractString, ::SiggenSimulator)
-#     PropDicts.read(PropDict, joinpath(det_path, det_name*".json"))
-# end
-
-
-# """
-#     detector_simulation(det_path, det_name)
-
-# Read cached h5 detector simulation if exists,
-# otherwise simulate detector based on json geometry.
-
-# det_path: path to detector json file
-# det_name: detector name without extension (e.g. "IC160A")
-
-# Output: SSD detector simulation object
-# """
-# function detector_simulation(detector::AbstractString, ::SSDSimulator)
-
-#     det_h5 = joinpath(det_path, det_name*".h5f")
-#     if isfile(det_h5)
-#         @info "Reading $det_name simulation from cached h5"
-#         simulation = SolidStateDetectors.ssd_read(det_h5, Simulation)
-#     else
-#         @info "Simulating $det_name from scratch"
-#         simulation = simulate_detector(det_path, det_name)
-#     end
-
-#     simulation
-# end
 
 
 

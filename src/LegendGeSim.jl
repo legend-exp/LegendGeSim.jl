@@ -12,6 +12,7 @@ module LegendGeSim
 using ArgCheck
 using ArraysOfArrays
 using Clustering
+using CurveFit
 using DelimitedFiles
 using Distributions
 using DSP # Julia's Digital Signal Processor (DSP) Package
@@ -25,10 +26,12 @@ using LegendDataTypes
 using LegendHDF5IO
 # using LegendTextIO # Geant4CSVInput
 using LinearAlgebra
+using LsqFit
 using MJDSigGen
 # using RadiationDetectorDSP # By Oliver Schulz
 # using ProgressMeter
 using Parameters
+using Polynomials
 using PropDicts
 using RadiationDetectorSignals
 using RadiationSpectra
@@ -44,10 +47,9 @@ using StructArrays
 using Tables
 using TypedTables
 using Unitful
-#
-using CurveFit
-using Polynomials
-using LsqFit
+
+# using Plots
+
 
 T = Float32
 

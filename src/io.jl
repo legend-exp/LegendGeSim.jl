@@ -89,3 +89,26 @@ function read_mctruth(filename::AbstractString)
         )
     end
 end
+
+
+
+function read_raw(filename, path)
+    println("File: $filename")
+    HDF5.h5open(filename) do input
+        Table(
+            baseline = LegendDataTypes.readdata(input, "$path/baseline"),
+            channel = LegendDataTypes.readdata(input, "$path/channel"),
+            energy = LegendDataTypes.readdata(input, "$path/energy"),
+            ievt = LegendDataTypes.readdata(input, "$path/ievt"),
+            numtraces = LegendDataTypes.readdata(input, "$path/numtraces"),
+            packet_id = LegendDataTypes.readdata(input, "$path/packet_id"),
+            timestamp = LegendDataTypes.readdata(input, "$path/timestamp"),
+            # here, readdata will read the waveform in the format of RDWaveform
+            waveform = LegendDataTypes.readdata(input, "$path/waveform"),
+            wf_max = LegendDataTypes.readdata(input, "$path/wf_max"),
+            wf_std = LegendDataTypes.readdata(input, "$path/wf_std"),
+        )
+    end
+end
+
+

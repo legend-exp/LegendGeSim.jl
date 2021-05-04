@@ -53,66 +53,24 @@ Output: Table
 Work in progress
 """
 function mcpss_to_mcraw(mcpss::Table, mctruth::Table, daq::GenericDAQ, elec_chain::ElecChain, noise_model::NoiseModel)
-    # Create arrays to be filled with results, and online energy
-    n_waveforms = size(mcpss.waveform,1)
-    wf_array = Array{RDWaveform}(undef, n_waveforms)
-    online_energy = Array{typeof(1.0*energy_unit)}(undef, n_waveforms)
-    baseline = Array{T}(undef, n_waveforms)
-    baseline_rms = Array{T}(undef, n_waveforms)
 
-    # wf_array = add_tail_and_baseline(mcpss.waveform, daq)
-
-    @info "Processing waveforms..."
-    for i in 1:n_waveforms
-    # @showprogress 1 "Processing..." for i in 1:n_waveforms
-        if(i % 500 == 0) println("$i / $n_waveforms") end
-        # println("$i / $n_waveforms")
-
-        # plot_wf(mcpss.waveform[i],1)
-
-        wf_array[i] = add_tail_and_baseline(mcpss.waveform[i], daq)
-        # plot_wf(wf_array[i],2)
-
-        
-        wf_array[i] = differentiate(wf_array[i])
-        # plot_wf(wf_array[i],3)
-
-
-        wf_array[i] = simulate_elec(wf_array[i], elec_chain)
-        # plot_wf(wf_array[i],4)
-
-        # works for preamp noise, but not data noise, since that's in DAQ units...
-        wf_array[i] = simulate_noise(wf_array[i], noise_model)
-        # plot_wf(wf_array[i],5)    
-
-        wf_array[i] = simulate_daq(wf_array[i], daq)
-        # plot_wf(wf_array[i],6)
-
-
-        # if online energy is zero, means didn't trigger
-        wf_array[i], online_energy[i] = trigger(wf_array[i], daq, noise_model)
-        # plot_wf(wf_array[i],7)
-
-
-        baseline[i], baseline_rms[i] = mean_and_std(wf_array[i].value[1:daq.baseline_length])
-
-    end
-
+    result = process_waveforms(mcpss, daq, elec_chain, noise_model)
+   
     # why am I doing this?
-    wf_final = ArrayOfRDWaveforms(wf_array)
+    wf_final = ArrayOfRDWaveforms(result.wf_array)
     wf_final = ArrayOfRDWaveforms((wf_final.time, VectorOfSimilarVectors(wf_final.value)))
-
 
     ##
     mcraw = Table(
-        baseline = baseline,
+        baseline = result.baseline,
         channel = mcpss.channel,
-        energy = online_energy,
+        energy = result.online_energy,
         ievt = mcpss.ievt,
-        numtraces = ones(length(baseline)), # number of triggered detectors (1 for HADES)
-        packet_id = zeros(length(baseline)), # means to packet losses
+        # why am i using baseline here? could be any column?
+        numtraces = ones(length(result.baseline)), # number of triggered detectors (1 for HADES)
+        packet_id = zeros(length(result.baseline)), # means to packet losses
         timestamp = getindex.(mctruth.thit, 1), # frist MC truth hit time of each event?
-        tracelist = VectorOfVectors([[1] for idx in 1:length(baseline)]), # lists of ADCs that triggered, 1 for HADES all the time
+        tracelist = VectorOfVectors([[1] for idx in 1:length(result.baseline)]), # lists of ADCs that triggered, 1 for HADES all the time
         waveform = wf_final,
         wf_max = maximum.(wf_final.value),
         # I was told that std is std of the whole waveform, not just the baseline
@@ -126,7 +84,99 @@ function mcpss_to_mcraw(mcpss::Table, mctruth::Table, daq::GenericDAQ, elec_chai
 
     mcraw
 
+end
 
+
+function process_waveforms(mcpss::Table, daq::GenericDAQ, elec_chain::ElecChain, noise_model::NoiseSim)
+    # Create arrays to be filled with results, and online energy
+    n_waveforms = size(mcpss.waveform,1)
+    result = Table(
+        wf_array = Array{RDWaveform}(undef, n_waveforms),
+        online_energy = Array{typeof(1.0*energy_unit)}(undef, n_waveforms),
+        baseline = Array{T}(undef, n_waveforms),
+        baseline_rms = Array{T}(undef, n_waveforms)
+    )
+
+    @info "Processing waveforms..."
+    for i in 1:n_waveforms
+        # @showprogress 1 "Processing..." for i in 1:n_waveforms
+        if(i % 500 == 0) println("$i / $n_waveforms") end
+        # println("$i / $n_waveforms")
+
+        # plot_wf(mcpss.waveform[i],1)
+
+        wf = add_tail_and_baseline(mcpss.waveform[i], daq)
+        # plot_wf(wf_array[i],2)
+
+        
+        wf = differentiate(wf)
+        # plot_wf(wf_array[i],3)
+
+
+        wf = simulate_elec(wf, elec_chain)
+        # plot_wf(wf_array[i],4)
+
+        # works for preamp noise, but not data noise, since that's in DAQ units...
+        wf = simulate_noise(wf, noise_model)
+        # plot_wf(wf_array[i],5)    
+
+        wf = simulate_daq(wf, daq)
+        # plot_wf(wf_array[i],6)
+
+        # if online energy is zero, means didn't trigger
+        # trigger_threshold = noise_σ * 3 * daq.gain # noise implemented before DAQ gain
+        result.wf_array[i], result.online_energy[i] = trigger(wf, daq, noise_model.noise_σ*daq.gain*3)
+        # plot_wf(wf_array[i],7)
+
+
+       result.baseline[i], result.baseline_rms[i] = mean_and_std(result.wf_array[i].value[1:daq.baseline_length])
+
+    end
+    result
+end
+
+
+function process_waveforms(mcpss::Table, daq::GenericDAQ, elec_chain::ElecChain, noise_model::NoiseData)
+    # Create arrays to be filled with results, and online energy
+    n_waveforms = size(mcpss.waveform,1)
+    result = Table(
+        wf_array = Array{RDWaveform}(undef, n_waveforms),
+        online_energy = Array{typeof(1.0*energy_unit)}(undef, n_waveforms),
+        baseline = Array{T}(undef, n_waveforms),
+        baseline_rms = Array{T}(undef, n_waveforms)
+    )
+
+    # pick a random baseline from catalog
+    baselines_table = baseline_catalog(noise_model.baseline_catalog)
+    baseline = rand(Tables.getcolumn(Tables.columns(baselines_table), :waveform))
+    Δt = step(baseline.time)
+    if Δt > daq.Δt
+        println("Time step in baseline sample ($Δt) is larger than DAQ Δt ($(daq.Δt)) based on given sampling rate!")
+        return
+    end
+
+    @info "Processing waveforms..."
+    for i in 1:n_waveforms
+        if(i % 500 == 0) println("$i / $n_waveforms") end
+
+        wf = add_tail_and_baseline(mcpss.waveform[i], daq)
+        
+        wf = differentiate(wf)
+
+        wf = simulate_elec(wf, elec_chain)
+        # plot_wf(wf_array[i],4)
+
+        wf = simulate_daq(wf, daq, baseline)
+        # plot_wf(wf_array[i],6)
+
+        # if online energy is zero, means didn't trigger
+        result.wf_array[i], result.online_energy[i] = trigger(wf, daq, std(baseline.value)*3)
+        # plot_wf(wf_array[i],7)
+
+       result.baseline[i], result.baseline_rms[i] = mean_and_std(result.wf_array[i].value[1:daq.baseline_length])
+    end
+
+    result
 end
 
 
@@ -169,6 +219,8 @@ function add_tail_and_baseline(wf::RDWaveform, daq::DAQ)
 end
 
 
+
+
 """
     trigger(wf, daq, noise_model)
 
@@ -181,10 +233,11 @@ noise_model: NoiseModel object
 
 Output: RDWaveform, float
 """
-function trigger(wf::RDWaveform, daq::GenericDAQ, noise_model::NoiseModel)
+# function trigger(wf::RDWaveform, daq::GenericDAQ, noise_σ::Real)
+function trigger(wf::RDWaveform, daq::GenericDAQ, trigger_threshold::Real)
     trigger_window_lengths = (250,250,250)
     trigger_window_length = sum(trigger_window_lengths)
-    trigger_threshold = noise_model.noise_σ * 3 * daq.gain # noise implemented before DAQ gain
+    # trigger_threshold = noise_σ * 3 * daq.gain # noise implemented before DAQ gain
 
     online_filter_output = zeros(T, length(wf.value) - trigger_window_length)
     t0_idx::Int = 0

@@ -55,7 +55,7 @@ function GenericDAQ(sim_conf::PropDict)
     GenericDAQ(
         nsamples = sim_conf.daq.nsamples,
         baseline_length = sim_conf.daq.baseline_length,
-        Δt = uconvert(u"ns", inv(T(sim_conf.daq.sampling_rate)u"MHz")),
+        Δt = haskey(sim_conf.daq, :sampling_rate) ? uconvert(u"ns", inv(T(sim_conf.daq.sampling_rate)u"MHz")) : T(sim_conf.daq.sampling_interval)u"ns",
         max_e = T(sim_conf.daq.max_e)u"keV",
         offset = T(sim_conf.daq.offset)u"keV"
     )
@@ -111,6 +111,58 @@ function simulate_daq(wf::RDWaveform, daq::GenericDAQ)
     wf_sampled = wf_daq.value[begin:Int(daq.Δt/step(wf_daq.time)):end]
     t_sampled = range(T(0)u"ns", step = daq.Δt, length = length(wf_sampled))
     wf_daq = RDWaveform(t_sampled, wf_sampled)
+
+    # digitize
+    wf_daq = RDWaveform(wf_daq.time, UInt16.(round.(wf_daq.value, digits = 0)))
+
+    wf_daq
+end
+
+
+
+function simulate_daq(wf::RDWaveform, daq::GenericDAQ, baseline::RDWaveform)
+    # invert the pulse if needed
+    sign = wf.value[Int(end/2)] < 0 ? -1 : 1
+    wf_daq = RDWaveform(wf.time, sign * wf.value)
+
+    # gain 
+    wf_daq = RDWaveform(wf_daq.time, wf_daq.value .* daq.gain/ustrip(germanium_ionization_energy))
+    
+    # resample -> currently simply pick every Nth sample, more elaborate simulation later
+    wf_sampled = wf_daq.value[begin:Int(daq.Δt/step(wf_daq.time)):end]
+    t_sampled = range(T(0)u"ns", step = daq.Δt, length = length(wf_sampled))
+    wf_daq = RDWaveform(t_sampled, wf_sampled)
+
+    # extend baseline to cover all wf length
+    baseline_long = extend_baseline(baseline, wf_daq)
+
+    # plot_base = plot(wf_daq)
+    # plot!(baseline)
+    # plot!(baseline_long)
+
+    # plot_base = plot(
+    #     begin
+    #         plot(wf_daq),
+    #         plot!(baseline_long)
+    #     end,
+    #     plot(baseline),
+    #     plot(baseline_long),
+    #     layout = (3,1)
+    # )
+
+    # plot_base = plot(layout=(2,2), link=:x, size=(1000,500), legend=:topleft)
+    # plot!(baseline, subplot=1, label="original baseline", color=:black)
+    # plot!(baseline_long, subplot=3, label="extended baseline", color=:blue)
+    # plot!(wf_daq, subplot=2, label="waveform", color=:orange)
+    # plot!(baseline_long, subplot=2, label="", color=:blue)
+    # png(plot_base, "wf_baseline3.png")
+
+    # now it contains offset and noise information that we need
+    wf_daq = RDWaveform(wf_daq.time, wf_daq.value .+ baseline_long.value)
+
+    # plot_wf = plot(wf_daq)
+    # plot!(wf_daq, subplot=4, label = "final result", color=:green)
+    # png(plot_base, "wf_baseline4v4.png")
 
     # digitize
     wf_daq = RDWaveform(wf_daq.time, UInt16.(round.(wf_daq.value, digits = 0)))
