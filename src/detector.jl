@@ -1,22 +1,3 @@
-# I'm not sure if this setting is common to all detectors
-# Currently working with V02160A
-charge_density_model = Dict(
-    "name" => "linear",
-    "r" => Dict(
-        "init" => 0,
-        "gradient" => 0
-    ),
-    "phi" => Dict(
-        "init" => 0.0,
-        "gradient" => 0.0
-    ),
-    "z" => Dict(
-        "init" => -1e7,
-        "gradient" => 1e5
-    )
-)
-
-
 function detector_config(det_metadata::AbstractString, ps_simulator::PSSimulator)
     meta = PropDicts.read(PropDict, det_metadata)
     detector_config(meta, ps_simulator)
@@ -35,6 +16,25 @@ function detector_config(meta::PropDict, ssd_sim::SSDSimulator)
     borehole_height = cylinder_height - meta.geometry.well.gap_in_mm
     borehole_r_bottom = meta.geometry.well.radius_in_mm
     borehole_r_top = borehole_r_bottom + borehole_height * tan(meta.geometry.taper.top.inner.angle_in_deg / 180. * π)
+
+    # I'm not sure if this setting is common to all detectors
+    # Currently working with V02160A
+    # talk to David
+    charge_density_model = Dict(
+        "name" => "linear",
+        "r" => Dict(
+            "init" => 0,
+            "gradient" => 0
+        ),
+        "phi" => Dict(
+            "init" => 0.0,
+            "gradient" => 0.0
+        ),
+        "z" => Dict(
+            "init" => -1e7,
+            "gradient" => 1e5
+        )
+    )
 
     dct = Dict(
         "name" => meta.det_name,

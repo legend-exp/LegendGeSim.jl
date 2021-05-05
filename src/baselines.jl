@@ -1,3 +1,5 @@
+# TODO: CLEAN UP!!
+
 function extend_baseline(baseline::RDWaveform, wf::RDWaveform)
     # resample baseline
     baseline_sampled = baseline.value[begin:Int(step(wf.time)/step(baseline.time)):end]

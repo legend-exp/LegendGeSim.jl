@@ -14,6 +14,7 @@ struct SiggenSimulator <: PSSimulator
 end
 
 
+
 function PSSimulator(sim_config::PropDict)
     @info "Waveform simulation method: $(sim_config.sim_method)"
     if(sim_config.sim_method == "SSD")

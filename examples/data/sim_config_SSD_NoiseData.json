@@ -1,0 +1,17 @@
+{
+    "detector": "data/V02160A.json",
+    "sim_method": "SSD",
+    "noise_data": "/lfs/l1/legend/detector_char/enr/hades/char_data/I02160A/tier1/th_HS2_top_psa/pygama/v01.00/char_data-I02160A-th_HS2_top_psa-run0001-191021T163344_tier1.lh5",
+    "crystal_t": 77.0,
+    "daq": {
+        "nsamples": 3750,
+        "baseline_length": 1875,
+        "sampling_interval": 16,
+        "max_e": 10000,
+        "offset": 2000
+    },
+    "preamp":{
+        "t_decay":5,
+        "t_rise":15          
+    }
+}
