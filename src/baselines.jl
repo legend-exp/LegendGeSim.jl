@@ -33,9 +33,6 @@ end
 
 function baseline_catalog(raw_table::Table)
     waveforms = raw_table.waveform
-    # Tns = typeof(1.0*ns_unit)
-    # times = Vector{Vector{Tns}}()
-    # values = Vector{Vector{T}}()
     baselines = Vector{RDWaveform}()
 
     base_uplim, base_lolim = basestart(waveforms)
@@ -43,9 +40,6 @@ function baseline_catalog(raw_table::Table)
     for wf in waveforms
         if(selection_cut(wf, base_uplim, base_lolim))
             push!(baselines, extract_baseline(wf))
-            # time, value = extract_baseline(wf)
-            # push!(times, time)
-            # push!(values, value)
         end
     end
 

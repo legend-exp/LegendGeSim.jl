@@ -148,7 +148,6 @@ function process_waveforms(mcpss::Table, daq::GenericDAQ, elec_chain::ElecChain,
 
     # pick a random baseline from catalog
     baselines_table = baseline_catalog(noise_model.baseline_catalog)
-    baseline = rand(Tables.getcolumn(Tables.columns(baselines_table), :waveform))
     Δt = step(baseline.time)
     if Δt > daq.Δt
         println("Time step in baseline sample ($Δt) is larger than DAQ Δt ($(daq.Δt)) based on given sampling rate!")
@@ -166,6 +165,7 @@ function process_waveforms(mcpss::Table, daq::GenericDAQ, elec_chain::ElecChain,
         wf = simulate_elec(wf, elec_chain)
         # plot_wf(wf_array[i],4)
 
+        baseline = rand(Tables.getcolumn(Tables.columns(baselines_table), :waveform))
         wf = simulate_daq(wf, daq, baseline)
         # plot_wf(wf_array[i],6)
 

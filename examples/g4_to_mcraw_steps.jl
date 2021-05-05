@@ -8,14 +8,11 @@ mc_name = "raw-IC160A-Th228-uncollimated-top-run0002-source_holder-bi-hdf5-01-te
 mc_path = "data/"
 processed_dir = "cache/"
 
-# simulate waveforms with SSD, simulate noise from scratch
+## simulate waveforms with SSD, simulate noise from scratch
 # sim_config_filename = "data/sim_config_SSD_NoiseSim.json"
-# simulate waveforms with SSD, simulate noise and offset from data baselines
+
+## simulate waveforms with SSD, simulate noise and offset from data baselines
 sim_config_filename = "data/sim_config_SSD_NoiseData.json"
-
-# sim_config_filename = "data/sim_siggen.json"
-
-# sim_config_filename = "data/sim_simnoise.json"
 
 sim_config = LegendGeSim.load_config(sim_config_filename)
 
@@ -44,23 +41,9 @@ mcstp_table = HDF5.h5open(mcstp_name, "r") do input
     LegendDataTypes.readdata(input, "mcstp")
 end
 
-# Choose version 1 or version 2 (equivalent)
 ##
-# version 1
 @info "----- mcstp -> mcpss"
 mcpss_table, mcpss_mctruth = LegendGeSim.mcstp_to_mcpss(mcstp_table, sim_config_filename)
-
-##
-# version 2
-@info "----- mcstp -> mcpss"
-mcpss_table, mcpss_mctruth = LegendGeSim.mcstp_to_mcpss(mcstp_table, sim_config)
-
-##
-# version 3
-ps_simulator = LegendGeSim.PSSimulator(sim_config)
-det_config = LegendGeSim.detector_config(sim_config.detector, ps_simulator)
-noise_model = LegendGeSim.NoiseModel(sim_config)
-mcpss_table, mcpss_mctruth = LegendGeSim.mcstp_to_mcpss(mcstp_table, det_config, ps_simulator, noise_model)
 
 ##
 
@@ -80,27 +63,9 @@ mcpss_name = joinpath(processed_dir, mc_name*"_mcpss.h5")
 mcpss_table = LegendGeSim.read_mcpss(mcpss_name)
 mcpss_mctruth = LegendGeSim.read_mctruth(mcpss_name)
 
-# Choose version 1, 2 or 3 (equivalent)
 ##
-# version 1
-# mcpss_to_mcraw will load the simulation config
 @info "----- mcpss -> mcraw"
 mcraw_table = LegendGeSim.mcpss_to_mcraw(mcpss_table, mcpss_mctruth, sim_config_filename) 
-
-##
-# version 2
-# we already loaded the simulation config before, can pass it to mcpss_to_mcraw
-@info "----- mcpss -> mcraw"
-mcraw_table = LegendGeSim.mcpss_to_mcraw(mcpss_table, mcpss_mctruth, sim_config) 
-
-##
-# version 3
-# we already loaded the simulation config and constructed noise_model before, pass both to mcpss_to_mcraw
-@info "----- mcpss -> mcraw"
-daq = LegendGeSim.GenericDAQ(sim_config)
-preamp = LegendGeSim.PreAmp(sim_config)
-mcraw_table = LegendGeSim.mcpss_to_mcraw(mcpss_table, mcpss_mctruth, daq, preamp, noise_model) 
-
 
 ##
 @info "Saving table"

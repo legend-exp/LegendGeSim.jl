@@ -136,27 +136,6 @@ function simulate_daq(wf::RDWaveform, daq::GenericDAQ, baseline::RDWaveform)
     # extend baseline to cover all wf length
     baseline_long = extend_baseline(baseline, wf_daq)
 
-    # plot_base = plot(wf_daq)
-    # plot!(baseline)
-    # plot!(baseline_long)
-
-    # plot_base = plot(
-    #     begin
-    #         plot(wf_daq),
-    #         plot!(baseline_long)
-    #     end,
-    #     plot(baseline),
-    #     plot(baseline_long),
-    #     layout = (3,1)
-    # )
-
-    # plot_base = plot(layout=(2,2), link=:x, size=(1000,500), legend=:topleft)
-    # plot!(baseline, subplot=1, label="original baseline", color=:black)
-    # plot!(baseline_long, subplot=3, label="extended baseline", color=:blue)
-    # plot!(wf_daq, subplot=2, label="waveform", color=:orange)
-    # plot!(baseline_long, subplot=2, label="", color=:blue)
-    # png(plot_base, "wf_baseline3.png")
-
     # now it contains offset and noise information that we need
     wf_daq = RDWaveform(wf_daq.time, wf_daq.value .+ baseline_long.value)
 

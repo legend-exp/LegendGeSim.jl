@@ -1,0 +1,17 @@
+{
+    "detector": "data/V02160A.json",
+    "sim_method": "SSD",
+    "crystal_t": 77.0,
+    "daq": {
+        "nsamples": 3750,
+        "baseline_length": 1875,
+        "sampling_interval": 16,
+        "max_e": 10000,
+        "offset": 2000
+    },
+    "preamp":{
+        "t_decay":5,
+        "t_rise":15,
+        "noise_sigma":3          
+    }
+}
