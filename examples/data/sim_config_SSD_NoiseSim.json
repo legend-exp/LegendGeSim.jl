@@ -7,7 +7,8 @@
         "baseline_length": 1875,
         "sampling_interval": 16,
         "max_e": 10000,
-        "offset": 2000
+        "offset": 2000,
+        "trigger_threshold": 0
     },
     "preamp":{
         "t_decay":5,

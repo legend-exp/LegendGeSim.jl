@@ -57,7 +57,6 @@ const energy_unit = u"keV"
 const ns_unit = u"ns"
 const μs_unit = u"μs"
 
-# germanium_ionization_energy = T(2.95)u"eV"
 const germanium_ionization_energy = SolidStateDetectors.material_properties[:HPGe].E_ionisation # already in eV
 
 Random.seed!(123) # only for testing
@@ -82,7 +81,7 @@ include("g4_to_mcraw.jl")
 
 include("baselines.jl")
 
-# move to LegendHDF5IO?
+# move to LegendHDF5IO
 include("io.jl")
 
 end # module

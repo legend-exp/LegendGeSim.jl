@@ -44,7 +44,8 @@ Output: Table, Table
 function simulate_wf(mc_events::Table, det_json::AbstractString, ssd_sim::SSDSimulator)
 
     # simulate detector 
-    det_h5 = joinpath("cache", basename(det_json*".h5f"))
+    det_name = splitext(basename(det_json))[1]
+    det_h5 = joinpath("cache", det_name*".h5f")
     if isfile(det_h5)
         @info "Reading $det_name simulation from cached h5"
         simulation = SolidStateDetectors.ssd_read(det_h5, Simulation)

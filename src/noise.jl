@@ -2,29 +2,17 @@ abstract type NoiseModel end
 
 # add noise extracted from data
 struct NoiseData <: NoiseModel
-    # noise_σ::Real
-    # baseline_catalog::Table
     baseline_catalog::AbstractString
     noise_σ::Real
 end
-
-# function NoiseData(baseline_file::AbstractString)
-#     @info "Constructing baseline catalog for noise modeling"
-#     NoiseData(baseline_catalog(baseline_file))
-# end
 
 # simulate noise (fano, preamp)
 struct NoiseSim <: NoiseModel
     noise_σ::Real
 end
 
-# struct NoiseBaseline <: NoiseModel
-#     baseline_database_file::AbstractString
-# end
-
 function NoiseModel(sim_config::PropDict)
     noise_model = haskey(sim_config, :noise_data) ? NoiseData(sim_config.noise_data,0) : NoiseSim(uconvert(u"eV", T(sim_config.preamp.noise_sigma)u"keV") / germanium_ionization_energy)
-    # println(noise_model)
     noise_model
 end
 
@@ -45,7 +33,6 @@ function fano_noise(mc_events::Table, det_json::AbstractString, ::NoiseSim)
     simulation = Simulation(SolidStateDetector{T}(ssd_config))
     det_material = simulation.detector.semiconductors[1].material
     add_fano_noise(mc_events, det_material.E_ionisation, det_material.f_fano)
-    # SolidStateDetectors.add_fano_noise(mc_events, det_material.E_ionisation, det_material.f_fano)
 end
 
 

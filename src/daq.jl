@@ -1,5 +1,3 @@
-# const energy_unit = u"keV"
-
 """
 Abstract DAQ type for hierarchy and multiple dispatch
 """
@@ -10,7 +8,7 @@ end
 """
 A shelf to put all the DAQ parameters in
 """
-@with_kw struct GenericDAQ <: DAQ
+@with_kw mutable struct GenericDAQ <: DAQ
     "How many samples DAQ stores (final wf length). Has to be smaller than total wf length (defined in mcraw_to_mcpss.jl)"
     nsamples::Int = 4000; # samples per waveform
 
@@ -28,21 +26,19 @@ A shelf to put all the DAQ parameters in
 
     "DAQ gain"
     gain = typemax(UInt16) / ((max_e+offset)/uconvert(u"keV", germanium_ionization_energy))
+
+    trigger_threshold::Real = 0
 end
 
 
-
-"""
-    function GenericDAQ(sim_conf_file)
-
-Construct a struct with DAQ parameters based on given simulation configuration file
-
-sim_conf_file: json file with simulation settings    
-"""
-function GenericDAQ(sim_conf_file::AbstractString)
-    GenericDAQ(LegendGeSim.load_config(sim_conf_file))
+function DAQmodel(sim_config::PropDict)
+    if sim_config.daq.type == "generic"
+        GenericDAQ(sim_config)
+    else
+        @info "DAQ type $(sim_config.daq.type) not implemented!"
+        @info "Available types: generic"
+    end
 end
-
 
 """
     function GenericDAQ(sim_conf)
@@ -57,7 +53,8 @@ function GenericDAQ(sim_conf::PropDict)
         baseline_length = sim_conf.daq.baseline_length,
         Δt = haskey(sim_conf.daq, :sampling_rate) ? uconvert(u"ns", inv(T(sim_conf.daq.sampling_rate)u"MHz")) : T(sim_conf.daq.sampling_interval)u"ns",
         max_e = T(sim_conf.daq.max_e)u"keV",
-        offset = T(sim_conf.daq.offset)u"keV"
+        offset = T(sim_conf.daq.offset)u"keV",
+        trigger_threshold = sim_conf.daq.trigger_threshold
     )
 end
 
@@ -122,7 +119,8 @@ end
 
 function simulate_daq(wf::RDWaveform, daq::GenericDAQ, baseline::RDWaveform)
     # invert the pulse if needed
-    sign = wf.value[Int(end/2)] < 0 ? -1 : 1
+    # sign = wf.value[Int(end/2)] < 0 ? -1 : 1
+    sign = integrate(wf) < 0 ? -1 : 1
     wf_daq = RDWaveform(wf.time, sign * wf.value)
 
     # gain 
@@ -139,12 +137,19 @@ function simulate_daq(wf::RDWaveform, daq::GenericDAQ, baseline::RDWaveform)
     # now it contains offset and noise information that we need
     wf_daq = RDWaveform(wf_daq.time, wf_daq.value .+ baseline_long.value)
 
-    # plot_wf = plot(wf_daq)
-    # plot!(wf_daq, subplot=4, label = "final result", color=:green)
-    # png(plot_base, "wf_baseline4v4.png")
-
     # digitize
     wf_daq = RDWaveform(wf_daq.time, UInt16.(round.(wf_daq.value, digits = 0)))
 
     wf_daq
+end
+
+
+function integrate(wf::RDWaveform)
+    res = 0
+    for i in 2:length(wf.value)
+        y = (wf.value[i] - wf.value[i-1]) / 2
+        dx = ustrip(wf.time[i] - wf.time[i-1])
+        res += y * dx
+    end
+    res
 end

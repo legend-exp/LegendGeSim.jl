@@ -1,6 +1,3 @@
-# Random.seed!(123) # only for testing
-
-
 """
     mstp_to_mcpss(mc_events, sim_config_file)
 
@@ -42,9 +39,7 @@ function mcstp_to_mcpss(mc_events::Table, det_json::AbstractString, ps_simulator
     # noise_model = NoiseModel(sim_config)
     mc_events = fano_noise(mc_events, det_json, noise_model)
 
-    # mcpss_table, mcpss_mctruth = simulate_wf(mc_events, detector_config, ps_simulator)
     simulate_wf(mc_events, det_json, ps_simulator)
-
 end
 
 
