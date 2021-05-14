@@ -16,7 +16,7 @@ sim_config_filename = "data/sim_config_SSD_NoiseData.json"
 
 sim_config = LegendGeSim.load_config(sim_config_filename)
 
-
+filename(path) = splitext(basename(path))[1]
 ##
 
 @info "----- g4simple -> mcstp"
@@ -26,7 +26,8 @@ mcstp_table = LegendGeSim.g4_to_mcstp(g4_name, sim_config.detector)
 ##
 # preliminary step, you can save it to use later, or skip saving and use mcstp_table in memory for next steps
 @info "Saving table"
-out_filename = joinpath(processed_dir, "$(mc_name)_mcstp.h5")
+det_name = filename(sim_config.detector)
+out_filename = joinpath(processed_dir, "$(mc_name)_$(det_name)_mcstp.h5")
 h5open(out_filename, "w") do f
     LegendDataTypes.writedata(f, "mcstp", mcstp_table)
 end
@@ -36,7 +37,8 @@ end
 
 # Read mcstp (if the previous step was skipped, otherwise skip this step)
 @info "Reading mcstp"
-mcstp_name = joinpath(processed_dir, mc_name*"_mcstp.h5")
+det_name = filename(sim_config.detector)
+mcstp_name = joinpath(processed_dir, "$(mc_name)_$(det_name)_mcstp.h5")
 mcstp_table = HDF5.h5open(mcstp_name, "r") do input
     LegendDataTypes.readdata(input, "mcstp")
 end
@@ -46,9 +48,9 @@ end
 mcpss_table, mcpss_mctruth = LegendGeSim.mcstp_to_mcpss(mcstp_table, sim_config_filename)
 
 ##
-
 @info "Saving table"
-out_filename = joinpath(processed_dir, "$(mc_name)_mcpss.h5")
+det_name = filename(sim_config.detector)
+out_filename = joinpath(processed_dir, "$(mc_name)_$(det_name)_$(sim_config.sim_method)_mcpss.h5")
 h5open(out_filename, "w") do f
    LegendDataTypes.writedata(f, "mcpss/mcpss", mcpss_table)
    LegendDataTypes.writedata(f, "mcpss/mctruth", mcpss_mctruth)
@@ -58,7 +60,8 @@ end
 ##
 
 # Read mcpss (if the previous step was skipped, otherwise skip this step)
-mcpss_name = joinpath(processed_dir, mc_name*"_mcpss.h5")
+det_name = filename(sim_config.detector)
+mcpss_name = joinpath(processed_dir, "$(mc_name)_$(det_name)_$(sim_config.sim_method)_mcpss.h5")
 
 mcpss_table = LegendGeSim.read_mcpss(mcpss_name)
 mcpss_mctruth = LegendGeSim.read_mctruth(mcpss_name)
@@ -69,7 +72,9 @@ mcraw_table = LegendGeSim.mcpss_to_mcraw(mcpss_table, mcpss_mctruth, sim_config_
 
 ##
 @info "Saving table"
-out_filename = joinpath(processed_dir, mc_name*"_mcraw.h5")
+det_name = filename(sim_config.detector)
+noise_name = occursin("Data", sim_config_filename) ? "NoiseData" : "NoiseSim"
+out_filename = joinpath(processed_dir, "$(mc_name)_$(det_name)_$(sim_config.sim_method)_$(noise_name)_mcraw.h5")
 HDF5.h5open(out_filename, "w") do f
    LegendDataTypes.writedata(f, "raw", mcraw_table)
    LegendDataTypes.writedata(f, "mctruth", mcpss_mctruth)
