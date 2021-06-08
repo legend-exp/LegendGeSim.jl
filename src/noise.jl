@@ -1,18 +1,18 @@
 abstract type NoiseModel end
 
 # add noise extracted from data
-struct NoiseData <: NoiseModel
+struct NoiseFromData <: NoiseModel
     baseline_catalog::AbstractString
     noise_σ::Real
 end
 
 # simulate noise (fano, preamp)
-struct NoiseSim <: NoiseModel
+struct NoiseFromSim <: NoiseModel
     noise_σ::Real
 end
 
 function NoiseModel(sim_config::PropDict)
-    noise_model = haskey(sim_config, :noise_data) ? NoiseData(sim_config.noise_data,0) : NoiseSim(uconvert(u"eV", T(sim_config.preamp.noise_sigma)u"keV") / germanium_ionization_energy)
+    noise_model = haskey(sim_config, :noise_data) ? NoiseFromData(sim_config.noise_data,0) : NoiseFromSim(uconvert(u"eV", T(sim_config.preamp.noise_sigma)u"keV") / germanium_ionization_energy)
     noise_model
 end
 
@@ -27,16 +27,16 @@ noise_model: NoiseSim object
 
 Output: Tabless
 """
-function fano_noise(mc_events::Table, det_json::AbstractString, ::NoiseSim)
+function fano_noise(mc_events::Table, det_json::AbstractString, env::Environment, ::NoiseFromSim)
     @info("Adding fano noise")
-    ssd_config = detector_config(det_json, SSDSimulator())
+    ssd_config = detector_config(det_json, env, SSDSimulator())
     simulation = Simulation(SolidStateDetector{T}(ssd_config))
     det_material = simulation.detector.semiconductors[1].material
     add_fano_noise(mc_events, det_material.E_ionisation, det_material.f_fano)
 end
 
 
-function fano_noise(mc_events::Table, ::AbstractString, ::NoiseData)
+function fano_noise(mc_events::Table, ::AbstractString, ::Environment, ::NoiseFromData)
     # do nothing since if we're using noise from data we do not simulate fano noise
     # not to double count
     @info("Not adding fano noise because using noise levels from data")
@@ -55,7 +55,7 @@ wf: RDWaveform
 noise_σ: value in DAQ units -> change to noise model 
 Output: RDWaveform
 """
-function simulate_noise(wf::RDWaveform, noise_model::NoiseSim)
+function simulate_noise(wf::RDWaveform, noise_model::NoiseFromSim)
     # I am no expert here. I don't know at which point one should introduce noise.
     # Also, different noise could be added at different stages. This really depends on the electronics.
     # I will just add some Gaussian Noise (σ of 3 keV defined on top)

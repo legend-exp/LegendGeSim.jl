@@ -1,6 +1,6 @@
-function detector_config(det_metadata::AbstractString, ps_simulator::PSSimulator)
+function detector_config(det_metadata::AbstractString, env::Environment, ps_simulator::PSSimulator)
     meta = PropDicts.read(PropDict, det_metadata)
-    detector_config(meta, ps_simulator)
+    detector_config(meta, env, ps_simulator)
 end    
 
 
@@ -10,7 +10,7 @@ end
 Read LEGEND metadata json file and construct a dictionary
 with SSD detector configuration format
 """
-function detector_config(meta::PropDict, ssd_sim::SSDSimulator)
+function detector_config(meta::PropDict, env::Environment, ::SSDSimulator)
     cylinder_height = meta.geometry.height_in_mm
     cylinder_radius = meta.geometry.radius_in_mm
     borehole_height = cylinder_height - meta.geometry.well.gap_in_mm
@@ -49,7 +49,7 @@ function detector_config(meta::PropDict, ssd_sim::SSDSimulator)
                 "type" => "semiconductor",
                 "material" => "HPGe",
                 "bulk_type" => "p",
-                "temperature" => ssd_sim.crystal_t,
+                "temperature" => env.crystal_t,
                 "charge_density_model" => charge_density_model,
                 "geometry" => Dict(
                     "type" => "difference",
@@ -118,7 +118,7 @@ function detector_config(meta::PropDict, ssd_sim::SSDSimulator)
                 "type" => "contact",
                 "material" => "HPGe",
                 "channel" => 2,
-                "potential" => meta.characterization.manufacturer.op_voltage_in_V,
+                "potential" => env.op_voltage == 0 ? meta.characterization.manufacturer.op_voltage_in_V : env.op_voltage,
                 "geometry" => Dict(
                     "type" => "union",
                     "parts" => [Dict() for i in 1:5] # to be filled later
@@ -201,8 +201,23 @@ function detector_config(meta::PropDict, ssd_sim::SSDSimulator)
     dct
 end
 
-function detector_config(meta::PropDict, siggen_sim::SiggenSimulator)
-    siggen_geom = siggen_dict(meta, siggen_sim)
+# """
+# Create SiggenSetup object based on given full siggen config
+# (geometry + fieldgen)
+# """
+# function detector_config(::PropDict, ::Environment, siggen_sim::SiggenFull)
+#     SigGenSetup(siggen_sim.siggen_config)    
+# end
+
+
+"""
+Construct siggen config file based on detector geometry given via LEGEND metadata JSON
+and given fieldgen settings (contained within SiggenFieldgen object)
+"""
+function detector_config(meta::PropDict, env::Environment, siggen_sim::SiggenFieldgen)
+    # construct siggen geometry based on LEGEND metadata JSON + extra environment settings
+    siggen_geom = meta2siggen(meta, env)
+
     # construct lines for siggen config file 
     detector_lines = Vector{String}()
     for (param, value) in siggen_geom
@@ -211,21 +226,23 @@ function detector_config(meta::PropDict, siggen_sim::SiggenSimulator)
 
 
     # read lines from user input for fieldgen 
-    fieldgen_lines = readlines(open(siggen_sim.fieldgen_input))
+    fieldgen_lines = readlines(open(siggen_sim.fieldgen_config))
     fieldgen_lines = replace.(fieldgen_lines, "\t" => "  ")
 
     total_lines = vcat(["# detector related parameters"], detector_lines, fieldgen_lines)
 
     # write a config file 
-    sig_conf_name = siggen_sim.fieldgen_input * ".temp"
-    DelimitedFiles.writedlm(sig_conf_name, total_lines)
+    # not possible because siggen is looking in the same path as the config, which becomes /tmp instead of data/
+    # sig_conf_name = mktemp()[1]
+    sig_conf_name = siggen_sim.fieldgen_config * ".temp"
+    writedlm(sig_conf_name, total_lines)
 
     # construct setup
     SigGenSetup(sig_conf_name)    
 end
 
 
-function siggen_dict(meta::PropDict, siggen_sim::SiggenSimulator)
+function meta2siggen(meta::PropDict, env::Environment)
     Dict(
     # crystal
         # z length: crystal height
@@ -263,15 +280,94 @@ function siggen_dict(meta::PropDict, siggen_sim::SiggenSimulator)
 
     # configuration for mjd_fieldgen (calculates electric fields & weighing potentials)
         # detector bias for fieldgen, in Volts
-        "xtal_HV" => meta.characterization.manufacturer.op_voltage_in_V,
+        "xtal_HV" => env.op_voltage == 0 ? meta.characterization.manufacturer.op_voltage_in_V : env.op_voltage,
 
     # configuration for signal calculation 
         # crystal temperature in Kelvin
-        "xtal_temp" => siggen_sim.crystal_t
+        "xtal_temp" => env.crystal_t
     )
 end
 
 
+# function siggen2meta(siggen_config::AbstractString)
+
+#     # read lines from file
+#     siggen_lines = readlines(open(siggen_config))
+
+#     # construct dict
+#     siggen_dct = Dict()
+#     for line in siggen_lines
+#         if not "=" in line continue end
+#         param, value = split(line, "=")
+#         siggen_dct[strip(param)] = parse(Float32, strip(value))
+#     end
+
+#     siggen2meta(siggen_dct)
+# end
+
+
+# function siggen2meta(siggen_dct::Dict)
+
+#     ## Construct LEGEND metadata Dict
+
+#     dct_meta["geometry"] = Dict(
+#         "contact" => Dict(),
+#         "groove" => Dict(),
+#         "well" => Dict(),
+#         "taper" => Dict(
+#             "bottom" => Dict("outer" => Dict()),
+#             "top" => Dict(
+#                 "outer" => Dict(),
+#                 "inner" => Dict()
+#             )
+#         )
+#     )
+
+#     # z length: crystal height
+#     dct_meta["geometry"]["height_in_mm"] = siggen_dct["xtal_length"]
+#     # radius: crystal radius
+#     dct_meta["geometry"]["radius_in_mm"] = siggen_dct["xtal_radius"]
+
+#     # contact
+#     # point contact length
+#     dct_meta["geometry"]["contact"]["depth_in_mm"] = siggen_dct["pc_length"]
+#     # point contact radius
+#     dct_meta["geometry"]["contact"]["radius_in_mm"] = siggen_dct["pc_radius"]
+
+#     # groove
+#     # wrap-around radius. Set to zero for ORTEC: groove outer radius
+#     dct_meta["geometry"]["groove"]["outer_radius_in_mm"] = siggen_dct["wrap_around_radius"]
+#     # depth of ditch next to wrap-around for BEGes. Set to zero for ORTEC: groove height
+#     dct_meta["geometry"]["groove"]["depth_in_mm"] = siggen_dct["ditch_depth"]
+#     # width of ditch next to wrap-around for BEGes. Set to zero for ORTEC: groove inner radius
+#     dct_meta["geometry"]["groove"]["width_in_mm"] = siggen_dct["ditch_thickness"]
+    
+#     # borehole 
+#     # length of hole, for inverted-coax style
+#     dct_meta["geometry"]["well"]["gap_in_mm"] = siggen_dct["hole_length"]
+#     # radius of hole, for inverted-coax style
+#     dct_meta["geometry"]["well"]["radius_in_mm"] = siggen_dct["hole_length"]
+    
+#     # tapering
+#     # size of 45-degree taper at bottom of ORTEC-type crystal (for r=z)
+#     dct_meta["geometry"]["taper"]["bottom"]["outer"]["height_in_mm"] = siggen_dct["bottom_taper_length"]
+#     # z-length of outside taper for inverted-coax style
+#     dct_meta["geometry"]["taper"]["top"]["outer"]["height_in_mm"] = siggen_dct["outer_taper_length"]
+#     # z-length of inside (hole) taper for inverted-coax style
+#     dct_meta["geometry"]["taper"]["top"]["inner"]["height_in_mm"] = siggen_dct["inner_taper_length"]
+#     # taper angle in degrees, for inner or outer taper
+#     dct_meta["geometry"]["taper"]["top"]["inner"]["angle_in_mm"] = siggen_dct["taper_angle"]
+
+#     # depth of full-charge-collection boundary for Li contact (not currently used)
+#     dct_meta["geometry"]["dl_thickness_in_mm"] = siggen_dct["Li_thickness"]
+
+#     ## Construct Environment struct
+
+#     env = Environment(siggen_dct["xtal_temp"], siggen_dct["xtal_HV"])
+
+#     PropDict(dct_meta), env
+
+# end
 
 
 

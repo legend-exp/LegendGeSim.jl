@@ -27,7 +27,7 @@ Construct a struct with Preamp parameters based on given simulation configuratio
 sim_conf_file: json file with simulation settings    
 """
 function PreAmp(sim_conf::AbstractString)
-    PreAmp(LegendGeSim.load_config(sim_conf))
+    PreAmp(load_config(sim_conf))
 end
 
 
@@ -46,8 +46,7 @@ function PreAmp(sim_conf::PropDict)
     )
 end
 
-
-
+# ------------------------------------------------------------------------------------------
 
 """
     simulate_elec(wf, preamp)
@@ -61,7 +60,7 @@ preamp: a PreAmp struct
 Output: RDWaveform
 """
 function simulate_elec(wf::RDWaveform, preamp::PreAmp)
-    csa_filter = dspjl_simple_csa_response_filter(
+    csa_filter = RadiationDetectorDSP.simple_csa_response_filter(
         preamp.τ_rise / step(wf.time),
         uconvert(u"ns", preamp.τ_decay) / step(wf.time))
 

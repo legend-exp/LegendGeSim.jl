@@ -1,8 +1,11 @@
 {
     "detector": "data/V02160A.json",
+    "environment": {
+        "crystal_t": 77.0,
+        "op_voltage": 4000
+    },
     "sim_method": "SSD",
     "noise_data": "/lfs/l1/legend/detector_char/enr/hades/char_data/I02160A/tier1/th_HS2_top_psa/pygama/v01.00/char_data-I02160A-th_HS2_top_psa-run0001-191021T163344_tier1.lh5",
-    "crystal_t": 77.0,
     "daq": {
         "type": "generic",
         "nsamples": 3750,

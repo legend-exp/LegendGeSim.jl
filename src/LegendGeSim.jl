@@ -28,11 +28,11 @@ using LegendHDF5IO
 using LinearAlgebra
 using LsqFit
 using MJDSigGen
-# using RadiationDetectorDSP # By Oliver Schulz
 # using ProgressMeter
 using Parameters
 using Polynomials
 using PropDicts
+using RadiationDetectorDSP # dev branch
 using RadiationDetectorSignals
 using RadiationSpectra
 using Random
@@ -61,8 +61,6 @@ const germanium_ionization_energy = SolidStateDetectors.material_properties[:HPG
 
 Random.seed!(123) # only for testing
 
-include("filters.jl")
-
 include("sim_config.jl")
 include("pss.jl")
 
@@ -80,8 +78,5 @@ include("mcpss_to_mcraw.jl")
 include("g4_to_mcraw.jl")
 
 include("baselines.jl")
-
-# move to LegendHDF5IO
-include("io.jl")
 
 end # module

@@ -9,7 +9,7 @@ mctruth: Table with MC truth (currently used to add DAQ timestamp)
 sim_config_file: simulation configuration json file
 """
 function mcpss_to_mcraw(mcpss::Table, mctruth::Table, sim_config_file::AbstractString)
-    sim_config = LegendGeSim.load_config(sim_config_file)
+    sim_config = load_config(sim_config_file)
 
     mcpss_to_mcraw(mcpss, mctruth, sim_config)
 end   
@@ -85,7 +85,7 @@ function mcpss_to_mcraw(mcpss::Table, mctruth::Table, daq::GenericDAQ, elec_chai
 end
 
 
-function process_waveforms(mcpss::Table, daq::GenericDAQ, elec_chain::ElecChain, noise_model::NoiseSim)
+function process_waveforms(mcpss::Table, daq::GenericDAQ, elec_chain::ElecChain, noise_model::NoiseFromSim)
     # Create arrays to be filled with results, and online energy
     n_waveforms = size(mcpss.waveform,1)
     result = Table(
@@ -97,6 +97,9 @@ function process_waveforms(mcpss::Table, daq::GenericDAQ, elec_chain::ElecChain,
 
     @info "Processing waveforms..."
     for i in 1:n_waveforms
+        if(i % 500 == 0) println("$i / $n_waveforms") end
+        # println("$i / $n_waveforms")  
+
         wf = add_tail_and_baseline(mcpss.waveform[i], daq)
         
         wf = differentiate(wf)
@@ -118,7 +121,7 @@ function process_waveforms(mcpss::Table, daq::GenericDAQ, elec_chain::ElecChain,
 end
 
 
-function process_waveforms(mcpss::Table, daq::GenericDAQ, elec_chain::ElecChain, noise_model::NoiseData)
+function process_waveforms(mcpss::Table, daq::GenericDAQ, elec_chain::ElecChain, noise_model::NoiseFromData)
     # Create arrays to be filled with results, and online energy
     n_waveforms = size(mcpss.waveform,1)
     result = Table(
@@ -165,13 +168,13 @@ end
     differentiate(wf)
 
 Differentiate a waveform using Biquad filter
-(see function dspjl_differentiator_filter)
+(see function differentiator_filter in RadiationDetectorDSP)
 
 wf: RDWaveform
 Output: RDWaveform
 """
 function differentiate(wf::RDWaveform)
-    diff_biquad_filter = dspjl_differentiator_filter(T(1)) # We want a gain of 1 here
+    diff_biquad_filter = RadiationDetectorDSP.differentiator_filter(T(1)) # We want a gain of 1 here
     filter_output = filt(diff_biquad_filter, wf.value)
     # !!! We have to implement a method do parse a RDWaveform to `filt`
     RDWaveform(wf.time, filter_output)

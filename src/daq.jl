@@ -40,6 +40,7 @@ function DAQmodel(sim_config::PropDict)
     end
 end
 
+
 """
     function GenericDAQ(sim_conf)
 
@@ -58,6 +59,7 @@ function GenericDAQ(sim_conf::PropDict)
     )
 end
 
+# ------------------------------------------------------------------------------------------
 
 """
     daq_online_filter(values, offset, window_lengths, threshold)
@@ -84,6 +86,7 @@ function daq_online_filter(values::AbstractVector, offset::Int, window_lengths::
     r, r >= threshold
 end
 
+
 """
     simulate_daq(wf, daq)
 
@@ -94,7 +97,7 @@ daq: GenericDAQ object
 """
 function simulate_daq(wf::RDWaveform, daq::GenericDAQ)
     # invert the pulse if needed
-    sign = wf.value[Int(end/2)] < 0 ? -1 : 1
+    sign = integral(wf) < 0 ? -1 : 1
     wf_daq = RDWaveform(wf.time, sign * wf.value)
 
     # offset
@@ -119,8 +122,7 @@ end
 
 function simulate_daq(wf::RDWaveform, daq::GenericDAQ, baseline::RDWaveform)
     # invert the pulse if needed
-    # sign = wf.value[Int(end/2)] < 0 ? -1 : 1
-    sign = integrate(wf) < 0 ? -1 : 1
+    sign = integral(wf) < 0 ? -1 : 1
     wf_daq = RDWaveform(wf.time, sign * wf.value)
 
     # gain 
@@ -137,6 +139,7 @@ function simulate_daq(wf::RDWaveform, daq::GenericDAQ, baseline::RDWaveform)
     # now it contains offset and noise information that we need
     wf_daq = RDWaveform(wf_daq.time, wf_daq.value .+ baseline_long.value)
 
+
     # digitize
     wf_daq = RDWaveform(wf_daq.time, UInt16.(round.(wf_daq.value, digits = 0)))
 
@@ -144,7 +147,7 @@ function simulate_daq(wf::RDWaveform, daq::GenericDAQ, baseline::RDWaveform)
 end
 
 
-function integrate(wf::RDWaveform)
+function integral(wf::RDWaveform)
     res = 0
     for i in 2:length(wf.value)
         y = (wf.value[i] - wf.value[i-1]) / 2

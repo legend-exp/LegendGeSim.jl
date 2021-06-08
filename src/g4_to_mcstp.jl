@@ -1,4 +1,20 @@
 """
+Decide which function to dispatch depending on whether
+a LEGEND metadata json is given 
+or a siggen config file (that contains detector geometry)
+"""
+function g4_to_mcstp(g4_filename::AbstractString, sim_config::PropDict)
+    g4_to_mcstp(g4_filename, sim_config.detector)
+end
+
+
+function g4_to_mcstp(g4_filename::AbstractString, detector::AbstractString)
+    det_config_SSD = detector_config(detector, Environment(), SSDSimulator())
+    g4_to_mcstp(g4_filename, det_config_SSD)
+end
+
+
+"""
     g4_to_mcstp(g4_filename)
 
 Process a raw g4simple simulation output (hdf5) into a Table grouped grouped by event,
@@ -9,39 +25,13 @@ Note: should be a part of the LegendHDF5IO package in the future.
 g4_filename: path to the g4simple output hdf5 file
 Output: Table
 """
-function g4_to_mcstp(g4_filename::AbstractString, detector::AbstractString)
-
+function g4_to_mcstp(g4_filename::AbstractString, det_config_SSD::Dict)
     # Read raw g4simple HDF5 output file and construct arrays of corresponding data
     @info("Processing file: $g4_filename")
 
-    ### ---- replace with LegendHDF5IO function
-    g4sfile = h5open(g4_filename, "r")
-    g4sntuple = g4sfile["default_ntuples"]["g4sntuple"]
-
-    evtno = read(g4sntuple["event"]["pages"])
-    detno = read(g4sntuple["iRep"]["pages"])
-    thit = read(g4sntuple["t"]["pages"]).*u"ns"
-    edep = read(g4sntuple["Edep"]["pages"]).*u"MeV"
-    volID = read(g4sntuple["volID"]["pages"])
-
-    x = read(g4sntuple["x"]["pages"])
-    y = read(g4sntuple["y"]["pages"])
-    z = read(g4sntuple["z"]["pages"])
-    ### ---- replace with LegendHDF5IO function
-
-    # Construct array of positions for input to SSD
-    n_ind = length(evtno)
-    pos = [ SVector{3}(([ x[i], y[i], z[i] ] .* u"mm")...) for i in 1:n_ind ]
-
-    # Construct a Table with the arrays we just constructed from the g4sfile data
-    g4_table = TypedTables.Table(
-            evtno = evtno,
-            detno = detno,
-            thit = thit,
-            edep = edep,
-            pos = pos,
-            volID = volID,
-        )
+    g4_table = open(g4_filename, Geant4HDF5Input) do io
+        read(io)
+    end
 
     # Save only events that occur in the detector PV
     # volID = 1 selects only events in the detector
@@ -78,7 +68,6 @@ function g4_to_mcstp(g4_filename::AbstractString, detector::AbstractString)
 
     # Remove events lying outside of the detector
     @info "Remove events outside of the detector..."
-    det_config_SSD = detector_config(detector, SSDSimulator())
     detector_SSD = Simulation(SolidStateDetector{T}(det_config_SSD))
     # We need to filter out the few events that,
     # due to numerical effects, lie outside of the detector
@@ -89,6 +78,8 @@ function g4_to_mcstp(g4_filename::AbstractString, detector::AbstractString)
     mc_events
 
 end
+
+
 
 
 function group_by_column(table::TypedTables.Table, colname::Symbol)
