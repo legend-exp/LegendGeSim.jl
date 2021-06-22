@@ -101,9 +101,6 @@ function simulate_ssd(ssd_config::Dict)
     println("...electric field")
     calculate_electric_field!(simulation, n_points_in_φ = 72)
 
-    println("...capacitance")
-    calculate_capacitance(simulation)
-
     println("...drift field")
     calculate_drift_fields!(simulation)
 
@@ -156,11 +153,27 @@ function ssd_config(meta::PropDict, env::Environment)
 
     dct = Dict(
         "name" => meta.det_name,
+        "medium" => "vacuum",
         "units" => Dict(
             "length" => "mm",
             "angle" => "deg",
             "potential" => "V",
             "temperature" => "K"
+        ),
+        "grid" => Dict(
+            "coordinates" => "cylindrical",
+            "axes" => Dict(
+                "r" => Dict(
+                    "to" => cylinder_radius*1.2, # leave some margin
+                    "boundaries" => "inf"
+                ),
+                "phi" => Dict("from" => 0, "to" => 0, "boundaries" => "periodic"),
+                "z" => Dict(
+                    "from" => -10,
+                    "to" => cylinder_height*1.2,
+                    "boundaries" => Dict("left" => "inf", "right" => "inf")
+                )
+            )
         ),
         "objects" => [
             # crystal
