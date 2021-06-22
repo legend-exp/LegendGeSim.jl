@@ -1,88 +1,94 @@
 """
-Abstract type for hierarchy and multiple dispatch
-that allows to choose between SolidStateDetectors and Siggen
-as waveform simulation method
+The PSSimulator supertype defines what type of method 
+    is used for the simulation of electric field and weighting potential,
+    calculation of detector capacitance etc., as well as simulation of current pulses
 """
 abstract type PSSimulator end
 
 
 """
-Use SSD for signal simulation
+Simulation method: SolidStateDetectors
 """
 struct SSDSimulator <: PSSimulator end
 
-abstract type SiggenSimulator <: PSSimulator end
+
+"""
+    SSDSimulator(::PropDict)
+
+-> SSDSimulator
+
+Construct SSDSimulator instance based on simulation
+    configuration given in <sim_conf>.
+
+Currently SSDSimulator does not have any parameters
+"""
+function SSDSimulator(::PropDict)
+    SSDSimulator()
+end
 
 
 """
-Take detector geometry from metadata JSON,
-simulate signal with siggen based on given
-fieldgen settings
+Simulation method: siggen
 """
-struct SiggenFieldgen <: SiggenSimulator
+struct SiggenSimulator <: PSSimulator
+    "Path to fieldgen settings (TODO: make part of json)"
     fieldgen_config::AbstractString
 end
 
 
-# """
-# Take both detector geometry and fieldgen settings
-# from a single siggen config file
-# """
-# struct SiggenFull <: SiggenSimulator
-#     siggen_config::AbstractString
-# end
+"""
+    SiggeSimulator(sim_conf)
+
+PropDict -> SiggenSimulator
+
+Construct SiggeSimulator instance based on simulation
+    configuration given in <sim_conf>.
+"""
+function SiggenSimulator(sim_conf::PropDict)
+    @info "Taking fieldgen input from $(sim_conf.fieldgen_config)"
+    SiggenSimulator(sim_conf.fieldgen_config)
+end
 
 
+"""
+    PSSimulator(sim_config)
+
+PropDict -> <PSSimulator>
+
+Construct a PSSSimulator supertype instance based on given simulation
+    configuration <sim_config>.
+Returned type depends on the simulation
+    method given in the config.
+"""
 function PSSimulator(sim_config::PropDict)
     @info "Waveform simulation method: $(sim_config.sim_method)"
     if sim_config.sim_method == "SSD"
-        SSDSimulator()
+        SSDSimulator(sim_config)
     elseif sim_config.sim_method == "siggen"
-        # if haskey(sim_config, "siggen_config")
-        #     @info "Taking siggen configuration from $(sim_config.siggen_config)"
-        #     SiggenFull(sim_config.siggen_config)
-        # elseif haskey(sim_config, "fieldgen_config")
-            @info "Taking fieldgen input from $(sim_config.fieldgen_config)"
-            SiggenFieldgen(sim_config.fieldgen_config)
-        # end
+        SiggenSimulator(sim_config)
     else
         println("This simulation method is not implemented!")
     end
 end
 
-# ------------------------------------------------------------------------------------------
-
+# -------------------------------------------------------------------
 
 """
-    simulate_wf(mc_events, simulation, simulator)
+    simulate_waveforms(stp_events, detector)
 
-Simulate waveforms based on given MC events and detector simulation,
-contained in the MCstp struct. Returns resulting mcpss table
-and a secon table containing MC truth
+Table, SolidStateDetectors.Simulation -> Table, Table     
 
-mcstp: MCstp struct
-simulator: Simulator object inheriting from PSSimulator for multiple dispatch
+Simulate pulses based on events given in <stp_events>
+    using the given SSD detector simulation instance <detector>
 
-Output: Table, Table
+Constructs and returns a table with resulting pulses and a pss truth table
+    (may be abolished in the future as unnecessary)    
 """
-function simulate_wf(mc_events::Table, det_json::AbstractString, env::Environment, ssd_sim::SSDSimulator)
-
-    # simulate detector 
-    det_name = splitext(basename(det_json))[1]
-    det_h5 = joinpath("cache", det_name*".h5f")
-    if isfile(det_h5)
-        @info "Reading $det_name simulation from cached h5"
-        simulation = SolidStateDetectors.ssd_read(det_h5, Simulation)
-    else
-        @info "Simulating $det_name from scratch"
-        ssd_config = detector_config(det_json, env, ssd_sim)
-        simulation = simulate_detector(ssd_config)
-    end
-
-    @info("Simulating waveforms")
+function simulate_waveforms(stp_events::Table, detector::SolidStateDetectors.Simulation)
+    @info("~.~.~ SolidStateDetectors")
     contact_charge_signals = SolidStateDetectors.simulate_waveforms(
-            mc_events,
-            simulation,
+            stp_events,
+            detector,
             max_nsteps = 4000,
             Δt = 1u"ns",
             verbose = false);
@@ -90,13 +96,13 @@ function simulate_wf(mc_events::Table, det_json::AbstractString, env::Environmen
     waveforms = ArrayOfRDWaveforms(contact_charge_signals.waveform)
 
     # convert to Tier1 format
-    mcpss_table = Table(
+    pss_table = Table(
         channel = contact_charge_signals.chnid,
         ievt = contact_charge_signals.evtno,
         waveform = waveforms
     )
 
-    mcpss_mctruth = Table(
+    pss_truth = Table(
         detno = contact_charge_signals.detno,
         edep = contact_charge_signals.edep,
         ievt = contact_charge_signals.evtno,
@@ -104,73 +110,93 @@ function simulate_wf(mc_events::Table, det_json::AbstractString, env::Environmen
         thit = contact_charge_signals.thit
     )
 
-    mcpss_table, mcpss_mctruth
+    pss_table, pss_truth    
 end
 
 
-function simulate_wf(mc_events::Table, det_json::AbstractString, env::Environment, siggen_sim::SiggenSimulator)
-    # to use the siggen function "read_config" from MJDSigGen.jl, we need to first create a config file it can read 
+"""
+    simulate_waveforms(stp_events, detector)
 
-    siggen_setup = detector_config(det_json, env, siggen_sim)
-    waveforms = simulate_wf(siggen_setup, mc_events)
+Table, AbstractString -> Table, Table     
 
-    mcpss_table = Table(
+Simulate pulses based on events given in <stp_events>
+    using Siggen with settings given in <detector>
+
+Constructs and returns a table with resulting pulses and a pss truth table
+    (may be abolished in the future as unnecessary)    
+"""
+function simulate_waveforms(stp_events::Table, detector::SigGenSetup)
+    @info("~.~.~ Siggen")
+
+    nevents = length(stp_events)
+    wf_array = Array{RDWaveform}(undef, nevents)
+    for i in 1:nevents
+        if(i % 100  == 0) println("$i/$nevents") end
+        signal::Vector{Float32} = simulate_signal(stp_events[i].pos, stp_events[i].edep, detector)
+        time = range(T(0)u"ns", step = detector.step_time_out*u"ns", length = length(signal))
+
+        # push!(waveforms, signal)
+        wf_array[i] = RDWaveform(time, signal)
+    end
+
+    ## Oliver said this should be the more efficient way of doing it
+    ## as opposed to an array of separate RDWaveform instances
+    # Δt = setup.step_time_out*u"ns"
+    # t_end = length(waveforms[1]) * Δt
+    # times = fill(0u"ns" : Δt : t_end, length(waveforms))
+    # ArrayOfRDWaveforms((times, VectorOfSimilarVectors(waveforms)))
+
+    waveforms = ArrayOfRDWaveforms(wf_array)
+    # why am I doing this?
+    waveforms = ArrayOfRDWaveforms((waveforms.time, VectorOfSimilarVectors(waveforms.value)))    
+
+    pss_table = Table(
         channel = [1 for idx in 1:length(waveforms)], # lists of ADCs that triggered, 1 for HADES all the time
-        ievt = mc_events.evtno,
+        ievt = stp_events.evtno,
         waveform = waveforms
     )
 
     # using SSD we get mc truth from SSD output
     # with siggen, let's just return the input
-    # maybe mc truth will not be propagated to mcraw anyway
-    mcpss_mctruth = Table(
-        detno = mc_events.detno,
-        edep = mc_events.edep,
-        ievt = mc_events.evtno,
-        pos = mc_events.pos,
-        thit = mc_events.thit        
+    # maybe mc truth will not be propagated to (sim)raw anyway
+    pss_truth = Table(
+        detno = stp_events.detno,
+        edep = stp_events.edep,
+        ievt = stp_events.evtno,
+        pos = stp_events.pos,
+        thit = stp_events.thit        
     )
 
-    mcpss_table, mcpss_mctruth
-    
-    
+    pss_table, pss_truth
 end
 
 
-function simulate_wf(setup::SigGenSetup, mc_events::Table)
-    # loop over events and simulate signal with siggen
-    waveforms = Vector{Vector{Float32}}()
-    nevents = length(mc_events)
-    for i in 1:nevents
-        if(i % 100  == 0) println("$i/$nevents") end
-        signal::Vector{Float32} = simulate_wf(setup, mc_events[i].pos, mc_events[i].edep)
-        push!(waveforms, signal)
-    end
+"""
+    simulate_wf(pos, edep, siggen_setup)
 
-    Δt = setup.step_time_out*u"ns"
-    t_end = length(waveforms[1]) * Δt
-    times = fill(0u"ns" : Δt : t_end, length(waveforms))
+AbstractVector, AbstractVector, SigGenSetup -> Vector{Float32}
 
-    ArrayOfRDWaveforms((times, VectorOfVectors(waveforms)))
-
-end
-
-
-# change AbstractVector to more narrow type?
-function simulate_wf(setup::SigGenSetup, pos::AbstractVector, edep::AbstractVector)
+Simulate a signal from energy depositions <edep> with corresponding positions <pos>
+    based on a given <siggen_setup>    
+"""
+function simulate_signal(pos::AbstractVector, edep::AbstractVector, siggen_setup::SigGenSetup)
     # this is not so nice, think about it
-    signal = simulate_wf(setup, pos[1]) * ustrip(edep[1])
+    # signal = simulate_wf(setup, pos[1]) * ustrip(edep[1])
+    signal = zeros(Float32, siggen_setup.ntsteps_out)
 
-    for i in 2:length(pos)
-        signal = signal .+ simulate_wf(setup, pos[i]) * ustrip(edep[i])#*1e6 # TEMP
+    for i in 1:length(pos)
+        # in SSD the output is always in eV -> convert to eV
+        # signal = signal .+ simulate_wf(setup, pos[i]) * ustrip(uconvert(u"eV", edep[i]))
+        MJDSigGen.get_signal!(signal, siggen_setup, Tuple(ustrip.(pos))) * ustrip(uconvert(u"eV", edep[i]))
     end
+
     signal
 end
 
 # change AbstractVector to more narrow type?
-function simulate_wf(setup::SigGenSetup, pos::AbstractVector)
-    MJDSigGen.get_signal!(setup, Tuple(ustrip.(pos)))
-end
+# function simulate_wf(setup::SigGenSetup, pos::AbstractVector)
+#     MJDSigGen.get_signal!(setup, Tuple(ustrip.(pos)))
+# end
 
 
 

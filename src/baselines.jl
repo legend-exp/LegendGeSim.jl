@@ -1,16 +1,34 @@
+"""
+    extend_baseline(baseline, wf)
+
+RDWaveform, RDWaveform -> RDWaveform
+
+Take a given <baseline> and extend it to match the length (and sampling)        
+    of the given waveform <wf>
+"""
 function extend_baseline(baseline::RDWaveform, wf::RDWaveform)
-    # resample baseline
+    # resample baseline to be the same as the waveform
     baseline_sampled = baseline.value[begin:Int(step(wf.time)/step(baseline.time)):end]
 
-    # create extended/shrinked baseline
-    gaussian_noise_dist = Normal(T(0), T(std(baseline_sampled))) #  Normal() -> Distributions.jjl
+    ## create extended/shrinked baseline
+    # offset
     values = ones(length(wf.value)).*mean(baseline_sampled)
+    # noise
+    gaussian_noise_dist = Normal(T(0), T(std(baseline_sampled)))
     values = values .+ rand!(gaussian_noise_dist, similar(values))
-    # Now, lets add this Gaussian noise to other waveform (here, after the filters (but might be also added before))
+
     RDWaveform(wf.time, values)
 end
 
 
+"""
+    baseline_catalog(raw_filename)
+
+AbstractString -> Table 
+
+Look up stored table of baselines corresponding to given raw data <raw_filename>.
+If does not exist, construct such table.
+"""
 function baseline_catalog(raw_filename::AbstractString)
     base_filename = joinpath("cache", "baselines_"*basename(raw_filename))
 
@@ -21,6 +39,7 @@ function baseline_catalog(raw_filename::AbstractString)
         @info "Extracting baseline samples from $raw_filename"    
         raw_table = read_raw(raw_filename, "raw")
         baseline_table = baseline_catalog(raw_table)
+        # cache for later
         h5open(base_filename, "w") do f writedata(f, "raw", baseline_table) end
         @info "Baselines saved to $base_filename"
     end
@@ -28,15 +47,25 @@ function baseline_catalog(raw_filename::AbstractString)
     baseline_table
 end
 
+"""
+    baseline_catalog(raw_table)
 
+Table -> Table 
+
+Construct table of baselines extracted from the waveforms
+    contained in the given raw data table <raw_table>
+"""
 function baseline_catalog(raw_table::Table)
     waveforms = raw_table.waveform
     baselines = Vector{RDWaveform}()
 
-    base_uplim, base_lolim = basestart(waveforms)
+    # upper and lower limit on initial offset value
+    offset_uplim, offset_lolim = basestart(waveforms)
 
     for wf in waveforms
-        if(selection_cut(wf, base_uplim, base_lolim))
+        # if the waveform passes the selection cuts for pileup removal...
+        if(selection_cut(wf, offset_uplim, offset_lolim))
+            # ...extract its baseline and collect it in the list
             push!(baselines, extract_baseline(wf))
         end
     end
@@ -46,7 +75,7 @@ end
 
 
 function basestart(wfs::ArrayOfRDWaveforms)       
-    #get the distribution of baseline starting point 
+    # get the distribution of offset values at start 
     basestart_list = []
     for i in wfs
         append!(basestart_list, i.value[1])

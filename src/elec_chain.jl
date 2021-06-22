@@ -1,68 +1,121 @@
 """
-Abstract Electronics Chain type for hierarchy and multiple dispatch
+The ElecChain supertype corresponds to the chain of 
+    electronic components involved in the DAQ setup
+    that appear before the trigger.
 """
 abstract type ElecChain end
 
+"""
+Generic electronics chain consisting of a preamplifier
+    and an FADC module
+"""
+mutable struct GenericElecChain <: ElecChain
+    preamp::PreAmp
+
+    fadc::FADC
+end
+
 
 """
-A shelf to put all the preamplifier parameters in
+    GenericElecChain(sim_conf)
+
+PropDict -> GenericElecChain
+
+Construct electronics components based on simulation 
+    configuration <sim_conf> and create a GenericChain instance
+    based on these components.
 """
-@with_kw struct PreAmp <: ElecChain
-    "PreAmp exp decay time"
-    τ_decay::typeof(1.0*μs_unit) = T(5)*u"μs"
+function GenericElecChain(sim_conf::PropDict)
+    preamp = PreAmp(sim_conf)
+    fadc = FADC(sim_conf)
+
+    GenericElecChain(preamp, fadc)
+end
+
+
+"""
+    ElecChain(sim_conf)
+
+PropDict -> <ElecChain>
+
+Construct an ElecChain supertype struct based on given simulation configuration.
+Type of returned instance depends on settings in <sim_conf>
+Currently only one type of ElecChain available (GenericElecChain),
+    rendering this function temporarily redundant.
+"""
+function ElecChain(sim_conf::PropDict)
+    GenericElecChain(sim_conf)
+end
+
+
+# -------------------------------------------------------------------
+
+"""
+    simulate(wf, elec_chain, ::NoiseFromSim)
+
+RDWaveform, ElecChain -> RDWaveform
+
+Simulate effects of the electronics chain on the waveform
+    modelling noise based on each component.
+
+"""
+function simulate(wf::RDWaveform, elec_chain::ElecChain, ::NoiseFromSim)
+    # simply simulate elec chain the way it is
+    # noise simulation of components is included in the simulation of components
+    simulate(wf, elec_chain)
+end
+
+
+"""
+    simulate(wf, elec_chain, noise_model)
+
+RDWaveform, GenericElecChain, NoiseFromData -> RDWaveform
+
+Simulate effects of the electronics chain on the waveform
+    modelling noise based on baselines extracted from data
+    (note: also takes preamp offset into account)
+"""
+function simulate(wf::RDWaveform, elec_chain::GenericElecChain, noise_model::NoiseFromData)
+    ## simulate elec chain
+
+    # check if noise and offset are double counted
+    if (elec_chain.preamp.noise_σ != 0u"keV") || (elec_chain.preamp.offset != 0u"keV")
+        @info "WARNING!\n
+        You are simulating noise and offset based on data baselines,
+        but your PreAmp settings are:\n
+        -- noise sigma = $(elec_chain.preamp.noise_σ)\n
+        -- offset = $(elec_chain.preamp.offset)"
+        @info "Proceeding with the simulation, but there might be double counting"
+    end
+
+    # simulate elec chain
+    wf_elec = simulate(wf, elec_chain)
+
+    ## simulate noise and offset via slapping data baselines on top of the resulting waveform
+    simulate_noise(wf_elec, noise_model)
+end
+
+
+"""
+    simulate(wf, elec_chain)
+
+RDWaveform, ElecChain -> RDWaveform
+
+Simulate effects of the electronics chain components on the waveform.
+"""
+function simulate(wf::RDWaveform, elec_chain::ElecChain)
+    # elec chain components
+    component_names = fieldnames(typeof(elec_chain))
     
-    "PreAmp rise time"
-    τ_rise::typeof(1.0*ns_unit) = T(15)*u"ns"
+    # start with originally given waveform
+    wf_elec = wf
+    # simulate effect of each component
+    for name in component_names
+        component = getfield(elec_chain, name)
+        wf_elec = simulate(wf_elec, component)
+    end
 
-    "sigma for electronic noise"
-    noise_σ::Real = uconvert(u"eV", T(3)u"keV") / germanium_ionization_energy
+    wf_elec
 end
 
-
-"""
-    function PreAmp(sim_conf_file)
-
-Construct a struct with Preamp parameters based on given simulation configuration file
-
-sim_conf_file: json file with simulation settings    
-"""
-function PreAmp(sim_conf::AbstractString)
-    PreAmp(load_config(sim_conf))
-end
-
-
-"""
-    function PreAmp(sim_conf)
-
-Construct a struct with PreAmp parameters based on given simulation configuration 
-
-sim_conf: PropDict object with simulation settings    
-"""
-function PreAmp(sim_conf::PropDict)
-    PreAmp(
-        τ_decay=T(sim_conf.preamp.t_decay)*u"μs",
-        τ_rise=T(sim_conf.preamp.t_rise)*u"ns",
-        noise_σ = haskey(sim_conf.preamp, :noise_sigma) ? uconvert(u"eV", T(sim_conf.preamp.noise_sigma)u"keV") / germanium_ionization_energy : 0
-    )
-end
-
-# ------------------------------------------------------------------------------------------
-
-"""
-    simulate_elec(wf, preamp)
-
-Simulate a charge sensitive amplifier (`CSA`)
-Here, the parameters τ_rise and τ_decay have to be given in units of samples,
-because the `filt`-function does not know the Δt between the samples.
-
-wf: RDWaveform
-preamp: a PreAmp struct
-Output: RDWaveform
-"""
-function simulate_elec(wf::RDWaveform, preamp::PreAmp)
-    csa_filter = RadiationDetectorDSP.simple_csa_response_filter(
-        preamp.τ_rise / step(wf.time),
-        uconvert(u"ns", preamp.τ_decay) / step(wf.time))
-
-    RDWaveform(wf.time, filt(csa_filter, wf.value))
-end
+    

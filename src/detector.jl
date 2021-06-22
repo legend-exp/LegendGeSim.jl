@@ -1,16 +1,143 @@
-function detector_config(det_metadata::AbstractString, env::Environment, ps_simulator::PSSimulator)
-    meta = PropDicts.read(PropDict, det_metadata)
-    detector_config(meta, env, ps_simulator)
+"""
+    simulate_detector(sim_config_filename)
+
+AbstractString -> <detector simulation>
+
+Simulate detector according to given simulation configuration.
+What type <detector simulation> is depends on the given method of simulation.
+"""
+function simulate_detector(sim_config_filename::AbstractString)
+    # sim_config = load_config(sim_config_filename)
+    sim_config = propdict(sim_config_filename)
+
+    # det_meta = PropDicts.read(PropDict, sim_config.detector_metadata)
+    det_meta = propdict(sim_config.detector_metadata)
+
+    env = Environment(sim_config)
+    ps_simulator = PSSimulator(sim_config)
+
+    simulate_detector(det_meta, env, sim_config_filename, ps_simulator)
+end
+
+"""
+    simulate_detector(det_meta, env, config_name, ::SSDSimulator)
+
+PropDict, Environment, AbstractString -> SSD.Simulation 
+
+Look up cached SSD simulation .h5f file, and if does not exist,
+    simulate the detector according to geometry as given in LEGEND metadata <det_meta>
+    and environment settings given in <env> using SolidStateDetectors.
+The simulation will be cached based on <config_name>.
+
+"""
+function simulate_detector(det_meta::PropDict, env::Environment, config_name::AbstractString, ::SSDSimulator)
+    det_h5 = joinpath("cache", config_name*"_ssd.h5f")
+    if isfile(det_h5)
+        @info("Reading $config_name SSD simulation from cached h5")
+        simulation = SolidStateDetectors.ssd_read(det_h5, Simulation)
+    else
+        @info("Simulating $config_name with SSD from scratch for given settings")
+        ssd_conf = ssd_config(det_meta, env)
+        simulation = simulate_ssd(ssd_conf)
+
+        if !ispath(dirname(det_h5)) mkpath(dirname(det_h5)) end
+        SolidStateDetectors.ssd_write(det_h5, simulation)
+        @info("-> Saved cached simulation to $det_h5")
+    end
+
+    simulation
 end    
 
 
 """
-    SSDconfig(det_metadata)
+    simulate_detector(det_meta, env, config_name, ps_simulator)
+    
+PropDict, Environment, AbstractString, Siggen -> SigGenSetup       
 
-Read LEGEND metadata json file and construct a dictionary
-with SSD detector configuration format
+Construct a fieldgen/siggen configuration file
+    according to geometry as given in LEGEND metadata <det_meta>
+    and environment settings given in <env>.
+Look up fieldgen generated electric field and weighting potential files
+    based on given <config_name>, and if not found, call fieldgen.
 """
-function detector_config(meta::PropDict, env::Environment, ::SSDSimulator)
+function simulate_detector(det_meta::PropDict, env::Environment, config_name::AbstractString, ps_simulator::SiggenSimulator)
+    @info "Constructing Fieldgen/Siggen configuration file"
+    # returns the name of the resulting siggen config file
+    # and the name of (already or to be) generated weighting potential file
+    siggen_config_name, fieldgen_wp_name = siggen_config(det_meta, env, ps_simulator, config_name)
+
+    # if the WP file with such a name exists...
+    if isfile(fieldgen_wp_name)
+        #...do nothing, siggen will later read the files based on the generated conifg
+        @info "Reading cached fields from $field_filename"
+    else
+        #...otherwise call fieldgen
+        @info "_|~|_|~|_|~|_ Fieldgen simulation"
+        fieldgen(siggen_config_name)
+        @info "_|~|_|~|_|~|_ Fieldgen simulation complete"
+    end
+
+    # a SigGenSetup object
+    SigGenSetup(siggen_config_name)            
+end
+
+# ------------------------------------------------------------------- SSD
+
+"""
+    simulate_ssd(ssd_config)
+
+Dict -> SSD.Simulation 
+
+Simulate detector based on given SSD config
+"""
+function simulate_ssd(ssd_config::Dict)
+
+    @info "_|~|_|~|_|~|_ SSD simulation"
+
+    simulation = Simulation(SolidStateDetector{Float32}(ssd_config))
+
+    println("...electric potential")
+    calculate_electric_potential!( simulation,
+                               max_refinements = 4)
+
+    println("...electric field")
+    calculate_electric_field!(simulation, n_points_in_φ = 72)
+
+    println("...capacitance")
+    calculate_capacitance(simulation)
+
+    println("...drift field")
+    calculate_drift_fields!(simulation)
+
+    println("...weighting potential")
+    for contact in simulation.detector.contacts
+        calculate_weighting_potential!(simulation, contact.id, max_refinements = 4, n_points_in_φ = 2, verbose = false)
+    end
+
+    @info "_|~|_|~|_|~|_ SSD detector simulation complete"
+
+    simulation
+end
+
+
+# function ssd_config(meta_name::AbstractString, env::Environment)
+#     meta = propdict(meta_name)
+#     # meta = PropDicts.read(PropDict, meta_name)
+#     ssd_config(meta, env)
+# end
+
+
+"""
+    ssd_config(meta, env)
+
+PropDict, Environment -> Dict 
+
+Construct SSD type config based on
+    geometry as given in LEGEND metadata <meta>
+    and environment settings given in <env>.
+""" 
+function ssd_config(meta::PropDict, env::Environment)
+    # some parameters that will be used multiple times later
     cylinder_height = meta.geometry.height_in_mm
     cylinder_radius = meta.geometry.radius_in_mm
     borehole_height = cylinder_height - meta.geometry.well.gap_in_mm
@@ -201,47 +328,77 @@ function detector_config(meta::PropDict, env::Environment, ::SSDSimulator)
     dct
 end
 
-# """
-# Create SiggenSetup object based on given full siggen config
-# (geometry + fieldgen)
-# """
-# function detector_config(::PropDict, ::Environment, siggen_sim::SiggenFull)
-#     SigGenSetup(siggen_sim.siggen_config)    
-# end
-
 
 """
-Construct siggen config file based on detector geometry given via LEGEND metadata JSON
-and given fieldgen settings (contained within SiggenFieldgen object)
+    siggen_config(meta, env, siggen_sim, config_name)
+
+PropDict, Environment, SiggenSimulator, String -> String, String    
+
+Construct Siggen/Fieldgen config based on
+    geometry as given in LEGEND metadata <meta>,
+    environment settings given in <env>,
+    and fieldgen settings contained in <siggen_sim>.
+
+The resulting siggen config will be cached based on given <config_name>
+The function returns the path to the cached siggen config file, and
+    the relative path to the fieldgen WP file (to check if already exists later)
 """
-function detector_config(meta::PropDict, env::Environment, siggen_sim::SiggenFieldgen)
+function siggen_config(meta::PropDict, env::Environment, siggen_sim::SiggenSimulator, config_name::AbstractString)
+    # function pss_config(meta::PropDict, env::Environment, siggen_sim::SiggenSimulatorss, config_name::AbstractString)
     # construct siggen geometry based on LEGEND metadata JSON + extra environment settings
+    println("...detector geometry")
     siggen_geom = meta2siggen(meta, env)
 
-    # construct lines for siggen config file 
+    # construct lines for future siggen config file 
     detector_lines = Vector{String}()
+    push!(detector_lines, "# detector related parameters")
     for (param, value) in siggen_geom
         push!(detector_lines, "$param   $value")
     end
 
+    println("...fieldgen configuration")
+    # create filenames for future/existing fieldgen output 
+    fieldgen_wp_name = joinpath("fieldgen", config_name*"_fieldgen_WP.dat")
+    fieldgen_names = Dict(
+        "drift_name" => joinpath("..", "data", "drift_vel_tcorr.tab"),
+        "field_name" => joinpath("fieldgen", config_name*"_fieldgen_EV.dat"),
+        "wp_name" => fieldgen_wp_name
+    )
 
-    # read lines from user input for fieldgen 
+    # add corresponding lines to existing detector geometry lines
+    push!(detector_lines, "")
+    push!(detector_lines, "# fieldgen filenames")
+    for (param, value) in fieldgen_names
+        push!(detector_lines, "$param   $value")
+    end
+    
+    # read lines from user input for fieldgen
     fieldgen_lines = readlines(open(siggen_sim.fieldgen_config))
-    fieldgen_lines = replace.(fieldgen_lines, "\t" => "  ")
+    fieldgen_lines = replace.(fieldgen_lines, "\t" => "   ")
 
-    total_lines = vcat(["# detector related parameters"], detector_lines, fieldgen_lines)
+    # unite constructed detector geometry and fieldgen settings
+    total_lines = vcat(detector_lines, [""], fieldgen_lines)
 
-    # write a config file 
-    # not possible because siggen is looking in the same path as the config, which becomes /tmp instead of data/
-    # sig_conf_name = mktemp()[1]
-    sig_conf_name = siggen_sim.fieldgen_config * ".temp"
+    # write a siggen/fieldgen config file 
+    sig_conf_name = joinpath("cache", config_name*"_siggen_config.txt")
     writedlm(sig_conf_name, total_lines)
+    println("...fieldgen/siggen config written to $sig_conf_name")
 
-    # construct setup
-    SigGenSetup(sig_conf_name)    
+    # return resulting fieldgen/siggen config name 
+    # (currently kinda redundant but that's because we have no idea what's gonna happen later)
+    sig_conf_name, fieldgen_wp_name
 end
 
 
+"""
+    meta2siggen(meta, env)
+
+PropDict, Environment -> Dict    
+
+Construct siggen type config in a form of Dict based on
+    geometry as given in LEGEND metadata <meta>
+    and environment settings given in <env>.
+"""
 function meta2siggen(meta::PropDict, env::Environment)
     Dict(
     # crystal
@@ -289,129 +446,5 @@ function meta2siggen(meta::PropDict, env::Environment)
 end
 
 
-# function siggen2meta(siggen_config::AbstractString)
-
-#     # read lines from file
-#     siggen_lines = readlines(open(siggen_config))
-
-#     # construct dict
-#     siggen_dct = Dict()
-#     for line in siggen_lines
-#         if not "=" in line continue end
-#         param, value = split(line, "=")
-#         siggen_dct[strip(param)] = parse(Float32, strip(value))
-#     end
-
-#     siggen2meta(siggen_dct)
-# end
 
 
-# function siggen2meta(siggen_dct::Dict)
-
-#     ## Construct LEGEND metadata Dict
-
-#     dct_meta["geometry"] = Dict(
-#         "contact" => Dict(),
-#         "groove" => Dict(),
-#         "well" => Dict(),
-#         "taper" => Dict(
-#             "bottom" => Dict("outer" => Dict()),
-#             "top" => Dict(
-#                 "outer" => Dict(),
-#                 "inner" => Dict()
-#             )
-#         )
-#     )
-
-#     # z length: crystal height
-#     dct_meta["geometry"]["height_in_mm"] = siggen_dct["xtal_length"]
-#     # radius: crystal radius
-#     dct_meta["geometry"]["radius_in_mm"] = siggen_dct["xtal_radius"]
-
-#     # contact
-#     # point contact length
-#     dct_meta["geometry"]["contact"]["depth_in_mm"] = siggen_dct["pc_length"]
-#     # point contact radius
-#     dct_meta["geometry"]["contact"]["radius_in_mm"] = siggen_dct["pc_radius"]
-
-#     # groove
-#     # wrap-around radius. Set to zero for ORTEC: groove outer radius
-#     dct_meta["geometry"]["groove"]["outer_radius_in_mm"] = siggen_dct["wrap_around_radius"]
-#     # depth of ditch next to wrap-around for BEGes. Set to zero for ORTEC: groove height
-#     dct_meta["geometry"]["groove"]["depth_in_mm"] = siggen_dct["ditch_depth"]
-#     # width of ditch next to wrap-around for BEGes. Set to zero for ORTEC: groove inner radius
-#     dct_meta["geometry"]["groove"]["width_in_mm"] = siggen_dct["ditch_thickness"]
-    
-#     # borehole 
-#     # length of hole, for inverted-coax style
-#     dct_meta["geometry"]["well"]["gap_in_mm"] = siggen_dct["hole_length"]
-#     # radius of hole, for inverted-coax style
-#     dct_meta["geometry"]["well"]["radius_in_mm"] = siggen_dct["hole_length"]
-    
-#     # tapering
-#     # size of 45-degree taper at bottom of ORTEC-type crystal (for r=z)
-#     dct_meta["geometry"]["taper"]["bottom"]["outer"]["height_in_mm"] = siggen_dct["bottom_taper_length"]
-#     # z-length of outside taper for inverted-coax style
-#     dct_meta["geometry"]["taper"]["top"]["outer"]["height_in_mm"] = siggen_dct["outer_taper_length"]
-#     # z-length of inside (hole) taper for inverted-coax style
-#     dct_meta["geometry"]["taper"]["top"]["inner"]["height_in_mm"] = siggen_dct["inner_taper_length"]
-#     # taper angle in degrees, for inner or outer taper
-#     dct_meta["geometry"]["taper"]["top"]["inner"]["angle_in_mm"] = siggen_dct["taper_angle"]
-
-#     # depth of full-charge-collection boundary for Li contact (not currently used)
-#     dct_meta["geometry"]["dl_thickness_in_mm"] = siggen_dct["Li_thickness"]
-
-#     ## Construct Environment struct
-
-#     env = Environment(siggen_dct["xtal_temp"], siggen_dct["xtal_HV"])
-
-#     PropDict(dct_meta), env
-
-# end
-
-
-
-"""
-    simulate_detector(det_path, det_name)
-
-Simulate detector based on json geometry.
-
-det_path: path to detector json file
-det_name: detector name (e.g. "V05266A").
-The code will look for a .json file "det_path/det_name.json"
-
-Output: SSD detector simulation object
-"""
-function simulate_detector(detector_config::Dict)
-
-    simulation = Simulation(SolidStateDetector{Float32}(detector_config))
-
-    @info("-> Electric potential...")
-    calculate_electric_potential!( simulation,
-                               max_refinements = 4)
-
-    @info("-> Electric field...")
-    calculate_electric_field!(simulation, n_points_in_φ = 72)
-
-    @info("-> Capacitance...")
-    calculate_capacitance(simulation)
-
-    @info("-> Drift field...")
-    calculate_drift_fields!(simulation)
-
-    @info("-> Weighting potential...")
-    for contact in simulation.detector.contacts
-        calculate_weighting_potential!(simulation, contact.id, max_refinements = 4, n_points_in_φ = 2, verbose = false)
-    end
-
-    @info "Detector simulation complete"
-
-    det_h5 = joinpath("cache", basename(detector_config["name"]*".h5f"))
-
-    if !ispath(dirname(det_h5)) mkpath(dirname(det_h5)) end
-    SolidStateDetectors.ssd_write(det_h5, simulation)
-
-    @info("-> Saved cached simulation to $det_h5")
-
-    simulation
-end

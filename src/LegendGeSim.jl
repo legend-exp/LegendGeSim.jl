@@ -24,6 +24,7 @@ using IntervalSets
 using JSON
 using LegendDataTypes
 using LegendHDF5IO
+using LegendTextIO
 # using LegendTextIO # Geant4CSVInput
 using LinearAlgebra
 using LsqFit
@@ -57,26 +58,34 @@ const energy_unit = u"keV"
 const ns_unit = u"ns"
 const μs_unit = u"μs"
 
-const germanium_ionization_energy = SolidStateDetectors.material_properties[:HPGe].E_ionisation # already in eV
+const germanium_ionization_energy = SolidStateDetectors.material_properties[:HPGe].E_ionisation # in eV
 
 Random.seed!(123) # only for testing
 
+
 include("sim_config.jl")
 include("pss.jl")
-
 include("detector.jl")
 
+include("preamp.jl")
+include("fadc.jl")
+
 include("noise.jl")
+include("baselines.jl")
 
 include("elec_chain.jl")
+
+include("trigger.jl")
 include("daq.jl")
 
-include("g4_to_mcstp.jl")
-include("mcstp_to_mcpss.jl")
-include("mcpss_to_mcraw.jl")
+include("pet_to_stp.jl")
+include("stp_to_pss.jl")
+include("pss_to_raw.jl")
+include("pet_to_raw.jl")
 
-include("g4_to_mcraw.jl")
+include("waveform_utils.jl")
+include("temp_utils.jl")
 
-include("baselines.jl")
+
 
 end # module
