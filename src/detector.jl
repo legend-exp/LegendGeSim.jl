@@ -7,16 +7,14 @@ Simulate detector according to given simulation configuration.
 What type <detector simulation> is depends on the given method of simulation.
 """
 function simulate_detector(sim_config_filename::AbstractString)
-    # sim_config = load_config(sim_config_filename)
     sim_config = propdict(sim_config_filename)
 
-    # det_meta = PropDicts.read(PropDict, sim_config.detector_metadata)
     det_meta = propdict(sim_config.detector_metadata)
-
     env = Environment(sim_config)
     ps_simulator = PSSimulator(sim_config)
+    config_name = splitext(basename(sim_config_filename))[1]
 
-    simulate_detector(det_meta, env, sim_config_filename, ps_simulator)
+    simulate_detector(det_meta, env, config_name, ps_simulator)
 end
 
 """
@@ -33,7 +31,7 @@ The simulation will be cached based on <config_name>.
 function simulate_detector(det_meta::PropDict, env::Environment, config_name::AbstractString, ::SSDSimulator)
     det_h5 = joinpath("cache", config_name*"_ssd.h5f")
     if isfile(det_h5)
-        @info("Reading $config_name SSD simulation from cached h5")
+        @info("Reading SSD simulation from cached file $det_h5")
         simulation = SolidStateDetectors.ssd_read(det_h5, Simulation)
     else
         @info("Simulating $config_name with SSD from scratch for given settings")
@@ -119,12 +117,6 @@ function simulate_ssd(ssd_config::Dict)
     simulation
 end
 
-
-# function ssd_config(meta_name::AbstractString, env::Environment)
-#     meta = propdict(meta_name)
-#     # meta = PropDicts.read(PropDict, meta_name)
-#     ssd_config(meta, env)
-# end
 
 
 """
