@@ -20,10 +20,10 @@ function pet_to_stp(pet_filename::AbstractString, detector_SSD::SolidStateDetect
     println("Processing file: $pet_filename")
 
     # currently PET info is simulated by g4simple
-    # pet_table = open(pet_filename, Geant4HDF5Input) do io
-    #     read(io)
-    # end
-    pet_table = read_pet(pet_filename)
+    pet_table = open(pet_filename, Geant4HDF5Input) do io
+        read(io)
+    end
+    # pet_table = read_pet(pet_filename)
 
     # Save only events that occur in the detector PV
     # volID = 1 selects only events in the detector
@@ -96,18 +96,18 @@ function pet_to_stp(pet_filename::AbstractString, json_filepath::AbstractString)
 end
 
 
-"""
-AbstractString -> Table
-"""
-function read_pet(pet_filename::AbstractString)
-    # check file extension and determine the type
-    file_ext = splitext(pet_filename)[end]
-    file_type = file_ext == ".csv" ? LegendTextIO.Geant4CSVInput : LegendHDF5IO.Geant4HDF5Input
+# """
+# AbstractString -> Table
+# """
+# function read_pet(pet_filename::AbstractString)
+#     # check file extension and determine the type
+#     file_ext = splitext(pet_filename)[end]
+#     file_type = file_ext == ".csv" ? LegendTextIO.Geant4CSVInput : LegendHDF5IO.Geant4HDF5Input
     
-    open(pet_filename, file_type) do io
-        read(io)
-    end
-end
+#     open(pet_filename, file_type) do io
+#         read(io)
+#     end
+# end
 
 
 

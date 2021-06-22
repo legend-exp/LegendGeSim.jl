@@ -115,6 +115,11 @@ function simulate_ssd(ssd_config::Dict)
 end
 
 
+function ssd_config(det_meta::AbstractString, env::Environment)
+    meta = propdict(det_meta)
+    ssd_config(meta, env)
+end
+
 
 """
     ssd_config(meta, env)
@@ -127,23 +132,20 @@ Construct SSD type config based on
 """ 
 function ssd_config(meta::PropDict, env::Environment)
     # some parameters that will be used multiple times later
+    # or need a calculation
     cylinder_height = meta.geometry.height_in_mm
     cylinder_radius = meta.geometry.radius_in_mm
     borehole_height = cylinder_height - meta.geometry.well.gap_in_mm
     borehole_r_bottom = meta.geometry.well.radius_in_mm
     borehole_r_top = borehole_r_bottom + borehole_height * tan(meta.geometry.taper.top.inner.angle_in_deg / 180. * π)
+    cone_r_top = cylinder_radius - meta.geometry.taper.top.outer.height_in_mm * tan(meta.geometry.taper.top.outer.angle_in_deg / 180. * π)
+    cone_height = meta.geometry.taper.top.outer.height_in_mm
 
-    # I'm not sure if this setting is common to all detectors
-    # Currently working with V02160A
     charge_density_model = Dict(
-        "name" => "linear",
+        "name" => "cylindrical",
         "r" => Dict(
             "init" => 0,
             "gradient" => 0
-        ),
-        "phi" => Dict(
-            "init" => 0.0,
-            "gradient" => 0.0
         ),
         "z" => Dict(
             "init" => -1e7,
@@ -170,7 +172,7 @@ function ssd_config(meta::PropDict, env::Environment)
                 "phi" => Dict("from" => 0, "to" => 0, "boundaries" => "periodic"),
                 "z" => Dict(
                     "from" => -10,
-                    "to" => cylinder_height*1.2,
+                    "to" => cylinder_height*1.2, # leave some margin
                     "boundaries" => Dict("left" => "inf", "right" => "inf")
                 )
             )
@@ -186,17 +188,36 @@ function ssd_config(meta::PropDict, env::Environment)
                 "geometry" => Dict(
                     "type" => "difference",
                     "parts" => [
-                        # cylinder
+                        # crystal
                         Dict(
-                            "name" => "Initial Cylinder",
-                            "type" => "tube",
-                            "r" => Dict(
-                                "from" => 0.0,
-                                "to" => cylinder_radius,
-                            ),
-                            "phi" => Dict("from" => 0.0, "to" => 360.0),
-                            "h" => cylinder_height
-                        ), # cylinder
+                            "type" => "difference",
+                            "parts" => [
+                                # cylinder
+                                Dict(
+                                    "name" => "Initial Cylinder",
+                                    "type" => "tube",
+                                    "r" => Dict(
+                                        "from" => 0.0,
+                                        "to" => cylinder_radius,
+                                    ),
+                                    "phi" => Dict("from" => 0.0, "to" => 360.0),
+                                    "h" => cylinder_height,
+                                    "translate" => Dict("z" => 0.0)
+                                )#, # cylinder
+                                # upper cone
+                                Dict(
+                                    "name" => "Upper cone",
+                                    "type" => "cone",
+                                    "r" => Dict(
+                                        "bottom" => Dict("from" => cylinder_radius, "to" => cylinder_radius+1),
+                                        "top" => Dict("from" => cone_r_top, "to" => cylinder_radius+1)
+                                    ),
+                                    "phi" => Dict("from" => 0.0, "to" => 360.0),
+                                    "h" => meta.geometry.taper.top.outer.height_in_mm,
+                                    "translate" => Dict("z" => cylinder_height - cone_height)
+                                ) # upper cone
+                            ] # crystal parts
+                        ), # crystal
                         # borehole
                         Dict(
                             "name" => "borehole",
@@ -253,7 +274,7 @@ function ssd_config(meta::PropDict, env::Environment)
                 "potential" => env.op_voltage == 0 ? meta.characterization.manufacturer.op_voltage_in_V : env.op_voltage,
                 "geometry" => Dict(
                     "type" => "union",
-                    "parts" => [Dict() for i in 1:5] # to be filled later
+                    "parts" => [Dict() for i in 1:6] # to be filled later
                 )
             ) # n+ contact
         ] # objects
@@ -282,16 +303,29 @@ function ssd_config(meta::PropDict, env::Environment)
             "to" => cylinder_radius
         ),
         "phi" => Dict("from" => 0.0, "to" => 360.0),
-        "h" => cylinder_height
+        "h" => cylinder_height - cone_height
+    )
+
+    # upper cone 
+    dct["objects"][3]["geometry"]["parts"][3] = Dict(
+        "name" => "Upper cone",
+        "type"=> "cone",
+        "r" => Dict(
+            "bottom" => Dict("from" => cylinder_radius, "to" => cylinder_radius),
+            "top" => Dict("from" => cone_r_top, "to" => cone_r_top)
+        ),
+        "phi" => Dict("from" => 0.0, "to" => 360.0),
+        "h" => cone_height,
+        "translate" => Dict("z" => cylinder_height - cone_height)
     )
 
     # top lid
-    dct["objects"][3]["geometry"]["parts"][3] = Dict(
+    dct["objects"][3]["geometry"]["parts"][4] = Dict(
         "name" => "top lid",
         "type" => "tube",
         "r" => Dict(
             "from" => borehole_r_top, 
-            "to" => cylinder_radius 
+            "to" => cone_r_top
         ),
         "phi" => Dict("from" => 0.0, "to" => 360.0),
         "h" => 0.0,
@@ -299,7 +333,7 @@ function ssd_config(meta::PropDict, env::Environment)
     )
 
     # borehole lining
-    dct["objects"][3]["geometry"]["parts"][4] = Dict(
+    dct["objects"][3]["geometry"]["parts"][5] = Dict(
         "name" => "borehole linning",
         "type" => "cone",
         "r" => Dict(
@@ -318,7 +352,7 @@ function ssd_config(meta::PropDict, env::Environment)
     )
 
     # borehole bottom lid
-    dct["objects"][3]["geometry"]["parts"][5] = Dict(
+    dct["objects"][3]["geometry"]["parts"][6] = Dict(
         "name" => "borehole bottom lid",
         "type" => "tube",
         "r" => Dict(
