@@ -1,20 +1,51 @@
+using Base: cache_dependencies
 """
-    propdict(json_file)
+    load_config(input_file, det_metadata, sim_config_file)
 
-AbstractString -> PropDict 
+AbstractString or Table, AbstractString, AbstractString -> PropDict
 
-Construct a PropDict based on given <json_file>.
-
-1) Why can't I name it function PropDict()?
-2) Why doesn't this already exist in PropDicts?
-I find the PropDicts.read(PropDict, String) format kinda cumbersome
+Merge simulation inputs and settings into one simulation config to pass around
 """
-function propdict(json_file::AbstractString)
-    PropDicts.read(PropDict, json_file)
+function load_config(input_file::Union{AbstractString, Table}, det_metadata::AbstractString, sim_config_file::AbstractString)
+    # construct default cached name
+    cached_name = filename(sim_config_file)
+
+    # contains inputs
+    sim_inputs = PropDict(
+        :detector_metadata => det_metadata,
+        :input_file => input_file, 
+        :pss => PropDict( :cached_name => cached_name )
+    )
+
+    @debug sim_inputs
+
+    # contains only simulation settings
+    sim_config = propdict(sim_config_file)
+
+    @debug sim_config
+
+    # merge
+    # after merging, if cached_name was present in sim_config, it will override the default one above
+    sim_total = merge(sim_inputs, sim_config)
+
+    # add detector name
+    # what? this doesn't work?? can i make it mutable?
+    # sim_total.pss.cached_name = "$(filename(sim_total.detector_metadata))_$(sim_total.pss.cached_name)"
+    # workaround
+    temp = PropDict(:pss => PropDict(:cached_name => "$(filename(sim_total.detector_metadata))_$(sim_total.pss.cached_name)"))
+    sim_total = merge(sim_total, temp)
+
+    @info "Your simulation configuration" sim_total
+    @info "(Future) cached basename: $(sim_total.pss.cached_name)"
+    
+    sim_total
 end
 
 
 @with_kw struct Environment
+    "Medium"
+    medium::String = "vacuum"
+
     "Crystal temperature in K"
     crystal_t::Real = 0
 
@@ -28,6 +59,7 @@ Simulation parameters related to the environment
 """
 function Environment(sim_conf::PropDict)
     Environment(
+        sim_conf.environment.medium,
         sim_conf.environment.crystal_t,
         sim_conf.environment.op_voltage
     )

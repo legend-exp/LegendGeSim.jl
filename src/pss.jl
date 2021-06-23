@@ -31,7 +31,7 @@ end
 Simulation method: siggen
 """
 struct SiggenSimulator <: PSSimulator
-    "Path to fieldgen settings (TODO: make part of json)"
+    "Path to fieldgen settings"
     fieldgen_config::AbstractString
 end
 
@@ -45,8 +45,8 @@ Construct SiggeSimulator instance based on simulation
     configuration given in <sim_conf>.
 """
 function SiggenSimulator(sim_conf::PropDict)
-    @info "Taking fieldgen input from $(sim_conf.fieldgen_config)"
-    SiggenSimulator(sim_conf.fieldgen_config)
+    @info "Taking fieldgen input from $(sim_conf.pss.fieldgen_config)"
+    SiggenSimulator(sim_conf.pss.fieldgen_config)
 end
 
 
@@ -61,10 +61,10 @@ Returned type depends on the simulation
     method given in the config.
 """
 function PSSimulator(sim_config::PropDict)
-    @info "Waveform simulation method: $(sim_config.sim_method)"
-    if sim_config.sim_method == "SSD"
+    @info "Waveform simulation method: $(sim_config.pss.method)"
+    if sim_config.pss.method == "SSD"
         SSDSimulator(sim_config)
-    elseif sim_config.sim_method == "siggen"
+    elseif sim_config.pss.method == "siggen"
         SiggenSimulator(sim_config)
     else
         println("This simulation method is not implemented!")

@@ -1,3 +1,33 @@
+# this should exist?
+"""
+    filename(path)
+
+Sring -> String
+
+Extract core name of the file from path 
+
+E.g. filename("/some/path/to/file_name.ext") -> "file_name"
+"""
+filename(path) = splitext(basename(path))[1]
+
+
+# this should be in PropDicts?
+"""
+    propdict(json_file)
+
+AbstractString -> PropDict 
+
+Construct a PropDict based on given <json_file>.
+
+1) Why can't I name it function PropDict()?
+2) Why doesn't this already exist in PropDicts?
+I find the PropDicts.read(PropDict, String) format kinda cumbersome
+"""
+function propdict(json_file::AbstractString)
+    PropDicts.read(PropDict, json_file)
+end
+
+
 """
     remove_negative(value)
 

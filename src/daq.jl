@@ -28,8 +28,8 @@ Construct a GenericDAQ struct based on given simulation configuration
 """
 function GenericDAQ(sim_conf::PropDict)
     GenericDAQ(
-        nsamples = sim_conf.daq.nsamples,
-        baseline_length = sim_conf.daq.baseline_length
+        nsamples = sim_conf.setup.daq.nsamples,
+        baseline_length = sim_conf.setup.daq.baseline_length
     )
 end
 

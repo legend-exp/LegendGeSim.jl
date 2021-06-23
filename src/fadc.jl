@@ -37,7 +37,7 @@ Construct a GenericFADC instance based on simulation
 """
 function GenericFADC(sim_conf::PropDict)
     GenericFADC(
-        Δt = haskey(sim_conf.fadc, :sampling_rate) ? uconvert(u"ns", inv(T(sim_conf.fadc.sampling_rate)u"MHz")) : T(sim_conf.fadc.sampling_interval)u"ns",
+        Δt = haskey(sim_conf.setup.fadc, :sampling_rate) ? uconvert(u"ns", inv(T(sim_conf.setup.fadc.sampling_rate)u"MHz")) : T(sim_conf.setup.fadc.sampling_interval)u"ns",
     )
 end
 
@@ -53,10 +53,10 @@ Type of <FADC> depends on the type specified in <sim_conf>
     (e.g. generic, Flashcam, Struck)
 """
 function FADC(sim_conf::PropDict)
-    if sim_conf.fadc.type == "generic"
+    if sim_conf.setup.fadc.type == "generic"
         GenericFADC(sim_conf)
     else
-        @info "FADC type $(sim_config.fadc.type) not implemented!\n
+        @info "FADC type $(sim_conf.setup.fadc.type) not implemented!\n
         Available types: generic\n
         Planned in the future: Flashcam, Struck"              
     end

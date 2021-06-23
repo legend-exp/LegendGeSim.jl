@@ -1,0 +1,111 @@
+{
+    "det_name": "Public Inverted Coax",
+    "det_type": "icpc",
+    "production": {
+      "manufacturer": "Nobody",
+      "order": 0.0,
+      "serialno": "X00000X",
+      "crystal": "000",
+      "slice": "X",
+      "enrichment": 0.9,
+      "reprocessing": "none",
+      "dep_voltage_in_V": 3500.0,
+      "rec_voltage_in_V": 4000.0,
+      "impcc": {
+        "array": {
+          "value_in_1e9e/cm3": [
+            11.0, 10.0, 10.0, 9.0
+          ],
+          "dist_from_contact_in_mm": [
+            0.0, 30, 50, 66
+          ]
+        },
+        "function_pars": {
+          "z0_in_1e10e/cm3": 0,
+          "gradient_in_1e10e/cm4": 0,
+          "quadratic_in_1e10e/cm5": 0
+        }
+      },
+      "delivered": "22-06-2021"
+    },
+    "geometry": {
+      "mass_in_g": 1700.0,
+      "height_in_mm": 80.0,
+      "radius_in_mm": 35.0,
+      "bottom_cyl": {
+        "radius_in_mm": 0,
+        "height_in_mm": 0,
+        "transition_in_mm": 0
+      },
+      "bulletization": {
+        "top_radius_in_mm": 0,
+        "bottom_radius_in_mm": 0,
+        "well_radius_in_mm": 0,
+        "contact_radius_in_mm": 0
+      },
+      "well": {
+        "gap_in_mm": 25.0,
+        "radius_in_mm": 5.0
+      },
+      "groove": {
+        "outer_radius_in_mm": 15.0,
+        "depth_in_mm": 0.0,
+        "width_in_mm": 4.2
+      },
+      "contact": {
+        "radius_in_mm": 3.0,
+        "depth_in_mm": 2.0
+      },
+      "taper": {
+        "top": {
+          "inner": {
+            "angle_in_deg": 0,
+            "height_in_mm": 0
+          },
+          "outer": {
+            "angle_in_deg": 10.0,
+            "height_in_mm": 60
+          }
+        },
+        "bottom": {
+          "outer": {
+            "angle_in_deg": 0,
+            "height_in_mm": 0
+          }
+        }
+      },
+      "topgroove": {
+        "radius_in_mm": 0,
+        "depth_in_mm": 0
+      },
+      "crack": {
+        "radius_in_mm": 0,
+        "height_in_mm": 0
+      },
+      "dl_thickness_in_mm": 0
+    },
+    "characterization": {
+      "manufacturer": {
+        "dep_voltage_in_V": 3500.0,
+        "op_voltage_in_V": 4000.0,
+        "57co_fep_res_in_keV": 0.0,
+        "60co_fep_res_in_keV": 0.0,
+        "dl_thickness_in_mm": 0
+      },
+      "l200_site": {
+        "data": "@lfs1:/lfs/l1/legend/detector_char/enr/hades/char_data/I02160A",
+        "daq": "flashcam",
+        "elog": "https://elog.legend-exp.org/site/?Det.+ID=I02160A",
+        "res": {
+          "cofep_in_keV": 0.0,
+          "tlfep_in_keV": 0.0
+        },
+        "sf": {
+          "tldep_in_pc": 0.0,
+          "qbb_in_pc": 0.0,
+          "tlsep_in_pc": 0.0,
+          "tlfep_in_pc": 0.0
+        }
+      }
+    }
+}

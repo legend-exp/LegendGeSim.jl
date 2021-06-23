@@ -28,13 +28,13 @@ Look up cached SSD simulation .h5f file, and if does not exist,
 The simulation will be cached based on <config_name>.
 
 """
-function simulate_detector(det_meta::PropDict, env::Environment, config_name::AbstractString, ::SSDSimulator)
-    det_h5 = joinpath("cache", config_name*"_ssd.h5f")
+function simulate_detector(det_meta::PropDict, env::Environment, cached_name::AbstractString, ::SSDSimulator)
+    det_h5 = joinpath("cache", cached_name*"_ssd.h5f")
     if isfile(det_h5)
         @info("Reading SSD simulation from cached file $det_h5")
         simulation = SolidStateDetectors.ssd_read(det_h5, Simulation)
     else
-        @info("Simulating $config_name with SSD from scratch for given settings")
+        @info("Simulating $cached_name with SSD from scratch for given settings")
         ssd_conf = ssd_config(det_meta, env)
         simulation = simulate_ssd(ssd_conf)
 
@@ -58,11 +58,11 @@ Construct a fieldgen/siggen configuration file
 Look up fieldgen generated electric field and weighting potential files
     based on given <config_name>, and if not found, call fieldgen.
 """
-function simulate_detector(det_meta::PropDict, env::Environment, config_name::AbstractString, ps_simulator::SiggenSimulator)
+function simulate_detector(det_meta::PropDict, env::Environment, cached_name::AbstractString, ps_simulator::SiggenSimulator)
     @info "Constructing Fieldgen/Siggen configuration file"
     # returns the name of the resulting siggen config file
     # and the name of (already or to be) generated weighting potential file
-    siggen_config_name, fieldgen_wp_name = siggen_config(det_meta, env, ps_simulator, config_name)
+    siggen_config_name, fieldgen_wp_name = siggen_config(det_meta, env, ps_simulator, cached_name)
 
     # if the WP file with such a name exists...
     if isfile(fieldgen_wp_name)
@@ -382,7 +382,7 @@ The resulting siggen config will be cached based on given <config_name>
 The function returns the path to the cached siggen config file, and
     the relative path to the fieldgen WP file (to check if already exists later)
 """
-function siggen_config(meta::PropDict, env::Environment, siggen_sim::SiggenSimulator, config_name::AbstractString)
+function siggen_config(meta::PropDict, env::Environment, siggen_sim::SiggenSimulator, cached_name::AbstractString)
     # function pss_config(meta::PropDict, env::Environment, siggen_sim::SiggenSimulatorss, config_name::AbstractString)
     # construct siggen geometry based on LEGEND metadata JSON + extra environment settings
     println("...detector geometry")
@@ -397,10 +397,10 @@ function siggen_config(meta::PropDict, env::Environment, siggen_sim::SiggenSimul
 
     println("...fieldgen configuration")
     # create filenames for future/existing fieldgen output 
-    fieldgen_wp_name = joinpath("fieldgen", config_name*"_fieldgen_WP.dat")
+    fieldgen_wp_name = joinpath("fieldgen", cached_name*"_fieldgen_WP.dat")
     fieldgen_names = Dict(
         "drift_name" => joinpath("..", "data", "drift_vel_tcorr.tab"),
-        "field_name" => joinpath("fieldgen", config_name*"_fieldgen_EV.dat"),
+        "field_name" => joinpath("fieldgen", cached_name*"_fieldgen_EV.dat"),
         "wp_name" => fieldgen_wp_name
     )
 
@@ -419,7 +419,7 @@ function siggen_config(meta::PropDict, env::Environment, siggen_sim::SiggenSimul
     total_lines = vcat(detector_lines, [""], fieldgen_lines)
 
     # write a siggen/fieldgen config file 
-    sig_conf_name = joinpath("cache", config_name*"_siggen_config.txt")
+    sig_conf_name = joinpath("cache", cached_name*"_siggen_config.txt")
     writedlm(sig_conf_name, total_lines)
     println("...fieldgen/siggen config written to $sig_conf_name")
 

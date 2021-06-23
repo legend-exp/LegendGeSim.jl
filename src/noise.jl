@@ -31,7 +31,7 @@ Construct a NoiseFromSim struct based on given simulation configuration <sim_con
 """
 function NoiseFromSim(sim_conf::PropDict)
     @info "//\\//\\// Noise simulated from scratch (fano, preamp noise)"
-    noise_σ = haskey(sim_conf, :preamp) ? T(sim_conf.preamp.noise_sigma)u"keV" : 0u"keV"
+    noise_σ = haskey(sim_conf.setup, :preamp) ? T(sim_conf.setup.preamp.noise_sigma)u"keV" : 0u"keV"
 
     NoiseFromSim(noise_σ)
 end
