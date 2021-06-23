@@ -1,8 +1,22 @@
-using LegendGeSim 
 using Plots
 
-## read or launch simulation
+## ---------- detector geometry
+using SolidStateDetectors
+using LegendGeSim 
 
+## SSD IVC
+simulation1 = Simulation{Float32}(SSD_examples[:InvertedCoax])
+plot(simulation1.detector, size = (400, 400))
+
+## public IVC metadata
+ssd_conf = LegendGeSim.ssd_config("public_ivc_metadata.json", LegendGeSim.Environment(90,4000))
+simulation6 = Simulation(SolidStateDetector{Float32}(ssd_conf))
+plot6 = plot(simulation6.detector, size = (400, 400))
+
+
+## ---------- simulation
+
+## read or launch simulation
 detector = LegendGeSim.simulate_detector("data/detector_V02160A.json")
 
 ##
