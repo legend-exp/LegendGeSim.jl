@@ -1,23 +1,3 @@
-function pss_to_raw(pss_table::Table, pss_truth::Table, sim_config_file::AbstractString)
-    # sim_config = load_config(sim_config_file)
-    sim_config = propdict(sim_config_file)
-
-    pss_to_raw(pss_table, pss_truth, sim_config)
-end   
-
-
-function pss_to_raw(pss_table::Table, pss_truth::Table, sim_config::PropDict)
-    elec_chain = ElecChain(sim_config)
-
-    trigger = Trigger(sim_config)
-    daq = DAQ(sim_config)
-
-    noise_model = NoiseModel(sim_config)
-
-    pss_to_raw(pss_table, pss_truth, elec_chain, trigger, daq, noise_model)
-end    
-
-
 """
     pss_to_raw(pss_table, pss_truth, elec_chain, trigger, daq, noise_model)
 
@@ -30,8 +10,7 @@ Construct a table with the format identical to data raw tier.
 Currently timing information in <pss_truth> is used for dummy timestamps in the output
     raw tier table.
 """
-function pss_to_raw(pss_table::Table, pss_truth::Table,
-    elec_chain::ElecChain, trigger::Trigger, daq::DAQ, noise_model::NoiseModel)
+function pss_to_raw(pss_table::Table, pss_truth::Table, elec_chain::ElecChain, trigger::Trigger, daq::DAQ, noise_model::NoiseModel)
 
     @info "---------------------- pss -> raw (DAQ simulation)"
 
@@ -66,6 +45,38 @@ function pss_to_raw(pss_table::Table, pss_truth::Table,
 
     raw_table
 end
+
+
+function pss_to_raw(pss_table::Table, pss_truth::Table, det_meta_fullpath::AbstractString, sim_config_file::AbstractString)
+    # construct config based on given inputs and settings 
+    sim_config = load_config(pss_table, det_meta_fullpath, sim_config_file)
+
+    # for now pss_truth tags along for the timestamp
+    pss_to_raw(sim_config, pss_truth)
+end
+
+
+function pss_to_raw(pss_file::AbstractString, det_meta_fullpath::AbstractString, sim_config_file::AbstractString)
+    pss_h5 = h5open(pss_file, "r")
+    pss_table = LegendHDF5IO.readdata(pss_h5, "pss/pss")
+    pss_truth = LegendHDF5IO.readdata(pss_h5, "pss/truth")
+    close(pss_h5)
+
+    pss_to_raw(pss_table, pss_truth, det_meta_fullpath, sim_config_file)
+end
+
+
+function pss_to_raw(sim_config::PropDict, pss_truth::Table)
+    elec_chain = ElecChain(sim_config)
+    trigger = Trigger(sim_config)
+    daq = DAQ(sim_config)
+    noise_model = NoiseModel(sim_config)
+
+    pss_to_raw(sim_config.input_file, pss_truth, elec_chain, trigger, daq, noise_model)
+end
+  
+
+
 
 
 """

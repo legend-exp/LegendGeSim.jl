@@ -155,7 +155,7 @@ function ssd_config(meta::PropDict, env::Environment)
 
     dct = Dict(
         "name" => meta.det_name,
-        "medium" => "vacuum",
+        "medium" => env.medium,
         "units" => Dict(
             "length" => "mm",
             "angle" => "deg",

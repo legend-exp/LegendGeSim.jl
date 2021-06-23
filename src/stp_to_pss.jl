@@ -29,7 +29,7 @@ end
 
 function stp_to_pss(stp_filepath::AbstractString, det_meta_fullpath::AbstractString, sim_config_filename::AbstractString)
     stp_table = h5open(stp_filepath, "r") do input
-        readdata(input, "stp")
+        LegendHDF5IO.readdata(input, "stp")
     end
     
     stp_to_pss(stp_table, det_meta_fullpath, sim_config_filename)
@@ -61,29 +61,3 @@ function stp_to_pss(sim_config::PropDict)
 
     stp_to_pss(sim_config.input_file, det_meta, env, ps_simulator, noise_model, sim_config.pss.cached_name)
 end
-
-
-
-
-# function stp_to_pss(stp_table::Table, sim_config_file::AbstractString)
-#     # sim_config = load_config(sim_config_file)
-#     sim_config = propdict(sim_config_file)
-#     # basename for future cached files
-#     # TODO: rather than taking config name, ask user what name they want to use?
-#     # construct one based on detector, environment and PSS model?
-#     # (since noise model and elec are irrelevant)
-#     config_name = splitext(basename(sim_config_file))[1]
-#     stp_to_pss(stp_table, sim_config, config_name)
-# end
-
-
-# function stp_to_pss(stp_table::Table, sim_config::PropDict, config_name::AbstractString)
-#     det_meta = propdict(sim_config.detector_metadata)
-#     # det_meta = PropDicts.read(PropDict, sim_config.detector_metadata)
-#     env = Environment(sim_config)
-#     ps_simulator = PSSimulator(sim_config)
-#     noise_model = NoiseModel(sim_config)
-
-#     stp_to_pss(stp_table, det_meta, env, ps_simulator, noise_model, config_name)
-
-# end

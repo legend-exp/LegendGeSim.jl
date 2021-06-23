@@ -35,9 +35,9 @@ Construct a TrapFilter instance based on simulation configuration given in <sim_
 """
 function TrapFilter(sim_conf::PropDict)
     TrapFilter(
-        window_lengths = (sim_conf.trigger.window_lengths[1],
-            sim_conf.trigger.window_lengths[2], sim_conf.trigger.window_lengths[3]),
-        threshold_keV = T(sim_conf.trigger.threshold)u"keV"
+        window_lengths = (sim_conf.setup.trigger.window_lengths[1],
+            sim_conf.setup.trigger.window_lengths[2], sim_conf.setup.trigger.window_lengths[3]),
+        threshold_keV = T(sim_conf.setup.trigger.threshold)u"keV"
     )
 end
 
@@ -54,10 +54,10 @@ Currently only TrapFilter type is implemented.
 
 """
 function Trigger(sim_conf::PropDict)
-    if sim_conf.trigger.type == "trapezoidal"
+    if sim_conf.setup.trigger.type == "trapezoidal"
         TrapFilter(sim_conf)
     else
-        @info "Trigger type $(sim_config.trigger.type) not implemented!\n
+        @info "Trigger type $(sim_config.setup.trigger.type) not implemented!\n
         Available type: trapezoidal"
     end
 end

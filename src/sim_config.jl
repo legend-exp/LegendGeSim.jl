@@ -35,7 +35,7 @@ function load_config(input_file::Union{AbstractString, Table}, det_metadata::Abs
     temp = PropDict(:pss => PropDict(:cached_name => "$(filename(sim_total.detector_metadata))_$(sim_total.pss.cached_name)"))
     sim_total = merge(sim_total, temp)
 
-    @info "Your simulation configuration" sim_total
+    @info "Your final simulation configuration" sim_total
     @info "(Future) cached basename: $(sim_total.pss.cached_name)"
     
     sim_total

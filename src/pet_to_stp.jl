@@ -91,37 +91,10 @@ function pet_to_stp(sim_config::PropDict)
 
     println("Processing file: $(sim_config.input_file)")    
     pet_table = read_pet(sim_config.input_file)
-        # currently PET info is simulated by g4simple
-    # pet_table = open(pet_filename, Geant4HDF5Input) do io
-    #     read(io)
-    # end
-
 
     # launch pet->stp 
     pet_to_stp(pet_table, detector_SSD)
 end
-
-
-# function pet_to_stp(pet_filename::AbstractString, json_filepath::AbstractString)
-#     # load prop dict 
-#     pdict = propdict(json_filepath)
-
-#     # if the prop dict is LEGEND metadata...
-#     if haskey(pdict, :production)
-#         # ...construct SSD detector and proceed to pet->stp
-#         det_config_SSD = ssd_config(pdict, Environment())
-#         detector_SSD = Simulation(SolidStateDetector{T}(det_config_SSD))        
-#         pet_to_stp(pet_filename, detector_SSD)    
-#     # ... otherwise if the prop dict is simulation config... 
-#     elseif haskey(pdict, :detector_metadata)
-#         # ... recursively call this function with LEGEND metadata filepath
-#         pet_to_stp(pet_filename, pdict.detector_metadata)
-#     # if it's neither, complain        
-#     else
-#         @info "The given json file $(json_filepath) is neither a LEGEND metadata file
-#             nor a LegendGeSim simulation config!"
-#     end
-# end
 
 
 """

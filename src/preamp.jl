@@ -58,7 +58,7 @@ function GenericPreAmp(sim_conf::PropDict)
         τ_rise=T(sim_conf.setup.preamp.t_rise)*u"ns",
         offset = T(sim_conf.setup.preamp.offset)u"keV",
         max_e = T(sim_conf.setup.preamp.max_e)u"keV",
-        noise_σ = haskey(sim_conf.setup.preamp, :noise_sigma) ? T(sim_conf.preamp.noise_sigma)u"keV" : 0u"keV"
+        noise_σ = haskey(sim_conf.setup.preamp, :noise_sigma) ? T(sim_conf.setup.preamp.noise_sigma)u"keV" : 0u"keV"
     )
 end
 
