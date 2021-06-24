@@ -12,8 +12,6 @@ Currently timing information in <pss_truth> is used for dummy timestamps in the 
 """
 function pss_to_raw(pss_table::Table, pss_truth::Table, elec_chain::ElecChain, trigger::Trigger, daq::DAQ, noise_model::NoiseModel)
 
-    @info "---------------------- pss -> raw (DAQ simulation)"
-
     result = process_waveforms(pss_table, elec_chain, trigger, daq, noise_model)
    
     ## construct array of waveforms for hdf5
@@ -67,6 +65,8 @@ end
 
 
 function pss_to_raw(sim_config::PropDict, pss_truth::Table)
+    @info "---------------------- pss -> raw (DAQ simulation)"
+
     elec_chain = ElecChain(sim_config)
     trigger = Trigger(sim_config)
     daq = DAQ(sim_config)

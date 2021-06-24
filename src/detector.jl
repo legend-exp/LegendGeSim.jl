@@ -6,15 +6,23 @@ AbstractString -> <detector simulation>
 Simulate detector according to given simulation configuration.
 What type <detector simulation> is depends on the given method of simulation.
 """
-function simulate_detector(sim_config_filename::AbstractString)
-    sim_config = propdict(sim_config_filename)
-
+function simulate_detector(sim_config::PropDict)
     det_meta = propdict(sim_config.detector_metadata)
     env = Environment(sim_config)
     ps_simulator = PSSimulator(sim_config)
-    config_name = splitext(basename(sim_config_filename))[1]
 
-    simulate_detector(det_meta, env, config_name, ps_simulator)
+    simulate_detector(det_meta, env, sim_config.pss.cached_name, ps_simulator)
+end
+
+
+function simulate_detector(sim_config_filename::AbstractString)
+    simulate_detector(propdict(sim_config_filename))
+end
+
+function simulate_detector(det_metadata::AbstractString, sim_config_filename::AbstractString)
+    # merge detector info with the rest 
+    sim_config = load_config(det_metadata, sim_config_filename)
+    simulate_detector(sim_config)
 end
 
 """
@@ -63,11 +71,12 @@ function simulate_detector(det_meta::PropDict, env::Environment, cached_name::Ab
     # returns the name of the resulting siggen config file
     # and the name of (already or to be) generated weighting potential file
     siggen_config_name, fieldgen_wp_name = siggen_config(det_meta, env, ps_simulator, cached_name)
+    fieldgen_wp_name = joinpath("cache", fieldgen_wp_name)
 
     # if the WP file with such a name exists...
     if isfile(fieldgen_wp_name)
         #...do nothing, siggen will later read the files based on the generated conifg
-        @info "Reading cached fields from $field_filename"
+        @info "Reading cached fields from $fieldgen_wp_name"
     else
         #...otherwise call fieldgen
         @info "_|~|_|~|_|~|_ Fieldgen simulation"
@@ -112,12 +121,6 @@ function simulate_ssd(ssd_config::Dict)
     @info "_|~|_|~|_|~|_ SSD detector simulation complete"
 
     simulation
-end
-
-
-function ssd_config(det_meta::AbstractString, env::Environment)
-    meta = propdict(det_meta)
-    ssd_config(meta, env)
 end
 
 
@@ -368,6 +371,16 @@ function ssd_config(meta::PropDict, env::Environment)
 end
 
 
+function ssd_config(det_meta::AbstractString)
+    ssd_config(det_meta, Environment())
+end
+
+
+function ssd_config(det_meta::AbstractString, env::Environment)
+    ssd_config(propdict(det_meta), env)
+end
+
+
 """
     siggen_config(meta, env, siggen_sim, config_name)
 
@@ -399,7 +412,8 @@ function siggen_config(meta::PropDict, env::Environment, siggen_sim::SiggenSimul
     # create filenames for future/existing fieldgen output 
     fieldgen_wp_name = joinpath("fieldgen", cached_name*"_fieldgen_WP.dat")
     fieldgen_names = Dict(
-        "drift_name" => joinpath("..", "data", "drift_vel_tcorr.tab"),
+        "drift_name" => joinpath("..", siggen_sim.drift_vel),
+        # "drift_name" => joinpath("..", "data", "drift_vel_tcorr.tab"),
         "field_name" => joinpath("fieldgen", cached_name*"_fieldgen_EV.dat"),
         "wp_name" => fieldgen_wp_name
     )
@@ -463,6 +477,15 @@ function meta2siggen(meta::PropDict, env::Environment)
         # radius of hole, for inverted-coax style
         "hole_radius" => meta.geometry.well.radius_in_mm,
     # tapering
+
+    # comment from David Radford:
+
+    # The bottom taper is always at 45 degrees, but the top outer taper is not.
+    # It's width/angle is defined using either the outer_taper_width parameter or the taper_angle parameter.
+    # Likewise, the inner taper width/angle is defined using either the inner_taper_width parameter or the taper_angle parameter.
+    # The inner_taper_length can be anything from zero to the hole_length
+    # TODO: check if bottom taper angle is 45 deg, if not issue a warning for siggen case
+
         # size of 45-degree taper at bottom of ORTEC-type crystal (for r=z)
         "bottom_taper_length" => meta.geometry.taper.bottom.outer.height_in_mm,
         # z-length of outside taper for inverted-coax style
@@ -470,8 +493,9 @@ function meta2siggen(meta::PropDict, env::Environment)
         # z-length of inside (hole) taper for inverted-coax style
         "inner_taper_length" => meta.geometry.taper.top.inner.height_in_mm,
         # taper angle in degrees, for inner or outer taper
-        "taper_angle" => meta.geometry.taper.top.inner.angle_in_deg, # still confused whether this angle means outer or inner taper,
-    # depth of full-charge-collection boundary for Li contact (not currently used)
+        "taper_angle" => meta.geometry.taper.top.outer.angle_in_deg,
+        # "taper_angle" => meta.geometry.taper.top.inner.angle_in_deg,
+        # depth of full-charge-collection boundary for Li contact (not currently used)
         "Li_thickness" => meta.geometry.dl_thickness_in_mm,
 
     # configuration for mjd_fieldgen (calculates electric fields & weighing potentials)

@@ -12,7 +12,6 @@ The output is a table with simulated pulses, and a table with simulation truth
 """
 function stp_to_pss(stp_table::Table, det_meta::PropDict, env::Environment, ps_simulator::PSSimulator, noise_model::NoiseModel,
     cached_name::AbstractString)
-    @info "---------------------- stp -> pss (pulse shape simulation)"
 
     # add fano noise, don't add if data noise is applied later
     # note: current understanding is that Siggen simulation does NOT include fano noise
@@ -53,6 +52,7 @@ end
 
 
 function stp_to_pss(sim_config::PropDict)
+    @info "---------------------- stp -> pss (pulse shape simulation)"
 
     det_meta = propdict(sim_config.detector_metadata)
     env = Environment(sim_config)

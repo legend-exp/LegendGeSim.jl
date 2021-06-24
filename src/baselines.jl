@@ -40,6 +40,7 @@ function baseline_catalog(raw_filename::AbstractString)
         raw_table = read_raw(raw_filename, "raw")
         baseline_table = baseline_catalog(raw_table)
         # cache for later
+        if !ispath(dirname(base_filename)) mkpath(dirname(base_filename)) end
         h5open(base_filename, "w") do f writedata(f, "raw", baseline_table) end
         @info "Baselines saved to $base_filename"
     end

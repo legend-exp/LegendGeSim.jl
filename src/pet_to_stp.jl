@@ -14,16 +14,14 @@ Current steps include:
     - removing events reconstructed to be outisde of the detector
 """
 function pet_to_stp(pet_table::Table, detector_SSD::SolidStateDetectors.Simulation)
-    @info "---------------------- pet -> stp (stepping info)"
-
-    ## in case it's the Geant4 CSV file from LegendTestData
+    ## in case it's the Geant4 CSV file from LegendTestData, it's already grouped correctly
     hits_by_evtno = pet_table
 
     ## in case it's a g4simple HDF5 file
 
     # Save only events that occur in the detector PV
     # volID = 1 selects only events in the detector
-    if haskey(pet_table, :volID)
+    if hasproperty(pet_table, :volID)
         pet_pv = group_by_column(pet_table, :volID)[1]
 
         # Need to turn into a normal Table before using internal SSD functions (group_by_evtno, cluster_detector_hits, etc)
@@ -70,9 +68,9 @@ end
 
 
 
-function pet_to_stp(pet_filename::AbstractString, det_metadata::AbstractString, sim_config_file::AbstractString)
-    # construct simulation config based on given inputs and settings 
-    sim_config = load_config(pet_filename, det_metadata, sim_config_file)
+function pet_to_stp(pet_filename::AbstractString, det_metadata::AbstractString)
+    # construct simplified config based on given info
+    sim_config = PropDict(:detector_metadata => det_metadata, :input_file => pet_filename)
 
     pet_to_stp(sim_config)
 end
@@ -85,6 +83,7 @@ end
 
 
 function pet_to_stp(sim_config::PropDict)
+    @info "---------------------- pet -> stp (stepping info)"
     # SSD detector for geometry purposes (not simulation)
     det_config_SSD = ssd_config(sim_config.detector_metadata, Environment())
     detector_SSD = Simulation(SolidStateDetector{T}(det_config_SSD))        
@@ -105,11 +104,48 @@ function read_pet(pet_filename::AbstractString)
     file_ext = splitext(pet_filename)[end]
     file_type = file_ext == ".csv" ? LegendTextIO.Geant4CSVInput : LegendHDF5IO.Geant4HDF5Input
     
+    # read_pet(pet_filename, file_type)
     open(pet_filename, file_type) do io
         read(io)
     end
 end
 
+
+# function read_pet(pet_filename::AbstractString, file_type::Type{Geant4CSVInput})
+#     open(pet_filename, file_type) do io
+#         read(io)
+#     end
+# end    
+
+
+# function read_pet(pet_filename::AbstractString, ::Type{Geant4HDF5Input})
+#     g4sfile = h5open(pet_filename, "r")
+#     g4sntuple = g4sfile["default_ntuples"]["g4sntuple"]
+
+#     evtno = read(g4sntuple["event"]["pages"])
+#     detno = read(g4sntuple["iRep"]["pages"])
+#     thit = read(g4sntuple["t"]["pages"]).*u"ns"
+#     edep = read(g4sntuple["Edep"]["pages"]).*u"MeV"
+#     volID = read(g4sntuple["volID"]["pages"])
+
+#     x = read(g4sntuple["x"]["pages"])
+#     y = read(g4sntuple["y"]["pages"])
+#     z = read(g4sntuple["z"]["pages"])
+
+#     # Construct array of positions for input to SSD
+#     n_ind = length(evtno)
+#     pos = [ SVector{3}(([ x[i], y[i], z[i] ] .* u"mm")...) for i in 1:n_ind ]
+
+#     # Construct a Table with the arrays we just constructed from the g4sfile data
+#     TypedTables.Table(
+#             evtno = evtno,
+#             detno = detno,
+#             thit = thit,
+#             edep = edep,
+#             pos = pos,
+#             volID = volID,
+#     )
+# end
 
 
 """

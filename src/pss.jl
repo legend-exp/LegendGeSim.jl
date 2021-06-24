@@ -33,6 +33,9 @@ Simulation method: siggen
 struct SiggenSimulator <: PSSimulator
     "Path to fieldgen settings"
     fieldgen_config::AbstractString
+
+    "Drift velocity correction (?)"
+    drift_vel::AbstractString
 end
 
 
@@ -46,7 +49,10 @@ Construct SiggeSimulator instance based on simulation
 """
 function SiggenSimulator(sim_conf::PropDict)
     @info "Taking fieldgen input from $(sim_conf.pss.fieldgen_config)"
-    SiggenSimulator(sim_conf.pss.fieldgen_config)
+    SiggenSimulator(
+        sim_conf.pss.fieldgen_config,
+        sim_conf.pss.drift_vel
+        )
 end
 
 
@@ -181,22 +187,18 @@ Simulate a signal from energy depositions <edep> with corresponding positions <p
 """
 function simulate_signal(pos::AbstractVector, edep::AbstractVector, siggen_setup::SigGenSetup)
     # this is not so nice, think about it
-    # signal = simulate_wf(setup, pos[1]) * ustrip(edep[1])
     signal = zeros(Float32, siggen_setup.ntsteps_out)
 
     for i in 1:length(pos)
         # in SSD the output is always in eV -> convert to eV
-        # signal = signal .+ simulate_wf(setup, pos[i]) * ustrip(uconvert(u"eV", edep[i]))
-        MJDSigGen.get_signal!(signal, siggen_setup, Tuple(ustrip.(pos))) * ustrip(uconvert(u"eV", edep[i]))
+        signal = signal .+ MJDSigGen.get_signal!(siggen_setup, Tuple(ustrip.(pos[i]))) * ustrip(uconvert(u"eV", edep[i]))
+
+        # somehow this doesn't work
+        # MJDSigGen.get_signal!(signal, siggen_setup, Tuple(ustrip.(pos[i]))) * ustrip(uconvert(u"eV", edep[i]))
     end
 
     signal
 end
-
-# change AbstractVector to more narrow type?
-# function simulate_wf(setup::SigGenSetup, pos::AbstractVector)
-#     MJDSigGen.get_signal!(setup, Tuple(ustrip.(pos)))
-# end
 
 
 
