@@ -47,7 +47,7 @@ function load_config(input_file::Union{AbstractString, Table}, sim_config::PropD
     # new input file will override previous input if present
     sim_total = merge(sim_config, sim_inputs)
 
-    @info "Your final simulation configuration" sim_total
+    #@info "Your final simulation configuration" sim_total
     
     sim_total
 end

@@ -55,7 +55,7 @@ function pet_to_pss(sim_config::PropDict)
     # launch with sim config updated with stp table as new input file
     pss_table, pss_truth = stp_to_pss(load_config(stp_table, sim_config))
 
-    pss_table 
+    pss_table, pss_truth 
 end
 
 
