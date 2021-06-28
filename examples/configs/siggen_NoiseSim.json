@@ -1,31 +1,36 @@
 {
+    "environment":{
+        "crystal_t": 90.0,
+        "op_voltage": 4000,
+        "medium": "vacuum"
+    },
     "pss":{
         "method": "siggen",
-        "cached_name": "vacuum_90K_4000V",
-        "fieldgen_config": "data/fieldgen_settings.txt"
-    },  
-    "environment": {
-        "crystal_t": 90.0,
-        "op_voltage": 4000
-    },
-    "preamp":{
-        "t_decay":50,
-        "t_rise":15,
-        "noise_sigma":3,
-        "max_e": 10000,
-        "offset": 2000
-    },
-    "fadc":{
-        "type": "generic",
-        "sampling_interval": 16
-    },
-    "trigger":{
-        "type": "trapezoidal",        
-        "window_lengths": [250,250,250],
-        "threshold": 9
-    },
-    "daq": {
-        "nsamples": 3750,
-        "baseline_length": 1875
+        "fieldgen_config": "data/fieldgen_settings.txt",
+        "drift_vel": "data/drift_vel_tcorr.tab",
+        "cached_name": "vacuum_90K_4000V"
+    },    
+    "setup":{
+        "preamp":{
+            "t_decay":50,
+            "t_rise":15,
+            "noise_sigma":3,
+            "max_e": 10000,
+            "offset": 2000
+        },
+        "fadc":{
+            "type": "generic",
+            "sampling_interval": 16
+        },
+        "trigger":{
+            "type": "trapezoidal",        
+            "window_lengths": [250,250,250],
+            "threshold": 9
+        },
+        "daq": {
+            "type": "generic",
+            "nsamples": 3750,
+            "baseline_length": 1875
+        }
     }
 }

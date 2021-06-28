@@ -43,24 +43,29 @@ function pet_to_stp(pet_table::Table, detector_SSD::SolidStateDetectors.Simulati
     events_clustered = @time SolidStateDetectors.cluster_detector_hits(hits_by_evtno, 0.2u"mm")
     println("$(sum(length.(events_clustered.edep))) hits after clustering")
 
+    hits = RadiationDetectorSignals.ungroup_by_evtno(events_clustered)
+
     # Waveform generation has to be per detector.
     # Let's reshuffle the detector hits, grouping by event number and detector
-    @info("...grouping by detector")
-    hits = RadiationDetectorSignals.ungroup_by_evtno(events_clustered)
-    events_per_det = RadiationDetectorSignals.group_by_evtno_and_detno(hits)
+    # @info("...grouping by detector")
+    events_per_det = RadiationDetectorSignals.group_by_evtno_and_detno(hits)    
 
     # The hits are now grouped by event number, but separately for each detector, and sorted by detector number:
-    issorted(events_per_det.detno) # what does this do? It's not "!"
+    # issorted(events_per_det.detno) # what does this do? It's not "!"    
 
+    ## ---------- This part is done for the case of multiple detectors
+    ## For now we consider that the input file should have only one detector
+    ## TODO
     # This makes it easy to group them by detector number ...
-    # currently there is only 1 detector with ID = 0; in Geant4 CSV in TestData it's 1
-    events_det1 = filter(evt -> evt.detno == 1, events_per_det)
+    # events_det1 = filter(evt -> evt.detno == 0, events_per_det)
+    ## ---------- This part is done for the case of multiple detectors
 
     @info "...removing events outside of the detector"
     
     # We need to filter out the few events that, due to numerical effects, lie outside of the detector
     # (the proper solution is to shift them slightly, this feature will be added in the future)
-    stp_events = events_det1[findall(pts -> all(p -> T.(ustrip.(uconvert.(u"m", p))) in detector_SSD.detector, pts), events_det1.pos)]
+    # stp_events = events_det1[findall(pts -> all(p -> T.(ustrip.(uconvert.(u"m", p))) in detector_SSD.detector, pts), events_det1.pos)]
+    stp_events = events_per_det[findall(pts -> all(p -> T.(ustrip.(uconvert.(u"m", p))) in detector_SSD.detector, pts), events_per_det.pos)]
 
     stp_events
 
@@ -88,7 +93,7 @@ function pet_to_stp(sim_config::PropDict)
     det_config_SSD = ssd_config(sim_config.detector_metadata, Environment())
     detector_SSD = Simulation(SolidStateDetector{T}(det_config_SSD))        
 
-    println("Processing file: $(sim_config.input_file)")    
+    println("Processing file: $(sim_config.input_file) for detector $(sim_config.detector_metadata)")    
     pet_table = read_pet(sim_config.input_file)
 
     # launch pet->stp 
