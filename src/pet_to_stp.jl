@@ -22,6 +22,7 @@ function pet_to_stp(pet_table::Table, detector_SSD::SolidStateDetectors.Simulati
     # Save only events that occur in the detector PV
     # volID = 1 selects only events in the detector
     if hasproperty(pet_table, :volID)
+        @info "...checking volID"
         pet_pv = group_by_column(pet_table, :volID)[1]
 
         # Need to turn into a normal Table before using internal SSD functions (group_by_evtno, cluster_detector_hits, etc)

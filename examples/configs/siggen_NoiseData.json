@@ -10,7 +10,7 @@
         "drift_vel": "data/drift_vel_tcorr.tab",
         "cached_name": "vacuum_90K_4000V"
     },    
-    "noise_data": "/lfs/l1/legend/detector_char/enr/hades/char_data/I02160A/tier1/th_HS2_top_psa/pygama/v01.00/char_data-I02160A-th_HS2_top_psa-run0001-191021T163344_tier1.lh5",
+    "noise_data": "/path/to/raw.lh5",
     "setup":{
         "preamp":{
             "t_decay":50,
