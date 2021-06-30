@@ -14,7 +14,7 @@ function load_config(det_metadata::AbstractString, sim_config_file::AbstractStri
     # add detector info as simulation input
     sim_inputs = PropDict(
         :detector_metadata => det_metadata,
-        :pss => PropDict( :cached_name => cached_name )
+        :simulation => PropDict( :cached_name => cached_name )
     )
 
     # contains only simulation settings
@@ -28,9 +28,9 @@ function load_config(det_metadata::AbstractString, sim_config_file::AbstractStri
     # what? this doesn't work?? can i make it mutable?
     # sim_total.pss.cached_name = "$(filename(sim_total.detector_metadata))_$(sim_total.pss.cached_name)"
     # workaround
-    temp = PropDict(:pss => PropDict(:cached_name => "$(filename(sim_total.detector_metadata))_$(sim_total.pss.cached_name)"))
+    temp = PropDict(:pss => PropDict(:cached_name => "$(filename(sim_total.detector_metadata))_$(sim_total.simulation.cached_name)"))
     sim_total = merge(sim_total, temp)
-    @info "(Future) cached basename: $(sim_total.pss.cached_name)"
+    @info "(Future) cached basename: $(sim_total.simulation.cached_name)"
 
     # load_config(input_file, sim_total)
     sim_total

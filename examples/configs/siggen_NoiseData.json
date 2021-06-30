@@ -4,7 +4,7 @@
         "op_voltage": 4000,
         "medium": "vacuum"
     },
-    "pss":{
+    "simulation":{
         "method": "siggen",
         "fieldgen_config": "data/fieldgen_settings.txt",
         "drift_vel": "data/drift_vel_tcorr.tab",

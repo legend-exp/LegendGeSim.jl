@@ -40,8 +40,8 @@ function pet_to_raw(sim_config::PropDict)
 end
 
 
-
-function pet_to_raw(pet_input_fullpath::AbstractString, det_meta_fullpath::AbstractString, sim_config_filename::AbstractString)
+# for users
+function simulate_raw(pet_input_fullpath::AbstractString, det_meta_fullpath::AbstractString, sim_config_filename::AbstractString)
     pet_to_raw(load_config(pet_input_fullpath, det_meta_fullpath, sim_config_filename))
 end
 

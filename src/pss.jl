@@ -48,11 +48,11 @@ Construct SiggeSimulator instance based on simulation
     configuration given in <sim_conf>.
 """
 function SiggenSimulator(sim_conf::PropDict)
-    @info "Taking fieldgen input from $(sim_conf.pss.fieldgen_config)"
+    @info "Taking fieldgen input from $(sim_conf.simulation.fieldgen_config)"
     SiggenSimulator(
-        sim_conf.pss.fieldgen_config,
-        sim_conf.pss.drift_vel
-        )
+        sim_conf.simulation.fieldgen_config,
+        sim_conf.simulation.drift_vel
+    )
 end
 
 
@@ -67,10 +67,10 @@ Returned type depends on the simulation
     method given in the config.
 """
 function PSSimulator(sim_config::PropDict)
-    @info "Waveform simulation method: $(sim_config.pss.method)"
-    if sim_config.pss.method == "SSD"
+    @info "Waveform simulation method: $(sim_config.simulation.method)"
+    if sim_config.simulation.method == "SSD"
         SSDSimulator(sim_config)
-    elseif sim_config.pss.method == "siggen"
+    elseif sim_config.simulation.method in ["siggen", "fieldgen"]
         SiggenSimulator(sim_config)
     else
         println("This simulation method is not implemented!")

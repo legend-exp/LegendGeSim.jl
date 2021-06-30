@@ -4,7 +4,7 @@
         "op_voltage": 4000,
         "medium": "vacuum"
     },
-    "pss":{
+    "simulation":{
         "method": "SSD",
         "cached_name": "vacuum_90K_4000V"
     },    

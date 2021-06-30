@@ -1,46 +1,39 @@
-using Plots
-using LegendGeSim 
-
-det_metadata = "data/public_ivc.json"
-
-
-## ---------- detector geometry only
 using SolidStateDetectors
-
-ssd_conf = LegendGeSim.ssd_config(det_metadata)
-simulation = Simulation(SolidStateDetector{Float32}(ssd_conf))
-plot(simulation.detector)
-
-## ---------- simulation
-
-## read or launch simulation
-detector = LegendGeSim.simulate_detector(det_metadata, "configs/detector_study_V02160A.json")
+using Plots
+# plotlyjs(); # backend for interactive plots (Jupyter)
 
 ##
-# active volume in cm^3
-avol = LegendGeSim.get_active_volume(detector.point_types)
-# capacitance in pF
-cap = LegendGeSim.calculate_capacitance(detector)
+det_config_json = SSD_examples[:BEGe]
+simulation = Simulation{Float32}(det_config_json)
 
-## electric potential
+## 
+plot_det = plot(simulation.detector)
+# png(plot_det, "plots_md/ssd_geometry.png")
 
-plot(
-    plot(detector.electric_potential, φ = 20), # initial electric potential (boundary conditions)
-    plot(detector.point_types), # map of different point types: fixed point / inside or outside detector volume / depleted/undepleted
-    plot(detector.ρ), # charge density distribution
-    plot(detector.ϵ), # dielectric distribution
-    layout = (1, 4), size = (1600, 500)
-)
+##
+using LegendGeSim
 
-## electric field
+##
+# convert LEGEND metadata to SSD configuration (only geometry!)
+det_config_ssd = LegendGeSim.ssd_config("data/public_ivc.json")
+# now we can plug it into SSD
+simulation1 = Simulation(SolidStateDetector{Float32}(det_config_ssd))
+# it's a bit boring cause we see the same detector as before
+plot_leg = plot(simulation1.detector)
+# png(plot_leg, "plots_md/metadata_geometry.png")
 
-plot(detector.electric_field, φ = 0.0, size = (350, 500))
-LegendGeSim.plot_electric_fieldlines!(detector, φ = 0.0)
 
-## weighting potential
+##
+detector = LegendGeSim.simulate_detector("data/public_ivc.json", "configs/detector_study_ssd.json")
 
-plot(
-    plot(detector.weighting_potentials[1]),
-    plot(detector.weighting_potentials[2]),
-    size = (900, 700)
-)
+##
+calculate_capacitance(detector)
+get_active_volume(detector.point_types)
+
+##
+plot_ef = plot(detector.electric_field, φ = 0.0)
+plot_electric_fieldlines!(detector, φ = 0.0)
+# png(plot_ef, "plots_md/metadata_ef.png")
+
+##
+detector = LegendGeSim.simulate_detector("data/public_ivc.json", "configs/detector_study_fieldgen.json")
