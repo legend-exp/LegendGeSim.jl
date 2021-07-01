@@ -1,0 +1,13 @@
+{
+    "environment":{
+        "crystal_t": 90.0,
+        "op_voltage": 4000,
+        "medium": "vacuum"
+    },
+    "simulation":{
+        "method": "fieldgen",
+        "fieldgen_config": "configs/fieldgen_settings.txt",
+        "drift_vel": "configs/drift_vel_tcorr.tab",
+        "cached_name": "vacuum_90K_4000V"
+    }
+}
