@@ -17,7 +17,7 @@ SSD detector configuration file defines geometrical objects and their combinatio
 ```julia
 # path to detector configuration JSON included in SSD examples
 det_config_json = SSD_examples[:BEGe]
-[Output] "/user/.julia/packages/SolidStateDetectors/48ipd/src/../examples/example_detector_config_files/public_SegBEGe_config.json"
+[Output] "/.../.julia/packages/SolidStateDetectors/.../examples/example_detector_config_files/public_SegBEGe_config.json"
 ```
 
 This is not yet a simulation, ONLY the geometry (note all the "missing" in the output)
@@ -47,16 +47,35 @@ plot(simulation.detector)
 
 ![](plots/ssd_geometry.png)
 
-### 1.2. LEGEND metadata
+### 1.2. LEGEND detector metadata
 
-LEGEND detectors are described in metadata JSON files. They contain information about geometry, manufacturer, and more. LegendGeSim allows us to construct an SSD configuration with its tubes and cones and stuff based on LEGEND metadata json. In this example, I will use `data/public_ivc.json` (not a real LEGEND detector).
+LEGEND detectors are described in metadata JSON files. They contain information about geometry, manufacturer, and more. LegendGeSim allows us to construct an SSD configuration with its tubes and cones and stuff based on detector metadata json. In this example, I will use `public_ivc.json` from the `legend-testdata` respository on `legend-exp` (not a real LEGEND detector).
+
+
+### LEGEND test data (skip if you use your own detector metadata JSON)
+To access `legend-testdata`, use the `LegendTestData.jl` package.
+Install and build the package (do once)
+```julia
+import Pkg
+Pkg.add(url="https://github.com/legend-exp/LegendTestData.jl.git")
+Pkg.build("LegendTestData")
+```
+Get path to test data for LegendGeSim
+```julia
+using LegendTestData
+testdata_path = joinpath(LegendTestData.legend_test_data_path(), "data", "ldsim")
+```
+### Detector geometry
 
 ```julia
 using LegendGeSim
 ```
+
 ```julia
+# path to my detector metadata
+det_metadata = joinpath(testdata_path, "invcoax-metadata.json")
 # convert LEGEND metadata to SSD configuration (only geometry!)
-det_config_ssd = LegendGeSim.ssd_config("data/public_ivc.json")
+det_config_ssd = LegendGeSim.ssd_config(det_metadata)
 # now we can plug it into SSD
 simulation1 = Simulation(SolidStateDetector{Float32}(det_config_ssd))
 plot(simulation1.detector)
@@ -113,7 +132,7 @@ Environment variables are provided in the LegendGeSim simulation config JSON fil
 Putting environment and simulation settings together in `configs/detector_study_ssd.json`, we can now launch detector simulation.
 
 ```julia
-detector = LegendGeSim.simulate_detector("data/public_ivc.json", "configs/detector_study_ssd.json")
+detector = LegendGeSim.simulate_detector(det_metadata, "configs/detector_study_ssd.json")
 ```
 The function returns a `SolidStateDetectors.Simulation` object. Now we can use SSD functions to calculate capacitance...
 ```julia
@@ -164,8 +183,8 @@ Guess what, LegendGeSim can also construct a Fieldgen/Siggen configuration file 
 ```json
 "simulation":{
     "method": "fieldgen",
-    "fieldgen_config": "data/fieldgen_settings.txt", # extra input that is not in metadata or environment
-    "drift_vel": "data/drift_vel_tcorr.tab", # I don't know what this is and why it's necessary
+    "fieldgen_config": "configs/fieldgen_settings.txt", # extra input that is not in metadata or environment
+    "drift_vel": "configs/drift_vel_tcorr.tab", # I don't know what this is and why it's necessary
     "cached_name": "vacuum_90K_4000V"
 }
 ```
@@ -175,7 +194,7 @@ Note: future TODO is to get rid of the extra `fieldgen_settings.txt` file, and m
 The command to call the Fieldgen simulation is **identical** to the one for SSD, what matters are the settings inside the simulation config JSON file as demonstrated above. Combining environment and simulation settings in `configs/detector_study_fieldgen.json`, we can launch the simulation.
 
 ```julia
-detector = LegendGeSim.simulate_detector("data/public_ivc.json", "configs/detector_study_fieldgen.json")
+detector = LegendGeSim.simulate_detector(det_metadata, "configs/detector_study_fieldgen.json")
 ```
 The function returns an `MJDSigGen.SigGenSetup` object.
 Now, if you scroll through fieldgen output messages, you will see

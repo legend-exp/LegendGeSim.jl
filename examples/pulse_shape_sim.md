@@ -130,19 +130,34 @@ Let's go to the promised examples.
 
 ## Example
 
+### LEGEND test data (skip if you use your own detector metadata JSON and input hdf5)
+To access `legend-testdata`, use the `LegendTestData.jl` package.
+Install and build the package (do once)
+```julia
+import Pkg
+Pkg.add(url="https://github.com/legend-exp/LegendTestData.jl.git")
+Pkg.build("LegendTestData")
+```
+Get path to test data for LegendGeSim
+```julia
+using LegendTestData
+testdata_path = joinpath(LegendTestData.legend_test_data_path(), "data", "ldsim")
+```
+
+### Simulate raw waveforms
 ```julia
 using LegendGeSim
 ```
 ```julia
 # PET (position-energy-time) information of the simulated energy depositions
-pet_filename = "data/dual-invcoax-th228-geant4_singledet_small.csv"
+pet_file = joinpath(testdata_path, "single-invcoax-th228-geant4.csv")
 # detector
-det_metadata = "data/public_ivc.json"
+det_metadata = joinpath(testdata_path, "invcoax-metadata.json")
 # simulation settings
-sim_config_name = "configs/SSD_NoiseSim.json"
+sim_config_name = "configs/siggen_NoiseSim.json"
 ```
 ```julia
-raw_table = LegendGeSim.simulate_raw(pet_filename, det_metadata, sim_config_name)
+raw_table = LegendGeSim.simulate_raw(pet_file, det_metadata, sim_config_name)
 ```
 
 You should get a lot of funky output and in the end a table like this:

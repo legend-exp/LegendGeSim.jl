@@ -6,8 +6,8 @@
     },
     "simulation":{
         "method": "siggen",
-        "fieldgen_config": "data/fieldgen_settings.txt",
-        "drift_vel": "data/drift_vel_tcorr.tab",
+        "fieldgen_config": "configs/fieldgen_settings.txt",
+        "drift_vel": "configs/drift_vel_tcorr.tab",
         "cached_name": "vacuum_90K_4000V"
     },    
     "setup":{
