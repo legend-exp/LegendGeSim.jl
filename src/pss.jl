@@ -9,7 +9,13 @@ abstract type PSSimulator end
 """
 Simulation method: SolidStateDetectors
 """
-struct SSDSimulator <: PSSimulator end
+@with_kw struct SSDSimulator <: PSSimulator
+    "Simulation coordinates (cylindrical or linear)"
+    coord::AbstractString = "cylindrical"
+
+    "Computation: 3D or 2D (phi symmetry)"
+    comp::AbstractString = "2D"
+end
 
 
 """
@@ -22,8 +28,18 @@ Construct SSDSimulator instance based on simulation
 
 Currently SSDSimulator does not have any parameters
 """
-function SSDSimulator(::PropDict)
-    SSDSimulator()
+function SSDSimulator(sim_conf::PropDict)
+    coord = haskey(sim_conf.simulation, :coordinates) ? sim_conf.simulation.coordinates : "cylindrical"
+    if !(coord in ["cartesian", "cylindrical"])
+        @error "$coord coordinates not implemented!\n Available: cartesian, cylindrical"
+    end
+
+    comp = haskey(sim_conf.simulation, :computation) ? sim_conf.simulation.computation : "2D"
+    if !(comp in ["2D", "3D"])
+        @error "$comp computation not implemented!\n Available: 2D, 3D"
+    end
+
+    SSDSimulator(coord, comp)
 end
 
 
@@ -67,7 +83,7 @@ Returned type depends on the simulation
     method given in the config.
 """
 function PSSimulator(sim_config::PropDict)
-    @info "Waveform simulation method: $(sim_config.simulation.method)"
+    @info "Simulation method: $(sim_config.simulation.method)"
     if sim_config.simulation.method == "SSD"
         SSDSimulator(sim_config)
     elseif sim_config.simulation.method in ["siggen", "fieldgen"]

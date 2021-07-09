@@ -49,7 +49,7 @@ plot(simulation.detector)
 
 ### 1.2. LEGEND detector metadata
 
-LEGEND detectors are described in metadata JSON files. They contain information about geometry, manufacturer, and more. LegendGeSim allows us to construct an SSD configuration with its tubes and cones and stuff based on detector metadata json. In this example, I will use `public_ivc.json` from the `legend-testdata` respository on `legend-exp` (not a real LEGEND detector).
+LEGEND detectors are described in metadata JSON files. They contain information about geometry, manufacturer, and more. LegendGeSim allows us to construct an SSD configuration with its tubes and cones and stuff based on detector metadata json. In this example, I will use `invcoax-metadata.json` from the `legend-testdata` respository on `legend-exp` (not a real LEGEND detector).
 
 
 ### LEGEND test data (skip if you use your own detector metadata JSON)
@@ -127,7 +127,7 @@ Environment variables are provided in the LegendGeSim simulation config JSON fil
 }
 ```
 
-`cached_name` is a "suffix" for cached simulation files (in case of SSD, a detector simulation h5 file). The suffix is added to the name of the detector metadata file. For example, if you use `data/public_ivc.json`, the cached name in this case will be `cache/public_ivc_vacuum_90K_4000V_ssd.h5f`. If `cached_name` is not provided, the name of the simulation settings JSON will be used as "suffix". If SSD finds an h5 file with the given suffix in `cache/`, it will read it instead of launching the simulation from scratch.
+`cached_name` is a "suffix" for cached simulation files (in case of SSD, a detector simulation h5 file). The suffix is added to the name of the detector metadata file. For example, if you use `invcoax-metadata.json`, the cached name in this case will be `cache/invcoax-metadata_vacuum_90K_4000V_ssd.h5f`. If `cached_name` is not provided, the name of the simulation settings JSON will be used as "suffix". If SSD finds an h5 file with the given suffix in `cache/`, it will read it instead of launching the simulation from scratch.
 
 Putting environment and simulation settings together in `configs/detector_study_ssd.json`, we can now launch detector simulation.
 
@@ -207,3 +207,10 @@ Now, if you scroll through fieldgen output messages, you will see
 TODO
 1) Write a function to extract capacitance from Fieldgen output or the SigGenSetup object (if saved there)
 2) Write a function to plot the WP and EV dat files created by fieldgen &rarr; Tommaso already has it, only need to add to `MJDSigGen.jl` (which is used in `LegendGeSim.jl`)
+
+
+## Extra
+
+Additional arguments under `"simulation"` in the sim config 
+- `"coordinates": "cartesian"` will enable cartesian grid (default `"cylindrical"`)
+- `"computation" : "2D"` (default) implies phi symmetry. Set to `"3D"` for full simulation. Only applies to the case of cylindrical coordinates. You should see `φ symmetry: Detector is φ-symmetric -> 2D computation` in SSD log.

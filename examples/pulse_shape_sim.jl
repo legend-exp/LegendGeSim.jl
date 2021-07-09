@@ -14,8 +14,8 @@ pet_file = joinpath(testdata_path, "single-invcoax-th228-geant4.csv")
 # detector
 det_metadata = joinpath(testdata_path, "invcoax-metadata.json")
 # simulation settings
-# sim_config_name = "configs/SSD_NoiseSim.json"
-sim_config_name = "configs/siggen_NoiseSim.json"
+sim_config_name = "configs/SSD_NoiseSim.json"
+#sim_config_name = "configs/siggen_NoiseSim.json"
 
 
 ##

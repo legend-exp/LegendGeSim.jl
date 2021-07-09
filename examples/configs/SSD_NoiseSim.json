@@ -6,6 +6,7 @@
     },
     "simulation":{
         "method": "SSD",
+        "coordinates": "cylindrical",
         "cached_name": "vacuum_90K_4000V"
     },    
     "setup":{
