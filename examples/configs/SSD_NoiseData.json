@@ -6,7 +6,6 @@
     },
     "simulation":{
         "method": "SSD",
-        "coordinates": "cylindrical",
         "cached_name": "vacuum_90K_4000V"
     },    
     "noise_data": "/path/to/raw.lh5",
