@@ -167,7 +167,7 @@ function ssd_config(meta::PropDict, env::Environment, ssd_sim::SSDSimulator)
             "axes" => Dict(
                 "x" => Dict("from" => -cylinder_radius*1.2, "to" => cylinder_radius*1.2, "boundaries" => "inf"),
                 "y" => Dict("from" => -cylinder_radius*1.2, "to" => cylinder_radius*1.2, "boundaries" => "inf"),
-                "z" => Dict("from" => -5, "to" => cylinder_height*1.2, "boundaries" => "inf")
+                "z" => Dict("from" => -0.2*cylinder_height, "to" => cylinder_height*1.2, "boundaries" => "inf")
             )
         )
     end
