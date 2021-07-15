@@ -21,11 +21,10 @@ using LegendGeSim
 ##
 using LegendTestData
 testdata_path = joinpath(LegendTestData.legend_test_data_path(), "data", "ldsim")
-
-
-##
 # path to my detector metadata
 det_metadata = joinpath(testdata_path, "invcoax-metadata.json")
+
+##
 # convert LEGEND metadata to SSD configuration (only geometry!)
 det_config_ssd = LegendGeSim.ssd_config(det_metadata)
 # now we can plug it into SSD
@@ -41,6 +40,9 @@ detector = LegendGeSim.simulate_detector(det_metadata, "configs/detector_study_s
 ##
 calculate_capacitance(detector)
 get_active_volume(detector.point_types)
+
+##
+plot(detector.electric_potential)
 
 ##
 plot_ef = plot(detector.electric_field, φ = 0.0)

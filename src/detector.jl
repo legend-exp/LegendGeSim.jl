@@ -19,11 +19,13 @@ function simulate_detector(sim_config_filename::AbstractString)
     simulate_detector(propdict(sim_config_filename))
 end
 
+
 function simulate_detector(det_metadata::AbstractString, sim_config_filename::AbstractString)
     # merge detector info with the rest 
     sim_config = load_config(det_metadata, sim_config_filename)
     simulate_detector(sim_config)
 end
+
 
 """
     simulate_detector(det_meta, env, config_name, ::SSDSimulator)
@@ -36,14 +38,14 @@ Look up cached SSD simulation .h5f file, and if does not exist,
 The simulation will be cached based on <config_name>.
 
 """
-function simulate_detector(det_meta::PropDict, env::Environment, cached_name::AbstractString, ::SSDSimulator)
+function simulate_detector(det_meta::PropDict, env::Environment, cached_name::AbstractString, ssd_sim::SSDSimulator)
     det_h5 = joinpath("cache", cached_name*"_ssd.h5f")
     if isfile(det_h5)
         @info("Reading SSD simulation from cached file $det_h5")
         simulation = SolidStateDetectors.ssd_read(det_h5, Simulation)
     else
         @info("Simulating $cached_name with SSD from scratch for given settings")
-        ssd_conf = ssd_config(det_meta, env)
+        ssd_conf = ssd_config(det_meta, env, ssd_sim)
         simulation = simulate_ssd(ssd_conf)
 
         if !ispath(dirname(det_h5)) mkpath(dirname(det_h5)) end
@@ -133,8 +135,8 @@ Construct SSD type config based on
     geometry as given in LEGEND metadata <meta>
     and environment settings given in <env>.
 """ 
-function ssd_config(meta::PropDict, env::Environment)
-    # some parameters that will be used multiple times later
+function ssd_config(meta::PropDict, env::Environment, ssd_sim::SSDSimulator)
+    ## some parameters that will be used multiple times later
     # or need a calculation
     cylinder_height = meta.geometry.height_in_mm
     cylinder_radius = meta.geometry.radius_in_mm
@@ -144,18 +146,57 @@ function ssd_config(meta::PropDict, env::Environment)
     cone_r_top = cylinder_radius - meta.geometry.taper.top.outer.height_in_mm * tan(meta.geometry.taper.top.outer.angle_in_deg / 180. * π)
     cone_height = meta.geometry.taper.top.outer.height_in_mm
 
-    charge_density_model = Dict(
-        "name" => "cylindrical",
-        "r" => Dict(
-            "init" => 0,
-            "gradient" => 0
-        ),
-        "z" => Dict(
-            "init" => -1e7,
-            "gradient" => 1e5
-        )
-    )
+    ## grid 
+    # kind of initialize so that it exists out of the loop?    
+    grid = Dict()
 
+    if ssd_sim.coord == "cylindrical"
+        grid = Dict(
+            "axes" => Dict(
+                "r" => Dict("to" => cylinder_radius*1.2, "boundaries" => "inf"), # leave some margin
+                "phi" => Dict("from" => 0, "to" => ssd_sim.comp == "3D" ? 360 : 0, "boundaries" => "periodic"),
+                "z" => Dict(
+                    "from" => -0.2*cylinder_height,
+                    "to" => cylinder_height*1.2, # leave some margin
+                    "boundaries" => Dict("left" => "inf", "right" => "inf")
+                )
+            )
+        )
+    else # cartesian
+        grid = Dict(
+            "axes" => Dict(
+                "x" => Dict("from" => -cylinder_radius*1.2, "to" => cylinder_radius*1.2, "boundaries" => "inf"),
+                "y" => Dict("from" => -cylinder_radius*1.2, "to" => cylinder_radius*1.2, "boundaries" => "inf"),
+                "z" => Dict("from" => -0.2*cylinder_height, "to" => cylinder_height*1.2, "boundaries" => "inf")
+            )
+        )
+    end
+
+    grid = merge(grid, Dict("coordinates" => ssd_sim.coord))
+
+    ## charge density model
+    # kind of initialize so that it exists out of the loop?    
+    charge_density_model = Dict()
+
+    if ssd_sim.coord == "cylindrical"
+        charge_density_model = Dict(
+            "r" => Dict("init" => 0, "gradient" => 0),
+            "phi" => Dict("init" => 0.0, "gradient" => 0.0),
+            "z" => Dict("init" => -1e7, "gradient" => 1e5)
+        )
+    else # cartesian
+        charge_density_model = Dict(
+            "x" => Dict("init" => 0.0, "gradient" => 0.000),
+            "y" => Dict("init" => 0.0, "gradient" => 0.0),
+            "z" => Dict("init" => 1e7, "gradient" => 5e4)
+        )
+    end
+
+    # for now we only use linear charge density model for either cartesian or cylindrical coordinates
+    # charge_density_model["name"] = "linear"
+    charge_density_model = merge(charge_density_model, Dict("name" => "linear"))
+
+    ## geometry
     dct = Dict(
         "name" => meta.det_name,
         "medium" => env.medium,
@@ -165,21 +206,7 @@ function ssd_config(meta::PropDict, env::Environment)
             "potential" => "V",
             "temperature" => "K"
         ),
-        "grid" => Dict(
-            "coordinates" => "cylindrical",
-            "axes" => Dict(
-                "r" => Dict(
-                    "to" => cylinder_radius*1.2, # leave some margin
-                    "boundaries" => "inf"
-                ),
-                "phi" => Dict("from" => 0, "to" => 0, "boundaries" => "periodic"),
-                "z" => Dict(
-                    "from" => -10,
-                    "to" => cylinder_height*1.2, # leave some margin
-                    "boundaries" => Dict("left" => "inf", "right" => "inf")
-                )
-            )
-        ),
+        "grid" => grid,
         "objects" => [
             # crystal
             Dict(
@@ -366,18 +393,22 @@ function ssd_config(meta::PropDict, env::Environment)
         "h" => 0.0,
         "translate" => Dict("z" => meta.geometry.well.gap_in_mm)
     )
+ 
 
     dct
 end
 
 
+"""
+    ssd_config(det_meta)
+
+AbstractString -> Dict 
+
+Construct SSD type config based on geometry as given in LEGEND metadata <det_meta>.
+Set arbitrary envorinment variables and simulation settings (used only for geometry visualization)
+"""
 function ssd_config(det_meta::AbstractString)
-    ssd_config(det_meta, Environment())
-end
-
-
-function ssd_config(det_meta::AbstractString, env::Environment)
-    ssd_config(propdict(det_meta), env)
+    ssd_config(propdict(det_meta), Environment(), SSDSimulator())
 end
 
 
