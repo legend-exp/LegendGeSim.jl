@@ -28,7 +28,7 @@ det_metadata = joinpath(testdata_path, "invcoax-metadata.json")
 # convert LEGEND metadata to SSD configuration (only geometry!)
 det_config_ssd = LegendGeSim.ssd_config(det_metadata)
 # now we can plug it into SSD
-simulation1 = Simulation(SolidStateDetector{Float32}(det_config_ssd))
+simulation1 = Simulation{Float32}(det_config_ssd)
 # it's a bit boring cause we see the same detector as before
 plot_leg = plot(simulation1.detector)
 # png(plot_leg, "plots_md/metadata_geometry.png")
@@ -38,15 +38,15 @@ plot_leg = plot(simulation1.detector)
 detector = LegendGeSim.simulate_detector(det_metadata, "configs/detector_study_ssd.json")
 
 ##
-calculate_capacitance(detector)
+calculate_capacitance_matrix(detector)
 get_active_volume(detector.point_types)
 
 ##
 plot(detector.electric_potential)
 
 ##
-plot_ef = plot(detector.electric_field, φ = 0.0)
-plot_electric_fieldlines!(detector, φ = 0.0)
+plot_ef = plot(detector.electric_field, full_det = true, φ = 0.0, size = (700, 700))
+plot_electric_fieldlines!(detector, full_det = true, φ = 0.0)
 # png(plot_ef, "plots_md/metadata_ef.png")
 
 ##

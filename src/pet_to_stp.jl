@@ -66,7 +66,7 @@ function pet_to_stp(pet_table::Table, detector_SSD::SolidStateDetectors.Simulati
     # We need to filter out the few events that, due to numerical effects, lie outside of the detector
     # (the proper solution is to shift them slightly, this feature will be added in the future)
     # stp_events = events_det1[findall(pts -> all(p -> T.(ustrip.(uconvert.(u"m", p))) in detector_SSD.detector, pts), events_det1.pos)]
-    stp_events = events_per_det[findall(pts -> all(p -> T.(ustrip.(uconvert.(u"m", p))) in detector_SSD.detector, pts), events_per_det.pos)]
+    stp_events = events_per_det[findall(pts -> all(p -> CartesianPoint{T}(T.(ustrip.(uconvert.(u"m", p)))) in detector_SSD.detector, pts), events_per_det.pos)]
 
     stp_events
 
@@ -91,8 +91,8 @@ end
 function pet_to_stp(sim_config::PropDict)
     @info "---------------------- pet -> stp (stepping info)"
     # SSD detector for geometry purposes (not simulation)
-    det_config_SSD = ssd_config(sim_config.detector_metadata, Environment())
-    detector_SSD = Simulation(SolidStateDetector{T}(det_config_SSD))        
+    det_config_SSD = ssd_config(sim_config.detector_metadata)
+    detector_SSD = Simulation{T}(det_config_SSD)
 
     println("Processing file: $(sim_config.input_file) for detector $(sim_config.detector_metadata)")    
     pet_table = read_pet(sim_config.input_file)

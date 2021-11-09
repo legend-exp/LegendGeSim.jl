@@ -103,21 +103,23 @@ function simulate_ssd(ssd_config::Dict)
 
     @info "_|~|_|~|_|~|_ SSD simulation"
 
-    simulation = Simulation(SolidStateDetector{Float32}(ssd_config))
+    simulation = Simulation{Float32}(ssd_config)
 
     println("...electric potential")
     calculate_electric_potential!( simulation,
-                               max_refinements = 4)
+        refinement_limits = [0.2, 0.1, 0.05, 0.02, 0.01]
+    )
 
     println("...electric field")
     calculate_electric_field!(simulation, n_points_in_φ = 72)
 
-    println("...drift field")
-    calculate_drift_fields!(simulation)
-
     println("...weighting potential")
     for contact in simulation.detector.contacts
-        calculate_weighting_potential!(simulation, contact.id, max_refinements = 4, n_points_in_φ = 2, verbose = false)
+        calculate_weighting_potential!(simulation, contact.id, 
+            refinement_limits = [0.2, 0.1, 0.05, 0.02, 0.01], 
+            n_points_in_φ = 2, 
+            verbose = false
+        )
     end
 
     @info "_|~|_|~|_|~|_ SSD detector simulation complete"
@@ -138,18 +140,16 @@ Construct SSD type config based on
 function ssd_config(meta::PropDict, env::Environment, ssd_sim::SSDSimulator)
     ## some parameters that will be used multiple times later
     # or need a calculation
-    cylinder_height = meta.geometry.height_in_mm
-    cylinder_radius = meta.geometry.radius_in_mm
-    borehole_height = cylinder_height - meta.geometry.well.gap_in_mm
-    borehole_r_bottom = meta.geometry.well.radius_in_mm
-    borehole_r_top = borehole_r_bottom + borehole_height * tan(meta.geometry.taper.top.inner.angle_in_deg / 180. * π)
-    cone_r_top = cylinder_radius - meta.geometry.taper.top.outer.height_in_mm * tan(meta.geometry.taper.top.outer.angle_in_deg / 180. * π)
-    cone_height = meta.geometry.taper.top.outer.height_in_mm
+    T = Float32 # should probably become an option in SSDSimulator
+    cylinder_height::T = meta.geometry.height_in_mm
+    cylinder_radius::T = meta.geometry.radius_in_mm
+    borehole_height::T = cylinder_height - meta.geometry.well.gap_in_mm
+    borehole_r_bottom::T = meta.geometry.well.radius_in_mm
+    borehole_r_top::T = borehole_r_bottom + borehole_height * tan(meta.geometry.taper.top.inner.angle_in_deg / 180. * π)
+    cone_r_top::T = cylinder_radius - meta.geometry.taper.top.outer.height_in_mm * tan(meta.geometry.taper.top.outer.angle_in_deg / 180. * π)
+    cone_height::T = meta.geometry.taper.top.outer.height_in_mm
 
     ## grid 
-    # kind of initialize so that it exists out of the loop?    
-    grid = Dict()
-
     if ssd_sim.coord == "cylindrical"
         grid = Dict(
             "axes" => Dict(
@@ -176,25 +176,24 @@ function ssd_config(meta::PropDict, env::Environment, ssd_sim::SSDSimulator)
 
     ## charge density model
     # kind of initialize so that it exists out of the loop?    
-    charge_density_model = Dict()
+    impurity_density = Dict()
 
-    if ssd_sim.coord == "cylindrical"
-        charge_density_model = Dict(
-            "r" => Dict("init" => 0, "gradient" => 0),
-            "phi" => Dict("init" => 0.0, "gradient" => 0.0),
-            "z" => Dict("init" => -1e7, "gradient" => 1e5)
+    impurity_density = if ssd_sim.coord == "cylindrical"
+        Dict(
+            "r"   => Dict("init" => 0, "gradient" => 0),
+            "phi" => Dict("init" => 0, "gradient" => 0),
+            "z"   => Dict("init" => -5e6, "gradient" => 0) # Dummy value | negative -> p-type
         )
     else # cartesian
-        charge_density_model = Dict(
-            "x" => Dict("init" => 0.0, "gradient" => 0.000),
-            "y" => Dict("init" => 0.0, "gradient" => 0.0),
-            "z" => Dict("init" => 1e7, "gradient" => 5e4)
+        Dict(
+            "x" => Dict("init" => 0, "gradient" => 0),
+            "y" => Dict("init" => 0, "gradient" => 0),
+            "z" => Dict("init" => -5e6, "gradient" => 0) # Dummy value | negative -> p-type
         )
     end
 
-    # for now we only use linear charge density model for either cartesian or cylindrical coordinates
-    # charge_density_model["name"] = "linear"
-    charge_density_model = merge(charge_density_model, Dict("name" => "linear"))
+    # for now we only use cylindrical impurity density model for either cartesian or cylindrical coordinates
+    impurity_density = merge(impurity_density, Dict("name" => "cylindrical"))
 
     ## geometry
     dct = Dict(
@@ -207,193 +206,140 @@ function ssd_config(meta::PropDict, env::Environment, ssd_sim::SSDSimulator)
             "temperature" => "K"
         ),
         "grid" => grid,
-        "objects" => [
-            # crystal
+        "detectors" => [
             Dict(
-                "type" => "semiconductor",
-                "material" => "HPGe",
-                "bulk_type" => "p",
-                "temperature" => env.crystal_t,
-                "charge_density_model" => charge_density_model,
-                "geometry" => Dict(
-                    "type" => "difference",
-                    "parts" => [
-                        # crystal
-                        Dict(
-                            "type" => "difference",
-                            "parts" => [
-                                # cylinder
-                                Dict(
-                                    "name" => "Initial Cylinder",
-                                    "type" => "tube",
+                "semiconductor" => Dict(
+                    "material" => "HPGe",
+                    "temperature" => env.crystal_t,
+                    "impurity_density" => impurity_density,
+                    # "charge_drift_model" !!! is missing right now
+                    "geometry" => Dict(
+                        "difference" => [ 
+                            Dict( # Initial Cylinder
+                                "tube" => Dict(
                                     "r" => Dict(
-                                        "from" => 0.0,
+                                        "from" => 0,
                                         "to" => cylinder_radius,
                                     ),
-                                    "phi" => Dict("from" => 0.0, "to" => 360.0),
+                                    "phi" => Dict("from" => 0, "to" => 360),
                                     "h" => cylinder_height,
-                                    "translate" => Dict("z" => 0.0)
-                                )#, # cylinder
-                                # upper cone
-                                Dict(
-                                    "name" => "Upper cone",
-                                    "type" => "cone",
+                                    "origin" => Dict("z" => cylinder_height/2)
+                                )
+                            ),
+                            Dict( # "Upper cone"
+                                "cone" => Dict(
                                     "r" => Dict(
                                         "bottom" => Dict("from" => cylinder_radius, "to" => cylinder_radius+1),
                                         "top" => Dict("from" => cone_r_top, "to" => cylinder_radius+1)
                                     ),
-                                    "phi" => Dict("from" => 0.0, "to" => 360.0),
+                                    "phi" => Dict("from" => 0, "to" => 360),
                                     "h" => meta.geometry.taper.top.outer.height_in_mm,
-                                    "translate" => Dict("z" => cylinder_height - cone_height)
-                                ) # upper cone
-                            ] # crystal parts
-                        ), # crystal
-                        # borehole
-                        Dict(
-                            "name" => "borehole",
-                            "type" => "cone",
-                            "r" => Dict(
-                                "bottom" => Dict(
-                                    "from" => 0.0,
-                                    "to" => borehole_r_bottom
-                                ),
-                                "top" => Dict(
-                                    "from" => 0.0,
-                                    "to" => borehole_r_top
+                                    "origin" => Dict("z" => cylinder_height - cone_height/2)
                                 )
-                            ),
-                            "phi" => Dict("from" => 0.0, "to" => 360.0),
-                            "h" => borehole_height,
-                            "translate" => Dict("z" => meta.geometry.well.gap_in_mm)
-                        ), # borehole
-                        # groove
-                        Dict(
-                            "name" => "ditch",
-                            "type" => "tube",
-                            "r" => Dict(
-                                "from" => meta.geometry.groove.outer_radius_in_mm - meta.geometry.groove.width_in_mm,
-                                "to" => meta.geometry.groove.outer_radius_in_mm
-                            ),
-                            "phi" => Dict("from" => 0.0, "to" => 360.0),
-                            "h" => meta.geometry.groove.depth_in_mm
-                        ) # groove
-                    ] # parts
-                ) # geometry
-            ), # crystal
-            # p+ contact 
-            Dict(
-                "type" => "contact",
-                "material" => "HPGe",
-                "channel" => 1,
-                "potential" => 0.0,
-                "geometry" => Dict(
-                    "type" => "tube",
-                    "r" => Dict(
-                        "from" => 0.0,
-                        "to" => meta.geometry.contact.radius_in_mm
+                            ) # upper cone
+                        ]
+                    )
+                ),
+                "contacts" => [
+                    Dict(
+                        "id" => 1,
+                        "material" => "HPGe",
+                        "potential" => 0,
+                        "geometry" => Dict(
+                            "tube" => Dict(
+                                "r" => Dict(
+                                    "from" => 0,
+                                    "to" => meta.geometry.contact.radius_in_mm
+                                ),
+                                "phi" => Dict("from" => 0, "to" => 360),
+                                "h" => meta.geometry.contact.depth_in_mm
+                            )
+                        )
                     ),
-                    "phi" => Dict("from" => 0.0, "to" => 360.0),
-                    "h" => meta.geometry.contact.depth_in_mm
-                )
-            ), # p+ contact
-            # n+ contact
-            Dict(
-                "type" => "contact",
-                "material" => "HPGe",
-                "channel" => 2,
-                "potential" => env.op_voltage == 0 ? meta.characterization.manufacturer.op_voltage_in_V : env.op_voltage,
-                "geometry" => Dict(
-                    "type" => "union",
-                    "parts" => [Dict() for i in 1:6] # to be filled later
-                )
-            ) # n+ contact
-        ] # objects
-    )
-
-    ## Construct n+ surface
-
-    # bottom lid
-    dct["objects"][3]["geometry"]["parts"][1] = Dict(
-        "name" => "bottom lid",
-        "type" => "tube",
-        "r" => Dict(
-            "from" => meta.geometry.groove.outer_radius_in_mm,
-            "to" => cylinder_radius # cylinder radius
-        ),
-        "phi" => Dict("from" => 0.0, "to" => 360.0),
-        "h" => 0
-    )
-
-    # side lining
-    dct["objects"][3]["geometry"]["parts"][2] = Dict(
-        "name" => "side lining",
-        "type" => "tube",
-        "r" => Dict(
-            "from" => cylinder_radius, 
-            "to" => cylinder_radius
-        ),
-        "phi" => Dict("from" => 0.0, "to" => 360.0),
-        "h" => cylinder_height - cone_height
-    )
-
-    # upper cone 
-    dct["objects"][3]["geometry"]["parts"][3] = Dict(
-        "name" => "Upper cone",
-        "type"=> "cone",
-        "r" => Dict(
-            "bottom" => Dict("from" => cylinder_radius, "to" => cylinder_radius),
-            "top" => Dict("from" => cone_r_top, "to" => cone_r_top)
-        ),
-        "phi" => Dict("from" => 0.0, "to" => 360.0),
-        "h" => cone_height,
-        "translate" => Dict("z" => cylinder_height - cone_height)
-    )
-
-    # top lid
-    dct["objects"][3]["geometry"]["parts"][4] = Dict(
-        "name" => "top lid",
-        "type" => "tube",
-        "r" => Dict(
-            "from" => borehole_r_top, 
-            "to" => cone_r_top
-        ),
-        "phi" => Dict("from" => 0.0, "to" => 360.0),
-        "h" => 0.0,
-        "translate" => Dict("z" => cylinder_height)
-    )
-
-    # borehole lining
-    dct["objects"][3]["geometry"]["parts"][5] = Dict(
-        "name" => "borehole linning",
-        "type" => "cone",
-        "r" => Dict(
-            "bottom" => Dict(
-                "from" => borehole_r_bottom, 
-                "to" => borehole_r_bottom
-            ),
-            "top" => Dict(
-                "from" => borehole_r_top,
-                "to" => borehole_r_top
+                    Dict(
+                        "id" => 2,
+                        "material" => "HPGe",
+                        "potential" => env.op_voltage == 0 ? meta.characterization.manufacturer.op_voltage_in_V : env.op_voltage,
+                        "geometry" => Dict(
+                            "union" => [
+                                Dict(
+                                    "tube" => Dict( # "bottom lid"
+                                        "r" => Dict(
+                                            "from" => meta.geometry.groove.outer_radius_in_mm,
+                                            "to" => cylinder_radius 
+                                        ),
+                                        "phi" => Dict("from" => 0, "to" => 360),
+                                        "h" => 0 
+                                    )
+                                ),
+                                Dict(
+                                    "tube" => Dict( # "side lining"
+                                        "r" => Dict(
+                                            "from" => cylinder_radius, 
+                                            "to" => cylinder_radius
+                                        ),
+                                        "phi" => Dict("from" => 0, "to" => 360),
+                                        "h" => cylinder_height - cone_height,
+                                        "origin" => Dict("z" => (cylinder_height - cone_height)/2)
+                                    )
+                                ),
+                                Dict(
+                                    "cone" => Dict( # "Upper cone"
+                                       "r" => Dict(
+                                            "bottom" => Dict("from" => cylinder_radius, "to" => cylinder_radius),
+                                            "top" => Dict("from" => cone_r_top, "to" => cone_r_top)
+                                        ),
+                                        "phi" => Dict("from" => 0, "to" => 360),
+                                        "h" => cone_height,
+                                        "origin" => Dict("z" => cylinder_height - cone_height/2)
+                                    )
+                                ),
+                                Dict(
+                                    "tube" => Dict( # "top lid"
+                                        "r" => Dict(
+                                            "from" => borehole_r_top, 
+                                            "to" => cone_r_top
+                                        ),
+                                        "phi" => Dict("from" => 0, "to" => 360),
+                                        "h" => 0,
+                                        "origin" => Dict("z" => cylinder_height)
+                                    )
+                                ),
+                                Dict(
+                                    "cone" => Dict( # "borehole linning"
+                                        "r" => Dict(
+                                            "bottom" => Dict(
+                                                "from" => borehole_r_bottom, 
+                                                "to" => borehole_r_bottom
+                                            ),
+                                            "top" => Dict(
+                                                "from" => borehole_r_top,
+                                                "to" => borehole_r_top
+                                            )
+                                        ),
+                                        "phi" => Dict("from" => 0, "to" => 360),
+                                        "h" => borehole_height,
+                                        "origin" => Dict("z" => meta.geometry.well.gap_in_mm + borehole_height / 2)
+                                    ) 
+                                ),
+                                Dict(
+                                    "tube" => Dict( # "borehole bottom lid"
+                                        "r" => Dict(
+                                            "from" => 0,
+                                            "to" => borehole_r_bottom
+                                        ),
+                                        "phi" => Dict("from" => 0, "to" => 360),
+                                        "h" => 0,
+                                        "origin" => Dict("z" => meta.geometry.well.gap_in_mm)
+                                    )
+                                )
+                            ]
+                        )
+                    )
+                ]
             )
-        ),
-        "phi" => Dict("from" => 0.0, "to" => 360.0),
-        "h" => borehole_height,
-        "translate" => Dict("z" => meta.geometry.well.gap_in_mm)
+        ]
     )
-
-    # borehole bottom lid
-    dct["objects"][3]["geometry"]["parts"][6] = Dict(
-        "name" => "borehole bottom lid",
-        "type" => "tube",
-        "r" => Dict(
-            "from" => 0.0,
-            "to" => borehole_r_bottom
-        ),
-        "phi" => Dict("from" => 0.0, "to" => 360.0),
-        "h" => 0.0,
-        "translate" => Dict("z" => meta.geometry.well.gap_in_mm)
-    )
- 
 
     dct
 end
