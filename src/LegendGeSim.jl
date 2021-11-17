@@ -49,6 +49,7 @@ using Tables
 using TypedTables
 using Unitful
 
+using SolidStateDetectors: ConstructiveSolidGeometry as CSG
 # using Plots
 
 
@@ -65,6 +66,7 @@ Random.seed!(123) # only for testing
 
 include("sim_config.jl")
 include("pss.jl")
+include("legend_detector_to_ssd.jl")
 include("detector.jl")
 
 include("preamp.jl")

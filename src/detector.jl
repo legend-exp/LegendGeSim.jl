@@ -229,14 +229,25 @@ function ssd_config(meta::PropDict, env::Environment, ssd_sim::SSDSimulator)
                             Dict( # "Upper cone"
                                 "cone" => Dict(
                                     "r" => Dict(
-                                        "bottom" => Dict("from" => cylinder_radius, "to" => cylinder_radius+1),
-                                        "top" => Dict("from" => cone_r_top, "to" => cylinder_radius+1)
+                                        "bottom" => Dict("from" => cylinder_radius, "to" => cylinder_radius*1.2),
+                                        "top" => Dict("from" => cone_r_top, "to" => cylinder_radius*1.2)
                                     ),
                                     "phi" => Dict("from" => 0, "to" => 360),
                                     "h" => meta.geometry.taper.top.outer.height_in_mm,
                                     "origin" => Dict("z" => cylinder_height - cone_height/2)
                                 )
-                            ) # upper cone
+                            ), 
+                            Dict( # "Upper cone"
+                                "cone" => Dict(
+                                    "r" => Dict(
+                                        "bottom" => Dict("from" => 0, "to" => borehole_r_bottom),
+                                        "top" => Dict("from" => 0, "to" => borehole_r_top)
+                                    ),
+                                    "phi" => Dict("from" => 0, "to" => 360),
+                                    "h" => borehole_height*1.2,
+                                    "origin" => Dict("z" => cylinder_height - 1.2*borehole_height/2 + 0.1*borehole_height/2 )
+                                )
+                            )
                         ]
                     )
                 ),
@@ -356,6 +367,90 @@ Set arbitrary envorinment variables and simulation settings (used only for geome
 function ssd_config(det_meta::AbstractString)
     ssd_config(propdict(det_meta), Environment(), SSDSimulator())
 end
+
+function construct_ssd_simulation(det_meta::AbstractString, env::Environment, sim_settings::SSDSimulator)
+    T = Float32
+    CS = SolidStateDetectors.Cylindrical
+    config_dict = propdict(det_meta)
+    sim = Simulation{T,CS}() 
+    sim.medium = SolidStateDetectors.material_properties[SolidStateDetectors.materials["vacuum"]]
+    sim.detector = LEGEND_SolidStateDetector(T, config_dict)
+    if sim_settings.comp != "2D" error("Only 2D is supported up to now.") end
+    sim.world = begin
+        crystal_radius = to_SSD_units(T, config_dict.geometry.radius_in_mm, u"mm")
+        crystal_height = to_SSD_units(T, config_dict.geometry.height_in_mm, u"mm")
+        SolidStateDetectors.World{T, 3, CS}((
+            SolidStateDetectors.SSDInterval{T, :closed, :closed, :r0, :infinite}(zero(T), crystal_radius * 1.2),
+            SolidStateDetectors.SSDInterval{T, :closed, :closed, :reflecting, :reflecting}(zero(T), zero(T)),
+            SolidStateDetectors.SSDInterval{T, :closed, :closed, :infinite, :infinite}(-0.2*crystal_height, 1.2*crystal_height)
+        ))
+    end 
+    sim.weighting_potentials = Missing[ missing for i in 1:2]
+    sim
+end
+
+function simulate_fields(det_meta::AbstractString, env::Environment, sim_settings::SSDSimulator)
+    sim = construct_ssd_simulation(det_meta, env, sim_settings)
+
+    field_sim_settings = (
+        refinement_limits = [0.2, 0.1, 0.05, 0.02, 0.01],
+        depletion_handling = true,
+        convergence_limit = 1e-7,
+        max_n_iterations = 50000,
+        verbose = false
+    )
+
+    println("...electric potential")
+    calculate_electric_potential!( sim; field_sim_settings...)
+
+    println("...electric field")
+    calculate_electric_field!(sim, n_points_in_φ = 72)
+
+    for contact in sim.detector.contacts
+        println("...weighting potential $(contact.id)")
+        calculate_weighting_potential!(sim, contact.id; field_sim_settings...)
+    end
+
+    return sim
+end
+
+function simulate_fields(
+        det_meta::AbstractString, 
+        env::Environment, 
+        sim_settings::SSDSimulator, 
+        cached_name::AbstractString; 
+        overwrite::Bool = false
+    )
+    det_h5 = joinpath("cache", cached_name*"_ssd.h5f")
+    return if !isfile(det_h5) || overwrite
+        @info("Simulating $cached_name with SSD from scratch for given settings")
+        sim = simulate_fields(det_meta, env, sim_settings)
+        if !ispath(dirname(det_h5)) mkpath(dirname(det_h5)) end
+        HDF5.h5open(det_h5, "w") do h5f
+            LegendHDF5IO.writedata( h5f, "SSD_electric_potential", NamedTuple(sim.electric_potential))
+            LegendHDF5IO.writedata( h5f, "SSD_point_types", NamedTuple(sim.point_types))
+            LegendHDF5IO.writedata( h5f, "SSD_q_eff_fix", NamedTuple(sim.q_eff_fix))
+            LegendHDF5IO.writedata( h5f, "SSD_q_eff_imp", NamedTuple(sim.q_eff_imp))
+            LegendHDF5IO.writedata( h5f, "SSD_dielectric_distribution", NamedTuple(sim.ϵ_r))
+            LegendHDF5IO.writedata( h5f, "SSD_electric_field", NamedTuple(sim.electric_field))
+            for i in eachindex(sim.weighting_potentials)
+                LegendHDF5IO.writedata( h5f, "SSD_weighting_potential_$(i)", NamedTuple(sim.weighting_potentials[i]))
+            end
+        end     
+        # SolidStateDetectors.ssd_write(det_h5, sim)
+        @info("-> Saved cached simulation to $det_h5")
+        sim
+    else
+        sim = construct_ssd_simulation(det_meta, env, sim_settings)
+        @info("Reading SSD simulation from cached file $det_h5")
+        HDF5.h5open(det_h5, "r") do h5f
+            sim.electric_potential = ElectricPotential(LegendHDF5IO.readdata(h5f, "SSD_electric_potential"));
+            sim.point_types = PointTypes(LegendHDF5IO.readdata(h5f, "SSD_point_types"));
+        end    
+        sim
+    end
+end
+
 
 
 """
