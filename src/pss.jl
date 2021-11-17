@@ -111,7 +111,7 @@ function simulate_waveforms(stp_events::Table, detector::SolidStateDetectors.Sim
     contact_charge_signals = SolidStateDetectors.simulate_waveforms(
             stp_events,
             detector,
-            max_nsteps = 4000,
+            max_nsteps = 20000,
             Δt = 1u"ns",
             verbose = false);
 
