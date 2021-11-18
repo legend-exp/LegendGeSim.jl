@@ -29,7 +29,7 @@ function stp_to_pss(stp_filepath::AbstractString, det_meta_fullpath::AbstractStr
     stp_to_pss(stp_table, det_meta_fullpath, sim_config_filename)
 end
 
-function stp_to_pss(stp_table::Table, sim::Simulation, sim_settings::SSDSimulator)
+function stp_to_pss(stp_table::Table, sim::Union{Simulation, SigGenSetup}, sim_settings::PSSimulator)
     # Right now, only use `sim_settings` to dispatch for SSD 
     # Later, waveform simulation settings could be set in the configuration file and be parsed to `sim_settings`
     @info "~.~.~.~.~ Simulate charge pulses"

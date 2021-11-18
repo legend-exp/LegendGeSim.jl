@@ -13,7 +13,7 @@ Current steps include:
     - grouping by detector
     - removing events reconstructed to be outisde of the detector
 """
-function pet_to_stp(pet_table::Table, detector_SSD::SolidStateDetectors.Simulation)
+function pet_to_stp(pet_table::Table, detector_SSD::S) where {S}
     ## in case it's the Geant4 CSV file from LegendTestData, it's already grouped correctly
     hits_by_evtno = pet_table
 
@@ -49,7 +49,7 @@ function pet_to_stp(pet_table::Table, detector_SSD::SolidStateDetectors.Simulati
     # Waveform generation has to be per detector.
     # Let's reshuffle the detector hits, grouping by event number and detector
     # @info("...grouping by detector")
-    events_per_det = RadiationDetectorSignals.group_by_evtno_and_detno(hits)    
+    events_per_det = RadiationDetectorSignals.group_by_evtno_and_detno(hits)
 
     # The hits are now grouped by event number, but separately for each detector, and sorted by detector number:
     # issorted(events_per_det.detno) # what does this do? It's not "!"    
@@ -62,14 +62,16 @@ function pet_to_stp(pet_table::Table, detector_SSD::SolidStateDetectors.Simulati
     ## ---------- This part is done for the case of multiple detectors
 
     @info "...removing events outside of the detector"
-    
+
     # We need to filter out the few events that, due to numerical effects, lie outside of the detector
     # (the proper solution is to shift them slightly, this feature will be added in the future)
     # stp_events = events_det1[findall(pts -> all(p -> T.(ustrip.(uconvert.(u"m", p))) in detector_SSD.detector, pts), events_det1.pos)]
-    stp_events = events_per_det[findall(pts -> all(p -> CartesianPoint{T}(T.(ustrip.(uconvert.(u"m", p)))) in detector_SSD.detector, pts), events_per_det.pos)]
-
+    stp_events = if S isa SolidStateDetectors.Simulation
+        events_per_det[findall(pts -> all(p -> CartesianPoint{T}(T.(ustrip.(uconvert.(u"m", p)))) in detector_SSD.detector, pts), events_per_det.pos)]
+    else
+        events_per_det
+    end
     stp_events
-
 end
 
 
@@ -115,43 +117,6 @@ function read_pet(pet_filename::AbstractString)
         read(io)
     end
 end
-
-
-# function read_pet(pet_filename::AbstractString, file_type::Type{Geant4CSVInput})
-#     open(pet_filename, file_type) do io
-#         read(io)
-#     end
-# end    
-
-
-# function read_pet(pet_filename::AbstractString, ::Type{Geant4HDF5Input})
-#     g4sfile = h5open(pet_filename, "r")
-#     g4sntuple = g4sfile["default_ntuples"]["g4sntuple"]
-
-#     evtno = read(g4sntuple["event"]["pages"])
-#     detno = read(g4sntuple["iRep"]["pages"])
-#     thit = read(g4sntuple["t"]["pages"]).*u"ns"
-#     edep = read(g4sntuple["Edep"]["pages"]).*u"MeV"
-#     volID = read(g4sntuple["volID"]["pages"])
-
-#     x = read(g4sntuple["x"]["pages"])
-#     y = read(g4sntuple["y"]["pages"])
-#     z = read(g4sntuple["z"]["pages"])
-
-#     # Construct array of positions for input to SSD
-#     n_ind = length(evtno)
-#     pos = [ SVector{3}(([ x[i], y[i], z[i] ] .* u"mm")...) for i in 1:n_ind ]
-
-#     # Construct a Table with the arrays we just constructed from the g4sfile data
-#     TypedTables.Table(
-#             evtno = evtno,
-#             detno = detno,
-#             thit = thit,
-#             edep = edep,
-#             pos = pos,
-#             volID = volID,
-#     )
-# end
 
 
 """

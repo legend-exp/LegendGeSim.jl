@@ -10,7 +10,7 @@ Construct a table with the format identical to data raw tier.
 Currently timing information in <pss_truth> is used for dummy timestamps in the output
     raw tier table.
 """
-function pss_to_raw(pss_table::Table, pss_truth::Table, simulation_settings::SSDSimulator, elec_chain::ElecChain, trigger::Trigger, daq::DAQ, noise_model::NoiseModel)
+function pss_to_raw(pss_table::Table, pss_truth::Table, simulation_settings::PSSimulator, elec_chain::ElecChain, trigger::Trigger, daq::DAQ, noise_model::NoiseModel)
 
     result = process_waveforms(pss_table, simulation_settings, elec_chain, trigger, daq, noise_model)
    
@@ -89,12 +89,12 @@ Noise is simulated based on the given <noise_model>.
 The output table contains the resulting DAQ waveforms, simulated online energy after tigger,
     baselines and their RMS, needed for the raw tier table.
 """
-function process_waveforms(pss_table::Table, sim_settings::SSDSimulator, elec_chain::GenericElecChain, trigger::Trigger, daq::DAQ, noise_model::NoiseModel) 
+function process_waveforms(pss_table::Table, sim::PSSimulator, elec_chain::GenericElecChain, trigger::Trigger, daq::DAQ, noise_model::NoiseModel)
     # Create arrays to be filled with results, and online energy
-    n_waveforms = size(pss_table.waveform,1)
+    n_waveforms = size(pss_table.waveform, 1)
     result = Table(
         wf_array = Array{RDWaveform}(undef, n_waveforms),
-        online_energy = Array{typeof(1.0*energy_unit)}(undef, n_waveforms),
+        online_energy = Array{typeof(1.0 * energy_unit)}(undef, n_waveforms),
         baseline = Array{T}(undef, n_waveforms),
         baseline_rms = Array{T}(undef, n_waveforms)
     )
@@ -110,7 +110,7 @@ function process_waveforms(pss_table::Table, sim_settings::SSDSimulator, elec_ch
     elec_chain.preamp.gain = preamp_gain(elec_chain.preamp, noise_model)
     trigger.threshold = trigger_threshold(trigger, elec_chain.preamp, noise_model)
 
-  
+
     ## ---- temporary
     # SSD v0.7 returns the waveform in units of charge. For now, convert it back to energy (in keV).
 
@@ -120,36 +120,41 @@ function process_waveforms(pss_table::Table, sim_settings::SSDSimulator, elec_ch
         if (i % 100 == 0)
             println("$i / $n_waveforms")
         end
-    
+
         wf = pss_table.waveform[i]
-        wf = RDWaveform(wf.time, ustrip.(wf.value) .* ustrip(germanium_ionization_energy)) # SSD v0.7 returns the waveform in units of charge. 
-    
+        wf = if sim isa SSDSimulator
+            RDWaveform(wf.time, ustrip.(wf.value) .* ustrip(germanium_ionization_energy)) # SSD v0.7 returns the waveform in units of charge. 
+        else
+            # RDWaveform(wf.time, ustrip.(wf.value) .* ustrip(germanium_ionization_energy)) # SSD v0.7 returns the waveform in units of charge. 
+            RDWaveform(wf.time, wf.value)
+        end
+
         ## invert the pulse if it came from the n+ contact
         sign = wf.value[end] < 0 ? -1 : 1
         wf = RDWaveform(wf.time, sign * wf.value)
-    
+
         ## negative values control - TEMP
         # for now simply replace with zero 
         wf = RDWaveform(wf.time, remove_negative.(wf.value))
-    
+
         # extend tail and baseline long enough for future DAQ processing
         wf = add_tail_and_baseline(wf, elec_chain.fadc, daq)
-    
+
         # obtain current from charge
         wf = differentiate(wf)
-    
+
         # simulate electronics chain
         wf = simulate(wf, elec_chain, noise_model)
-    
+
         # simulate trigger
         trigger_index, online_energy = simulate(wf, trigger)
-    
+
         # simulate DAQ
         wf = simulate(wf, trigger_index, daq)
-    
+
         ## fill the wf array
         result.wf_array[i] = wf
-    
+
         # if online energy is zero, means didn't trigger
         # convert online energy to keV
         result.online_energy[i] = trigger_index == 0 ? 0u"keV" : uconvert(u"keV", online_energy / elec_chain.preamp.gain * germanium_ionization_energy)
