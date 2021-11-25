@@ -64,10 +64,10 @@ Construct SiggeSimulator instance based on simulation
     configuration given in <sim_conf>.
 """
 function SiggenSimulator(sim_conf::PropDict)
-    @info "Taking fieldgen input from $(sim_conf.simulation.fieldgen_config)"
-    SiggenSimulator(
-        sim_conf.simulation.fieldgen_config,
-        sim_conf.simulation.drift_vel
+    # @info "Taking fieldgen input from $(sim_conf.simulation.fieldgen_config)"
+    SiggenSimulator( 
+        haskey(sim_conf.simulation, "fieldgen_config") ? sim_conf.simulation.fieldgen_config : "fieldgen_settings.txt",
+        haskey(sim_conf.simulation, "drift_vel") ? sim_conf.simulation.drift_vel : "drift_vel_tcorr.tab"
     )
 end
 
@@ -148,6 +148,7 @@ Constructs and returns a table with resulting pulses and a pss truth table
     (may be abolished in the future as unnecessary)    
 """
 function simulate_waveforms(stp_events::Table, detector::SigGenSetup)
+    T = Float32 # This should be somehow defined and be passed properly
     @info("~.~.~ Siggen")
 
     nevents = length(stp_events)

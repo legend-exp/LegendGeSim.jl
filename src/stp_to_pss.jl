@@ -1,3 +1,9 @@
+function stp_to_pss(stp_table::Table, sim, config::LegendGeSimConfig)
+    Simulator = config.dict.simulation.method == "SSD" ? SSDSimulator : SiggenSimulator
+    sim_settings = Simulator(config.dict)
+    stp_to_pss(stp_table, sim, sim_settings)
+end
+
 """
     stp_to_pss(stp_table, det_meta, env, ps_simulator, noise_model, config_name)
 

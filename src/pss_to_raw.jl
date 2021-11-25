@@ -1,3 +1,13 @@
+function pss_to_raw(pss_table::Table, pss_truth::Table, config::LegendGeSimConfig)
+    Simulator = config.dict.simulation.method == "SSD" ? SSDSimulator : SiggenSimulator
+    sim_settings = Simulator(config.dict)
+    elec_chain = ElecChain(config.dict)
+    trigger = Trigger(config.dict)
+    daq = DAQ(config.dict)
+    noise_model = NoiseModel(config.dict)
+    pss_to_raw(pss_table, pss_truth, sim_settings, elec_chain, trigger, daq, noise_model)
+end
+
 """
     pss_to_raw(pss_table, pss_truth, simulation_settings, elec_chain, trigger, daq, noise_model)
 
@@ -90,6 +100,7 @@ The output table contains the resulting DAQ waveforms, simulated online energy a
     baselines and their RMS, needed for the raw tier table.
 """
 function process_waveforms(pss_table::Table, sim::PSSimulator, elec_chain::GenericElecChain, trigger::Trigger, daq::DAQ, noise_model::NoiseModel)
+    T = Float32 # This should be somehow defined and be passed properly
     # Create arrays to be filled with results, and online energy
     n_waveforms = size(pss_table.waveform, 1)
     result = Table(

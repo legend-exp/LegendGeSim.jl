@@ -1,14 +1,22 @@
+function simulate_fields(config::LegendGeSimConfig, args...; kwargs...)
+    Simulator = config.dict.simulation.method == "SSD" ? SSDSimulator : SiggenSimulator
+    sim_settings = Simulator(config.dict)
+    env = Environment(config.dict)
+    cached_name = config.dict.simulation.cached_name
+    simulate_fields(config.dict.detector_metadata, env, sim_settings, cached_name, args...; kwargs...)
+end
+
 ############
 ### FieldGen
 
 function simulate_fields(
-    det_meta::AbstractString,
+    det_meta::PropDict,
     env::Environment,
     sim_settings::SiggenSimulator,
     cached_name::AbstractString;
     overwrite::Bool = false
 )
-    simulate_detector(propdict(det_meta), env, cached_name, sim_settings; overwrite)
+    simulate_detector(det_meta, env, cached_name, sim_settings; overwrite)
 end
 
 """
@@ -33,7 +41,7 @@ function simulate_detector(
     # returns the name of the resulting siggen config file
     # and the name of (already or to be) generated weighting potential file
     siggen_config_name, fieldgen_wp_name = siggen_config(det_meta, env, ps_simulator, cached_name)
-    fieldgen_wp_name = joinpath("cache", fieldgen_wp_name)
+    # fieldgen_wp_name = joinpath("cache", fieldgen_wp_name)
 
     # if the WP file with such a name exists...
     if !isfile(fieldgen_wp_name) || overwrite
@@ -70,22 +78,32 @@ function siggen_config(meta::PropDict, env::Environment, siggen_sim::SiggenSimul
     println("...detector geometry")
     siggen_geom = meta2siggen(meta, env)
 
+    if !ispath("cache") mkpath("cache") end
+
     # construct lines for future siggen config file 
     detector_lines = Vector{String}()
     push!(detector_lines, "# detector related parameters")
     for (param, value) in siggen_geom
         push!(detector_lines, "$param   $value")
     end
-
     println("...fieldgen configuration")
     # create filenames for future/existing fieldgen output 
-    fieldgen_wp_name = joinpath("fieldgen", cached_name * "_fieldgen_WP.dat")
     fieldgen_names = Dict(
-        "drift_name" => joinpath("..", siggen_sim.drift_vel),
+        "drift_name" => cached_name * "_" * siggen_sim.drift_vel,
         # "drift_name" => joinpath("..", "data", "drift_vel_tcorr.tab"),
-        "field_name" => joinpath("fieldgen", cached_name * "_fieldgen_EV.dat"),
-        "wp_name" => fieldgen_wp_name
+        "field_name" => cached_name * "_fieldgen_EV.dat",
+        "wp_name" => cached_name * "_fieldgen_WP.dat"
     )
+    if !isfile(joinpath("cache", fieldgen_names["drift_name"])) 
+        default_drift_file = joinpath(dirname(@__DIR__), "examples", "configs", "drift_vel_tcorr.tab")
+        cp(default_drift_file, joinpath("cache", fieldgen_names["drift_name"]))
+    end
+    if !isfile(joinpath("cache", fieldgen_names["field_name"])) 
+        touch(joinpath("cache", fieldgen_names["field_name"]))
+    end
+    if !isfile(joinpath("cache", fieldgen_names["wp_name"])) 
+        touch(joinpath("cache", fieldgen_names["wp_name"]))
+    end
 
     # add corresponding lines to existing detector geometry lines
     push!(detector_lines, "")
@@ -94,8 +112,8 @@ function siggen_config(meta::PropDict, env::Environment, siggen_sim::SiggenSimul
         push!(detector_lines, "$param   $value")
     end
 
-    # read lines from user input for fieldgen
-    fieldgen_lines = readlines(open(siggen_sim.fieldgen_config))
+    # # read lines from user input for fieldgen
+    fieldgen_lines = readlines(open(joinpath(dirname(@__DIR__), "examples", "configs", "fieldgen_settings.txt")))
     fieldgen_lines = replace.(fieldgen_lines, "\t" => "   ")
 
     # unite constructed detector geometry and fieldgen settings
@@ -103,15 +121,13 @@ function siggen_config(meta::PropDict, env::Environment, siggen_sim::SiggenSimul
 
     # write a siggen/fieldgen config file 
     sig_conf_name = joinpath("cache", cached_name * "_siggen_config.txt")
-    if !ispath("cache")
-        mkpath("cache")
-    end
+    
     writedlm(sig_conf_name, total_lines)
     println("...fieldgen/siggen config written to $sig_conf_name")
 
     # return resulting fieldgen/siggen config name 
     # (currently kinda redundant but that's because we have no idea what's gonna happen later)
-    sig_conf_name, fieldgen_wp_name
+    sig_conf_name, fieldgen_names["wp_name"]
 end
 
 
@@ -193,19 +209,18 @@ and on envorinmental settings specified in `env` and on simulational settings sp
 
 ToDo: Actually use `env`. 
 """
-function construct_ssd_simulation(det_meta::AbstractString, env::Environment, sim_settings::SSDSimulator)
+function construct_ssd_simulation(det_meta::PropDict, env::Environment, sim_settings::SSDSimulator)
     T = Float32
     CS = SolidStateDetectors.Cylindrical
-    config_dict = propdict(det_meta)
     sim = Simulation{T,CS}()
     sim.medium = SolidStateDetectors.material_properties[SolidStateDetectors.materials["vacuum"]]
-    sim.detector = LEGEND_SolidStateDetector(T, config_dict)
+    sim.detector = LEGEND_SolidStateDetector(T, det_meta)
     if sim_settings.comp != "2D"
         error("Only 2D is supported up to now.")
     end
     sim.world = begin
-        crystal_radius = to_SSD_units(T, config_dict.geometry.radius_in_mm, u"mm")
-        crystal_height = to_SSD_units(T, config_dict.geometry.height_in_mm, u"mm")
+        crystal_radius = to_SSD_units(T, det_meta.geometry.radius_in_mm, u"mm")
+        crystal_height = to_SSD_units(T, det_meta.geometry.height_in_mm, u"mm")
         SolidStateDetectors.World{T,3,CS}((
             SolidStateDetectors.SSDInterval{T,:closed,:closed,:r0,:infinite}(zero(T), crystal_radius * 1.2),
             SolidStateDetectors.SSDInterval{T,:closed,:closed,:reflecting,:reflecting}(zero(T), zero(T)),
@@ -216,7 +231,7 @@ function construct_ssd_simulation(det_meta::AbstractString, env::Environment, si
     sim
 end
 
-function simulate_fields(det_meta::AbstractString, env::Environment, sim_settings::SSDSimulator)
+function simulate_fields(det_meta::PropDict, env::Environment, sim_settings::SSDSimulator)
     sim = construct_ssd_simulation(det_meta, env, sim_settings)
 
     field_sim_settings = (
@@ -242,20 +257,21 @@ function simulate_fields(det_meta::AbstractString, env::Environment, sim_setting
 end
 
 function simulate_fields(
-    det_meta::AbstractString,
+    det_meta::PropDict,
     env::Environment,
     sim_settings::SSDSimulator,
     cached_name::AbstractString;
     overwrite::Bool = false
 )
-    det_h5 = joinpath("cache", cached_name * "_ssd.h5f")
-    return if !isfile(det_h5) || overwrite
-        @info("Simulating $cached_name with SSD from scratch for given settings")
+
+    h5fn = joinpath("cache", cached_name * "_fields_ssd.h5f")
+    return if !isfile(h5fn) || overwrite
+        @info("Simulating $h5fn with SSD from scratch for given settings")
         sim = simulate_fields(det_meta, env, sim_settings)
-        if !ispath(dirname(det_h5))
-            mkpath(dirname(det_h5))
+        if !ispath(dirname(h5fn))
+            mkpath(dirname(h5fn))
         end
-        HDF5.h5open(det_h5, "w") do h5f
+        HDF5.h5open(h5fn, "w") do h5f
             LegendHDF5IO.writedata(h5f, "SSD_electric_potential", NamedTuple(sim.electric_potential))
             LegendHDF5IO.writedata(h5f, "SSD_point_types", NamedTuple(sim.point_types))
             LegendHDF5IO.writedata(h5f, "SSD_q_eff_fix", NamedTuple(sim.q_eff_fix))
@@ -266,15 +282,22 @@ function simulate_fields(
                 LegendHDF5IO.writedata(h5f, "SSD_weighting_potential_$(i)", NamedTuple(sim.weighting_potentials[i]))
             end
         end
-        # SolidStateDetectors.ssd_write(det_h5, sim)
-        @info("-> Saved cached simulation to $det_h5")
+        # SolidStateDetectors.ssd_write(h5fn, sim)
+        @info("-> Saved cached simulation to $h5fn")
         sim
     else
         sim = construct_ssd_simulation(det_meta, env, sim_settings)
-        @info("Reading SSD simulation from cached file $det_h5")
-        HDF5.h5open(det_h5, "r") do h5f
+        @info("Reading SSD simulation from cached file $h5fn")
+        HDF5.h5open(h5fn, "r") do h5f
             sim.electric_potential = ElectricPotential(LegendHDF5IO.readdata(h5f, "SSD_electric_potential"))
             sim.point_types = PointTypes(LegendHDF5IO.readdata(h5f, "SSD_point_types"))
+            sim.q_eff_fix = EffectiveChargeDensity(LegendHDF5IO.readdata(h5f, "SSD_q_eff_fix"))
+            sim.q_eff_imp = EffectiveChargeDensity(LegendHDF5IO.readdata(h5f, "SSD_q_eff_imp"))
+            sim.ϵ_r = DielectricDistribution(LegendHDF5IO.readdata(h5f, "SSD_dielectric_distribution"))
+            sim.electric_field = ElectricField(LegendHDF5IO.readdata(h5f, "SSD_electric_field"))
+            for i in eachindex(sim.weighting_potentials)
+                sim.weighting_potentials[i] = WeightingPotential(LegendHDF5IO.readdata(h5f, "SSD_weighting_potential_$(i)"))
+            end
         end
         sim
     end

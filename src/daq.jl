@@ -58,6 +58,7 @@ RDWaveform, Int, DAQ -> RDWaveform
 Simulate how the DAQ stores the waveform after it receives a trigger.
 """
 function simulate(wf::RDWaveform, trigger_index::Int, daq::GenericDAQ)
+    T = Float32 # This should be somehow defined and be passed properly
     # the stored waveform will start from zero
     # and go until the number of samples DAQ is configured to save
     ts = range(T(0)u"ns", step = step(wf.time), length = daq.nsamples)
