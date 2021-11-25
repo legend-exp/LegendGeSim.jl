@@ -1,6 +1,6 @@
 # This file is a part of LegendGeSim.jl, licensed under the MIT License (MIT).
 
-to_SSD_units(::Type{T}, x, unit) = T(SolidStateDetectors.to_internal_units(x*unit)) 
+to_SSD_units(::Type{T}, x, unit) where {T} = T(SolidStateDetectors.to_internal_units(x*unit)) 
 
 function LEGEND_SolidStateDetector(::Type{T}, meta::PropDict) where {T}
         # Not all possible configurations are yet implemented!

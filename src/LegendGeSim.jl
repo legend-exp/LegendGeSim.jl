@@ -50,19 +50,12 @@ using TypedTables
 using Unitful
 
 using SolidStateDetectors: ConstructiveSolidGeometry as CSG
-# using Plots
-
-
-T = Float32
 
 const energy_unit = u"keV"
 const ns_unit = u"ns"
 const μs_unit = u"μs"
 
 const germanium_ionization_energy = SolidStateDetectors.material_properties[:HPGe].E_ionisation # in eV
-
-Random.seed!(123) # only for testing
-
 
 include("sim_config.jl")
 include("pss.jl")
