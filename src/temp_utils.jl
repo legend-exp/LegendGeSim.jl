@@ -121,3 +121,7 @@ Otherwise the final threshold is calculated based on <preamp> gain.
 function trigger_threshold(trigger::Trigger, preamp::GenericPreAmp, noise_model::NoiseFromData)
     trigger.threshold_keV == 0u"keV" ? std(noise_model.baseline_catalog.waveform[1].value) * 3 : uconvert(u"eV", trigger.threshold_keV) / germanium_ionization_energy * preamp.gain
 end
+
+
+capacitance_matrix(sim::Simulation) = calculate_capacitance_matrix(sim)
+capacitance_matrix(sim::SigGenSetup) = [sim.capacitance * u"pF" missing; missing missing]

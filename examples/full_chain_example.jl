@@ -44,11 +44,8 @@ plot(
     full_det = true
 )
 
-C = if sim isa SSD.Simulation
-    SSD.calculate_capacitance_matrix(sim)
-else
-    sim.capacitance * u"pF"
-end
+C = LegendGeSim.capacitance_matrix(sim)
+
 
 ## Load the energy depositions hits 
 geant4_output_evt_table = LegendGeSim.read_pet(geant4_output_hit_filename); # could also in the HDF5 Format -> LegendTextIO.jl & LegendHDF5IO.jl

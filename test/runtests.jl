@@ -19,7 +19,7 @@ testdata_path = joinpath(LegendTestData.legend_test_data_path(), "data", "ldsim"
 
         sim = LegendGeSim.simulate_fields(config)
 
-        C = calculate_capacitance_matrix(sim) 
+        C = LegendGeSim.capacitance_matrix(sim)
 
         @testset "Capacitances" begin   
             @test isapprox(ustrip(C[1,2]), -3.25, atol = 0.2)
