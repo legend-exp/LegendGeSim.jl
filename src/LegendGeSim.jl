@@ -15,25 +15,23 @@ using Clustering
 using CurveFit
 using DelimitedFiles
 using Distributions
-using DSP # Julia's Digital Signal Processor (DSP) Package
+using DSP 
 using ElasticArrays
 using EncodedArrays
 using FillArrays
-using HDF5 # later not supposed to be here, use LegendHDF5IO functions
+using HDF5
 using IntervalSets
 using JSON
 using LegendDataTypes
 using LegendHDF5IO
 using LegendTextIO
-# using LegendTextIO # Geant4CSVInput
 using LinearAlgebra
 using LsqFit
 using MJDSigGen
-# using ProgressMeter
 using Parameters
 using Polynomials
 using PropDicts
-using RadiationDetectorDSP # dev branch
+using RadiationDetectorDSP 
 using RadiationDetectorSignals
 using RadiationSpectra
 using Random
