@@ -36,6 +36,7 @@ Construct a GenericFADC instance based on simulation
     configuration <sim_conf>
 """
 function GenericFADC(sim_conf::PropDict)
+    T = Float32 # This should be somehow defined and be passed properly
     GenericFADC(
         Δt = haskey(sim_conf.setup.fadc, :sampling_rate) ? uconvert(u"ns", inv(T(sim_conf.setup.fadc.sampling_rate)u"MHz")) : T(sim_conf.setup.fadc.sampling_interval)u"ns",
     )
@@ -73,6 +74,7 @@ Simulate effects of FADC module <fadc> on the waveform <wf>
     (sampling and digitization)
 """
 function simulate(wf::RDWaveform, fadc::GenericFADC)   
+    T = Float32 # This should be somehow defined and be passed properly
     # resample -> currently simply pick every Nth sample, more elaborate simulation later
     wf_sampled = wf.value[begin : Int(fadc.Δt/step(wf.time)) : end]
     t_sampled = range(T(0)u"ns", step = fadc.Δt, length = length(wf_sampled))

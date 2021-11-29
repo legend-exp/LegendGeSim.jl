@@ -1,3 +1,9 @@
+function stp_to_pss(stp_table::Table, sim, config::LegendGeSimConfig)
+    Simulator = config.dict.simulation.method == "SSD" ? SSDSimulator : SiggenSimulator
+    sim_settings = Simulator(config.dict)
+    stp_to_pss(stp_table, sim, sim_settings)
+end
+
 """
     stp_to_pss(stp_table, det_meta, env, ps_simulator, noise_model, config_name)
 
@@ -10,19 +16,14 @@ Simulate waveforms based on stepping info given in <stp_table>,
 The output is a table with simulated pulses, and a table with simulation truth
     (may be abolished in the future since basically corresponds to stp table)
 """
-function stp_to_pss(stp_table::Table, det_meta::PropDict, env::Environment, ps_simulator::PSSimulator, noise_model::NoiseModel,
+function stp_to_pss(stp_table::Table, det_meta::PropDict, env::Environment, ps_simulator::SSDSimulator, noise_model::NoiseModel,
     cached_name::AbstractString)
 
-    # add fano noise, don't add if data noise is applied later
-    # note: current understanding is that Siggen simulation does NOT include fano noise
-    @info "//\\//\\//\\ Fano noise"
-    stp_table_fano = fano_noise(stp_table, det_meta, env, noise_model)
-
     @info "_||_||_||_ Simulate detector" 
-    detector = simulate_detector(det_meta, env, cached_name, ps_simulator)
+    sim = simulate_fields(det_meta, env, ps_simulator, cached_name)
 
     @info "~.~.~.~.~ Simulate charge pulses"
-    simulate_waveforms(stp_table_fano, detector)
+    simulate_waveforms(stp_table, sim)
 end
 
 
@@ -33,6 +34,14 @@ function stp_to_pss(stp_filepath::AbstractString, det_meta_fullpath::AbstractStr
     
     stp_to_pss(stp_table, det_meta_fullpath, sim_config_filename)
 end
+
+function stp_to_pss(stp_table::Table, sim::Union{Simulation, SigGenSetup}, sim_settings::PSSimulator)
+    # Right now, only use `sim_settings` to dispatch for SSD 
+    # Later, waveform simulation settings could be set in the configuration file and be parsed to `sim_settings`
+    @info "~.~.~.~.~ Simulate charge pulses"
+    simulate_waveforms(stp_table, sim)
+end
+
 
 
 function stp_to_pss(stp_table::Table, det_meta_fullpath::AbstractString, sim_config_filename::AbstractString)

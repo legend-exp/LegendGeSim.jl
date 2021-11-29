@@ -30,6 +30,7 @@ PropDict -> NoiseFromSim
 Construct a NoiseFromSim struct based on given simulation configuration <sim_conf>
 """
 function NoiseFromSim(sim_conf::PropDict)
+    T = Float32 # This should be somehow defined and be passed properly
     @info "//\\//\\// Noise simulated from scratch (fano, preamp noise)"
     noise_σ = haskey(sim_conf.setup, :preamp) ? T(sim_conf.setup.preamp.noise_sigma)u"keV" : 0u"keV"
 
@@ -123,6 +124,7 @@ RDWaveform, PreAmp -> RDWaveform
 Simulate effects of the preamplifier <preamp> on the given waveform <wf>.
 """
 function simulate_noise(wf::RDWaveform, preamp::PreAmp)
+    T = Float32 # This should be somehow defined and be passed properly
     # wf values are in eV (without u"eV" units attached), noise sigma is in keV
     noise_σ = ustrip(uconvert(u"eV", preamp.noise_σ))
     gaussian_noise_dist = Normal(T(0), T(noise_σ))

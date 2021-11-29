@@ -25,6 +25,7 @@ RDWaveform -> RDWaveform
 Differentiate a waveform using a Biquad filter
 """
 function differentiate(wf::RDWaveform)
+    T = Float32 # This should be somehow defined and be passed properly
     diff_biquad_filter = RadiationDetectorDSP.differentiator_filter(T(1)) # We want a gain of 1 here
     filter_output = filt(diff_biquad_filter, wf.value)
     # Implement a method do parse a RDWaveform to `filt`? (ToDo)

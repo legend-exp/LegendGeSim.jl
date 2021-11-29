@@ -1,3 +1,7 @@
+struct LegendGeSimConfig{DT}
+    dict::DT
+end
+
 # using Base: cache_dependencies
 """
     load_config(input_file, det_metadata, sim_config_file)
@@ -10,10 +14,10 @@ function load_config(det_metadata::AbstractString, sim_config_file::AbstractStri
     # function load_config(input_file::Union{AbstractString, Table}, det_metadata::AbstractString, sim_config_file::AbstractString)
     # construct default cached name
     cached_name = filename(sim_config_file)
-
+    
     # add detector info as simulation input
     sim_inputs = PropDict(
-        :detector_metadata => det_metadata,
+        :detector_metadata => propdict(det_metadata),
         :simulation => PropDict( :cached_name => cached_name )
     )
 
@@ -24,40 +28,40 @@ function load_config(det_metadata::AbstractString, sim_config_file::AbstractStri
     # after merging, if cached_name was present in sim_config, it will override the default one above
     sim_total = merge(sim_inputs, sim_config)
 
-    # add detector name to cached filename
-    # what? this doesn't work?? can i make it mutable?
-    # sim_total.pss.cached_name = "$(filename(sim_total.detector_metadata))_$(sim_total.pss.cached_name)"
-    # workaround
-    temp = PropDict(:pss => PropDict(:cached_name => "$(filename(sim_total.detector_metadata))_$(sim_total.simulation.cached_name)"))
-    sim_total = merge(sim_total, temp)
-    @info "(Future) cached basename: $(sim_total.simulation.cached_name)"
+    # # add detector name to cached filename
+    # # what? this doesn't work?? can i make it mutable?
+    # # sim_total.pss.cached_name = "$(filename(sim_total.detector_metadata))_$(sim_total.pss.cached_name)"
+    # # workaround
+    # temp = PropDict(:pss => PropDict(:cached_name => "$(filename(sim_total.detector_metadata))_$(sim_total.simulation.cached_name)"))
+    # sim_total = merge(sim_total, temp)
+    # @info "(Future) cached basename: $(sim_total.simulation.cached_name)"
 
     # load_config(input_file, sim_total)
-    sim_total
+    LegendGeSimConfig(sim_total)
 end
 
 
-function load_config(input_file::Union{AbstractString, Table}, sim_config::PropDict)
-    # add input
-    sim_inputs = PropDict(
-        :input_file => input_file, 
-    )
+# function load_config(input_file::Union{AbstractString, Table}, sim_config::PropDict)
+#     # add input
+#     sim_inputs = PropDict(
+#         :input_file => input_file, 
+#     )
 
-    # merge
-    # new input file will override previous input if present
-    sim_total = merge(sim_config, sim_inputs)
+#     # merge
+#     # new input file will override previous input if present
+#     sim_total = merge(sim_config, sim_inputs)
 
-    #@info "Your final simulation configuration" sim_total
+#     #@info "Your final simulation configuration" sim_total
     
-    sim_total
-end
+#     sim_total
+# end
 
 
-function load_config(input_file::Union{AbstractString, Table}, det_metadata::AbstractString, sim_config_file::AbstractString)
-    sim_config = load_config(det_metadata, sim_config_file)
+# function load_config(input_file::Union{AbstractString, Table}, det_metadata::AbstractString, sim_config_file::AbstractString)
+#     sim_config = load_config(det_metadata, sim_config_file)
 
-    load_config(input_file, sim_config)
-end
+#     load_config(input_file, sim_config)
+# end
 
 
 @with_kw struct Environment

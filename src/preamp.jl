@@ -53,6 +53,7 @@ PropDict -> GenericPreAmp
 Construct a GenericPreAmp instance based on given simulation configuration <sim_conf>
 """
 function GenericPreAmp(sim_conf::PropDict)
+    T = Float32 # This should be somehow defined and be passed properly
     GenericPreAmp(
         τ_decay=T(sim_conf.setup.preamp.t_decay)*u"μs",
         τ_rise=T(sim_conf.setup.preamp.t_rise)*u"ns",

@@ -34,6 +34,7 @@ PropDict -> TrapFilter
 Construct a TrapFilter instance based on simulation configuration given in <sim_conf>.
 """
 function TrapFilter(sim_conf::PropDict)
+    T = Float32 # This should be somehow defined and be passed properly
     TrapFilter(
         window_lengths = (sim_conf.setup.trigger.window_lengths[1],
             sim_conf.setup.trigger.window_lengths[2], sim_conf.setup.trigger.window_lengths[3]),
@@ -103,6 +104,7 @@ Returns the index on which <wf> triggered, and the estimated
     online energy based on <trap_filter> output.
 """
 function simulate(wf::RDWaveform, trigger::TrapFilter)
+    T = Float32 # This should be somehow defined and be passed properly
     trigger_window_length = sum(trigger.window_lengths)
 
     online_filter_output = zeros(T, length(wf.value) - trigger_window_length)

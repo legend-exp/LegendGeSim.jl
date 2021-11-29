@@ -1,61 +1,23 @@
-"""
-    simulate_detector(sim_config_filename)
-
-AbstractString -> <detector simulation>
-
-Simulate detector according to given simulation configuration.
-What type <detector simulation> is depends on the given method of simulation.
-"""
-function simulate_detector(sim_config::PropDict)
-    det_meta = propdict(sim_config.detector_metadata)
-    env = Environment(sim_config)
-    ps_simulator = PSSimulator(sim_config)
-
-    simulate_detector(det_meta, env, sim_config.pss.cached_name, ps_simulator)
+function simulate_fields(config::LegendGeSimConfig, args...; kwargs...)
+    Simulator = config.dict.simulation.method == "SSD" ? SSDSimulator : SiggenSimulator
+    sim_settings = Simulator(config.dict)
+    env = Environment(config.dict)
+    cached_name = config.dict.simulation.cached_name
+    simulate_fields(config.dict.detector_metadata, env, sim_settings, cached_name, args...; kwargs...)
 end
 
+############
+### FieldGen
 
-function simulate_detector(sim_config_filename::AbstractString)
-    simulate_detector(propdict(sim_config_filename))
+function simulate_fields(
+    det_meta::PropDict,
+    env::Environment,
+    sim_settings::SiggenSimulator,
+    cached_name::AbstractString;
+    overwrite::Bool = false
+)
+    simulate_detector(det_meta, env, cached_name, sim_settings; overwrite)
 end
-
-
-function simulate_detector(det_metadata::AbstractString, sim_config_filename::AbstractString)
-    # merge detector info with the rest 
-    sim_config = load_config(det_metadata, sim_config_filename)
-    simulate_detector(sim_config)
-end
-
-
-"""
-    simulate_detector(det_meta, env, config_name, ::SSDSimulator)
-
-PropDict, Environment, AbstractString -> SSD.Simulation 
-
-Look up cached SSD simulation .h5f file, and if does not exist,
-    simulate the detector according to geometry as given in LEGEND metadata <det_meta>
-    and environment settings given in <env> using SolidStateDetectors.
-The simulation will be cached based on <config_name>.
-
-"""
-function simulate_detector(det_meta::PropDict, env::Environment, cached_name::AbstractString, ssd_sim::SSDSimulator)
-    det_h5 = joinpath("cache", cached_name*"_ssd.h5f")
-    if isfile(det_h5)
-        @info("Reading SSD simulation from cached file $det_h5")
-        simulation = SolidStateDetectors.ssd_read(det_h5, Simulation)
-    else
-        @info("Simulating $cached_name with SSD from scratch for given settings")
-        ssd_conf = ssd_config(det_meta, env, ssd_sim)
-        simulation = simulate_ssd(ssd_conf)
-
-        if !ispath(dirname(det_h5)) mkpath(dirname(det_h5)) end
-        SolidStateDetectors.ssd_write(det_h5, simulation)
-        @info("-> Saved cached simulation to $det_h5")
-    end
-
-    simulation
-end    
-
 
 """
     simulate_detector(det_meta, env, config_name, ps_simulator)
@@ -68,349 +30,33 @@ Construct a fieldgen/siggen configuration file
 Look up fieldgen generated electric field and weighting potential files
     based on given <config_name>, and if not found, call fieldgen.
 """
-function simulate_detector(det_meta::PropDict, env::Environment, cached_name::AbstractString, ps_simulator::SiggenSimulator)
+function simulate_detector(
+        det_meta::PropDict,
+        env::Environment,
+        cached_name::AbstractString,
+        ps_simulator::SiggenSimulator;
+        overwrite::Bool = false
+    )
     @info "Constructing Fieldgen/Siggen configuration file"
     # returns the name of the resulting siggen config file
     # and the name of (already or to be) generated weighting potential file
     siggen_config_name, fieldgen_wp_name = siggen_config(det_meta, env, ps_simulator, cached_name)
-    fieldgen_wp_name = joinpath("cache", fieldgen_wp_name)
+    # fieldgen_wp_name = joinpath("cache", fieldgen_wp_name)
 
     # if the WP file with such a name exists...
-    if isfile(fieldgen_wp_name)
-        #...do nothing, siggen will later read the files based on the generated conifg
-        @info "Reading cached fields from $fieldgen_wp_name"
-    else
+    if !isfile(fieldgen_wp_name) || overwrite
         #...otherwise call fieldgen
         @info "_|~|_|~|_|~|_ Fieldgen simulation"
         fieldgen(siggen_config_name)
         @info "_|~|_|~|_|~|_ Fieldgen simulation complete"
+    else
+        #...do nothing, siggen will later read the files based on the generated conifg
+        @info "Reading cached fields from $fieldgen_wp_name"
     end
 
     # a SigGenSetup object
-    SigGenSetup(siggen_config_name)            
+    SigGenSetup(siggen_config_name)
 end
-
-# ------------------------------------------------------------------- SSD
-
-"""
-    simulate_ssd(ssd_config)
-
-Dict -> SSD.Simulation 
-
-Simulate detector based on given SSD config
-"""
-function simulate_ssd(ssd_config::Dict)
-
-    @info "_|~|_|~|_|~|_ SSD simulation"
-
-    simulation = Simulation(SolidStateDetector{Float32}(ssd_config))
-
-    println("...electric potential")
-    calculate_electric_potential!( simulation,
-                               max_refinements = 4)
-
-    println("...electric field")
-    calculate_electric_field!(simulation, n_points_in_φ = 72)
-
-    println("...drift field")
-    calculate_drift_fields!(simulation)
-
-    println("...weighting potential")
-    for contact in simulation.detector.contacts
-        calculate_weighting_potential!(simulation, contact.id, max_refinements = 4, n_points_in_φ = 2, verbose = false)
-    end
-
-    @info "_|~|_|~|_|~|_ SSD detector simulation complete"
-
-    simulation
-end
-
-
-"""
-    ssd_config(meta, env)
-
-PropDict, Environment -> Dict 
-
-Construct SSD type config based on
-    geometry as given in LEGEND metadata <meta>
-    and environment settings given in <env>.
-""" 
-function ssd_config(meta::PropDict, env::Environment, ssd_sim::SSDSimulator)
-    ## some parameters that will be used multiple times later
-    # or need a calculation
-    cylinder_height = meta.geometry.height_in_mm
-    cylinder_radius = meta.geometry.radius_in_mm
-    borehole_height = cylinder_height - meta.geometry.well.gap_in_mm
-    borehole_r_bottom = meta.geometry.well.radius_in_mm
-    borehole_r_top = borehole_r_bottom + borehole_height * tan(meta.geometry.taper.top.inner.angle_in_deg / 180. * π)
-    cone_r_top = cylinder_radius - meta.geometry.taper.top.outer.height_in_mm * tan(meta.geometry.taper.top.outer.angle_in_deg / 180. * π)
-    cone_height = meta.geometry.taper.top.outer.height_in_mm
-
-    ## grid 
-    # kind of initialize so that it exists out of the loop?    
-    grid = Dict()
-
-    if ssd_sim.coord == "cylindrical"
-        grid = Dict(
-            "axes" => Dict(
-                "r" => Dict("to" => cylinder_radius*1.2, "boundaries" => "inf"), # leave some margin
-                "phi" => Dict("from" => 0, "to" => ssd_sim.comp == "3D" ? 360 : 0, "boundaries" => "periodic"),
-                "z" => Dict(
-                    "from" => -0.2*cylinder_height,
-                    "to" => cylinder_height*1.2, # leave some margin
-                    "boundaries" => Dict("left" => "inf", "right" => "inf")
-                )
-            )
-        )
-    else # cartesian
-        grid = Dict(
-            "axes" => Dict(
-                "x" => Dict("from" => -cylinder_radius*1.2, "to" => cylinder_radius*1.2, "boundaries" => "inf"),
-                "y" => Dict("from" => -cylinder_radius*1.2, "to" => cylinder_radius*1.2, "boundaries" => "inf"),
-                "z" => Dict("from" => -0.2*cylinder_height, "to" => cylinder_height*1.2, "boundaries" => "inf")
-            )
-        )
-    end
-
-    grid = merge(grid, Dict("coordinates" => ssd_sim.coord))
-
-    ## charge density model
-    # kind of initialize so that it exists out of the loop?    
-    charge_density_model = Dict()
-
-    if ssd_sim.coord == "cylindrical"
-        charge_density_model = Dict(
-            "r" => Dict("init" => 0, "gradient" => 0),
-            "phi" => Dict("init" => 0.0, "gradient" => 0.0),
-            "z" => Dict("init" => -1e7, "gradient" => 1e5)
-        )
-    else # cartesian
-        charge_density_model = Dict(
-            "x" => Dict("init" => 0.0, "gradient" => 0.000),
-            "y" => Dict("init" => 0.0, "gradient" => 0.0),
-            "z" => Dict("init" => 1e7, "gradient" => 5e4)
-        )
-    end
-
-    # for now we only use linear charge density model for either cartesian or cylindrical coordinates
-    # charge_density_model["name"] = "linear"
-    charge_density_model = merge(charge_density_model, Dict("name" => "linear"))
-
-    ## geometry
-    dct = Dict(
-        "name" => meta.det_name,
-        "medium" => env.medium,
-        "units" => Dict(
-            "length" => "mm",
-            "angle" => "deg",
-            "potential" => "V",
-            "temperature" => "K"
-        ),
-        "grid" => grid,
-        "objects" => [
-            # crystal
-            Dict(
-                "type" => "semiconductor",
-                "material" => "HPGe",
-                "bulk_type" => "p",
-                "temperature" => env.crystal_t,
-                "charge_density_model" => charge_density_model,
-                "geometry" => Dict(
-                    "type" => "difference",
-                    "parts" => [
-                        # crystal
-                        Dict(
-                            "type" => "difference",
-                            "parts" => [
-                                # cylinder
-                                Dict(
-                                    "name" => "Initial Cylinder",
-                                    "type" => "tube",
-                                    "r" => Dict(
-                                        "from" => 0.0,
-                                        "to" => cylinder_radius,
-                                    ),
-                                    "phi" => Dict("from" => 0.0, "to" => 360.0),
-                                    "h" => cylinder_height,
-                                    "translate" => Dict("z" => 0.0)
-                                )#, # cylinder
-                                # upper cone
-                                Dict(
-                                    "name" => "Upper cone",
-                                    "type" => "cone",
-                                    "r" => Dict(
-                                        "bottom" => Dict("from" => cylinder_radius, "to" => cylinder_radius+1),
-                                        "top" => Dict("from" => cone_r_top, "to" => cylinder_radius+1)
-                                    ),
-                                    "phi" => Dict("from" => 0.0, "to" => 360.0),
-                                    "h" => meta.geometry.taper.top.outer.height_in_mm,
-                                    "translate" => Dict("z" => cylinder_height - cone_height)
-                                ) # upper cone
-                            ] # crystal parts
-                        ), # crystal
-                        # borehole
-                        Dict(
-                            "name" => "borehole",
-                            "type" => "cone",
-                            "r" => Dict(
-                                "bottom" => Dict(
-                                    "from" => 0.0,
-                                    "to" => borehole_r_bottom
-                                ),
-                                "top" => Dict(
-                                    "from" => 0.0,
-                                    "to" => borehole_r_top
-                                )
-                            ),
-                            "phi" => Dict("from" => 0.0, "to" => 360.0),
-                            "h" => borehole_height,
-                            "translate" => Dict("z" => meta.geometry.well.gap_in_mm)
-                        ), # borehole
-                        # groove
-                        Dict(
-                            "name" => "ditch",
-                            "type" => "tube",
-                            "r" => Dict(
-                                "from" => meta.geometry.groove.outer_radius_in_mm - meta.geometry.groove.width_in_mm,
-                                "to" => meta.geometry.groove.outer_radius_in_mm
-                            ),
-                            "phi" => Dict("from" => 0.0, "to" => 360.0),
-                            "h" => meta.geometry.groove.depth_in_mm
-                        ) # groove
-                    ] # parts
-                ) # geometry
-            ), # crystal
-            # p+ contact 
-            Dict(
-                "type" => "contact",
-                "material" => "HPGe",
-                "channel" => 1,
-                "potential" => 0.0,
-                "geometry" => Dict(
-                    "type" => "tube",
-                    "r" => Dict(
-                        "from" => 0.0,
-                        "to" => meta.geometry.contact.radius_in_mm
-                    ),
-                    "phi" => Dict("from" => 0.0, "to" => 360.0),
-                    "h" => meta.geometry.contact.depth_in_mm
-                )
-            ), # p+ contact
-            # n+ contact
-            Dict(
-                "type" => "contact",
-                "material" => "HPGe",
-                "channel" => 2,
-                "potential" => env.op_voltage == 0 ? meta.characterization.manufacturer.op_voltage_in_V : env.op_voltage,
-                "geometry" => Dict(
-                    "type" => "union",
-                    "parts" => [Dict() for i in 1:6] # to be filled later
-                )
-            ) # n+ contact
-        ] # objects
-    )
-
-    ## Construct n+ surface
-
-    # bottom lid
-    dct["objects"][3]["geometry"]["parts"][1] = Dict(
-        "name" => "bottom lid",
-        "type" => "tube",
-        "r" => Dict(
-            "from" => meta.geometry.groove.outer_radius_in_mm,
-            "to" => cylinder_radius # cylinder radius
-        ),
-        "phi" => Dict("from" => 0.0, "to" => 360.0),
-        "h" => 0
-    )
-
-    # side lining
-    dct["objects"][3]["geometry"]["parts"][2] = Dict(
-        "name" => "side lining",
-        "type" => "tube",
-        "r" => Dict(
-            "from" => cylinder_radius, 
-            "to" => cylinder_radius
-        ),
-        "phi" => Dict("from" => 0.0, "to" => 360.0),
-        "h" => cylinder_height - cone_height
-    )
-
-    # upper cone 
-    dct["objects"][3]["geometry"]["parts"][3] = Dict(
-        "name" => "Upper cone",
-        "type"=> "cone",
-        "r" => Dict(
-            "bottom" => Dict("from" => cylinder_radius, "to" => cylinder_radius),
-            "top" => Dict("from" => cone_r_top, "to" => cone_r_top)
-        ),
-        "phi" => Dict("from" => 0.0, "to" => 360.0),
-        "h" => cone_height,
-        "translate" => Dict("z" => cylinder_height - cone_height)
-    )
-
-    # top lid
-    dct["objects"][3]["geometry"]["parts"][4] = Dict(
-        "name" => "top lid",
-        "type" => "tube",
-        "r" => Dict(
-            "from" => borehole_r_top, 
-            "to" => cone_r_top
-        ),
-        "phi" => Dict("from" => 0.0, "to" => 360.0),
-        "h" => 0.0,
-        "translate" => Dict("z" => cylinder_height)
-    )
-
-    # borehole lining
-    dct["objects"][3]["geometry"]["parts"][5] = Dict(
-        "name" => "borehole linning",
-        "type" => "cone",
-        "r" => Dict(
-            "bottom" => Dict(
-                "from" => borehole_r_bottom, 
-                "to" => borehole_r_bottom
-            ),
-            "top" => Dict(
-                "from" => borehole_r_top,
-                "to" => borehole_r_top
-            )
-        ),
-        "phi" => Dict("from" => 0.0, "to" => 360.0),
-        "h" => borehole_height,
-        "translate" => Dict("z" => meta.geometry.well.gap_in_mm)
-    )
-
-    # borehole bottom lid
-    dct["objects"][3]["geometry"]["parts"][6] = Dict(
-        "name" => "borehole bottom lid",
-        "type" => "tube",
-        "r" => Dict(
-            "from" => 0.0,
-            "to" => borehole_r_bottom
-        ),
-        "phi" => Dict("from" => 0.0, "to" => 360.0),
-        "h" => 0.0,
-        "translate" => Dict("z" => meta.geometry.well.gap_in_mm)
-    )
- 
-
-    dct
-end
-
-
-"""
-    ssd_config(det_meta)
-
-AbstractString -> Dict 
-
-Construct SSD type config based on geometry as given in LEGEND metadata <det_meta>.
-Set arbitrary envorinment variables and simulation settings (used only for geometry visualization)
-"""
-function ssd_config(det_meta::AbstractString)
-    ssd_config(propdict(det_meta), Environment(), SSDSimulator())
-end
-
 
 """
     siggen_config(meta, env, siggen_sim, config_name)
@@ -432,22 +78,32 @@ function siggen_config(meta::PropDict, env::Environment, siggen_sim::SiggenSimul
     println("...detector geometry")
     siggen_geom = meta2siggen(meta, env)
 
+    if !ispath("cache") mkpath("cache") end
+
     # construct lines for future siggen config file 
     detector_lines = Vector{String}()
     push!(detector_lines, "# detector related parameters")
     for (param, value) in siggen_geom
         push!(detector_lines, "$param   $value")
     end
-
     println("...fieldgen configuration")
     # create filenames for future/existing fieldgen output 
-    fieldgen_wp_name = joinpath("fieldgen", cached_name*"_fieldgen_WP.dat")
     fieldgen_names = Dict(
-        "drift_name" => joinpath("..", siggen_sim.drift_vel),
+        "drift_name" => cached_name * "_" * siggen_sim.drift_vel,
         # "drift_name" => joinpath("..", "data", "drift_vel_tcorr.tab"),
-        "field_name" => joinpath("fieldgen", cached_name*"_fieldgen_EV.dat"),
-        "wp_name" => fieldgen_wp_name
+        "field_name" => cached_name * "_fieldgen_EV.dat",
+        "wp_name" => cached_name * "_fieldgen_WP.dat"
     )
+    if !isfile(joinpath("cache", fieldgen_names["drift_name"])) 
+        default_drift_file = joinpath(dirname(@__DIR__), "examples", "configs", "drift_vel_tcorr.tab")
+        cp(default_drift_file, joinpath("cache", fieldgen_names["drift_name"]))
+    end
+    if !isfile(joinpath("cache", fieldgen_names["field_name"])) 
+        touch(joinpath("cache", fieldgen_names["field_name"]))
+    end
+    if !isfile(joinpath("cache", fieldgen_names["wp_name"])) 
+        touch(joinpath("cache", fieldgen_names["wp_name"]))
+    end
 
     # add corresponding lines to existing detector geometry lines
     push!(detector_lines, "")
@@ -455,22 +111,23 @@ function siggen_config(meta::PropDict, env::Environment, siggen_sim::SiggenSimul
     for (param, value) in fieldgen_names
         push!(detector_lines, "$param   $value")
     end
-    
-    # read lines from user input for fieldgen
-    fieldgen_lines = readlines(open(siggen_sim.fieldgen_config))
+
+    # # read lines from user input for fieldgen
+    fieldgen_lines = readlines(open(joinpath(dirname(@__DIR__), "examples", "configs", "fieldgen_settings.txt")))
     fieldgen_lines = replace.(fieldgen_lines, "\t" => "   ")
 
     # unite constructed detector geometry and fieldgen settings
     total_lines = vcat(detector_lines, [""], fieldgen_lines)
 
     # write a siggen/fieldgen config file 
-    sig_conf_name = joinpath("cache", cached_name*"_siggen_config.txt")
+    sig_conf_name = joinpath("cache", cached_name * "_siggen_config.txt")
+    
     writedlm(sig_conf_name, total_lines)
     println("...fieldgen/siggen config written to $sig_conf_name")
 
     # return resulting fieldgen/siggen config name 
     # (currently kinda redundant but that's because we have no idea what's gonna happen later)
-    sig_conf_name, fieldgen_wp_name
+    sig_conf_name, fieldgen_names["wp_name"]
 end
 
 
@@ -485,37 +142,37 @@ Construct siggen type config in a form of Dict based on
 """
 function meta2siggen(meta::PropDict, env::Environment)
     Dict(
-    # crystal
+        # crystal
         # z length: crystal height
         "xtal_length" => meta.geometry.height_in_mm,
         # radius: crystal radius
         "xtal_radius" => meta.geometry.radius_in_mm,
-    # contact
+        # contact
         # point contact length
         "pc_length" => meta.geometry.contact.depth_in_mm,
         # point contact radius
         "pc_radius" => meta.geometry.contact.radius_in_mm,
-    # groove
+        # groove
         # wrap-around radius. Set to zero for ORTEC: groove outer radius
         "wrap_around_radius" => meta.geometry.groove.outer_radius_in_mm,
         # depth of ditch next to wrap-around for BEGes. Set to zero for ORTEC: groove height
         "ditch_depth" => meta.geometry.groove.depth_in_mm,
         # width of ditch next to wrap-around for BEGes. Set to zero for ORTEC: groove inner radius
         "ditch_thickness" => meta.geometry.groove.width_in_mm,
-    # borehole 
+        # borehole 
         # length of hole, for inverted-coax style
         "hole_length" => meta.geometry.height_in_mm - meta.geometry.well.gap_in_mm,
         # radius of hole, for inverted-coax style
         "hole_radius" => meta.geometry.well.radius_in_mm,
-    # tapering
+        # tapering
 
-    # comment from David Radford:
+        # comment from David Radford:
 
-    # The bottom taper is always at 45 degrees, but the top outer taper is not.
-    # It's width/angle is defined using either the outer_taper_width parameter or the taper_angle parameter.
-    # Likewise, the inner taper width/angle is defined using either the inner_taper_width parameter or the taper_angle parameter.
-    # The inner_taper_length can be anything from zero to the hole_length
-    # TODO: check if bottom taper angle is 45 deg, if not issue a warning for siggen case
+        # The bottom taper is always at 45 degrees, but the top outer taper is not.
+        # It's width/angle is defined using either the outer_taper_width parameter or the taper_angle parameter.
+        # Likewise, the inner taper width/angle is defined using either the inner_taper_width parameter or the taper_angle parameter.
+        # The inner_taper_length can be anything from zero to the hole_length
+        # TODO: check if bottom taper angle is 45 deg, if not issue a warning for siggen case
 
         # size of 45-degree taper at bottom of ORTEC-type crystal (for r=z)
         "bottom_taper_length" => meta.geometry.taper.bottom.outer.height_in_mm,
@@ -529,11 +186,11 @@ function meta2siggen(meta::PropDict, env::Environment)
         # depth of full-charge-collection boundary for Li contact (not currently used)
         "Li_thickness" => meta.geometry.dl_thickness_in_mm,
 
-    # configuration for mjd_fieldgen (calculates electric fields & weighing potentials)
+        # configuration for mjd_fieldgen (calculates electric fields & weighing potentials)
         # detector bias for fieldgen, in Volts
         "xtal_HV" => env.op_voltage == 0 ? meta.characterization.manufacturer.op_voltage_in_V : env.op_voltage,
 
-    # configuration for signal calculation 
+        # configuration for signal calculation 
         # crystal temperature in Kelvin
         "xtal_temp" => env.crystal_t
     )
@@ -541,4 +198,107 @@ end
 
 
 
+#######
+### SSD
 
+"""
+    construct_ssd_simulation(det_meta::AbstractString, env::Environment, sim_settings::SSDSimulator)
+
+Construct a `SolidStateDetectors.Simulation` based on geometry as given in LEGEND metadata `det_meta`
+and on envorinmental settings specified in `env` and on simulational settings specified in `sim_settings`.
+
+ToDo: Actually use `env`. 
+"""
+function construct_ssd_simulation(det_meta::PropDict, env::Environment, sim_settings::SSDSimulator)
+    T = Float32
+    CS = SolidStateDetectors.Cylindrical
+    sim = Simulation{T,CS}()
+    sim.medium = SolidStateDetectors.material_properties[SolidStateDetectors.materials["vacuum"]]
+    sim.detector = LEGEND_SolidStateDetector(T, det_meta)
+    if sim_settings.comp != "2D"
+        error("Only 2D is supported up to now.")
+    end
+    sim.world = begin
+        crystal_radius = to_SSD_units(T, det_meta.geometry.radius_in_mm, u"mm")
+        crystal_height = to_SSD_units(T, det_meta.geometry.height_in_mm, u"mm")
+        SolidStateDetectors.World{T,3,CS}((
+            SolidStateDetectors.SSDInterval{T,:closed,:closed,:r0,:infinite}(zero(T), crystal_radius * 1.2),
+            SolidStateDetectors.SSDInterval{T,:closed,:closed,:reflecting,:reflecting}(zero(T), zero(T)),
+            SolidStateDetectors.SSDInterval{T,:closed,:closed,:infinite,:infinite}(-0.2 * crystal_height, 1.2 * crystal_height)
+        ))
+    end
+    sim.weighting_potentials = Missing[missing for i = 1:2]
+    sim
+end
+
+function simulate_fields(det_meta::PropDict, env::Environment, sim_settings::SSDSimulator)
+    sim = construct_ssd_simulation(det_meta, env, sim_settings)
+
+    field_sim_settings = (
+        refinement_limits = [0.2, 0.1, 0.05, 0.02, 0.01],
+        depletion_handling = true,
+        convergence_limit = 1e-7,
+        max_n_iterations = 50000,
+        verbose = false
+    )
+
+    println("...electric potential")
+    calculate_electric_potential!(sim; field_sim_settings...)
+
+    println("...electric field")
+    calculate_electric_field!(sim, n_points_in_φ = 72)
+
+    for contact in sim.detector.contacts
+        println("...weighting potential $(contact.id)")
+        calculate_weighting_potential!(sim, contact.id; field_sim_settings...)
+    end
+
+    return sim
+end
+
+function simulate_fields(
+    det_meta::PropDict,
+    env::Environment,
+    sim_settings::SSDSimulator,
+    cached_name::AbstractString;
+    overwrite::Bool = false
+)
+
+    h5fn = joinpath("cache", cached_name * "_fields_ssd.h5f")
+    return if !isfile(h5fn) || overwrite
+        @info("Simulating $h5fn with SSD from scratch for given settings")
+        sim = simulate_fields(det_meta, env, sim_settings)
+        if !ispath(dirname(h5fn))
+            mkpath(dirname(h5fn))
+        end
+        HDF5.h5open(h5fn, "w") do h5f
+            LegendHDF5IO.writedata(h5f, "SSD_electric_potential", NamedTuple(sim.electric_potential))
+            LegendHDF5IO.writedata(h5f, "SSD_point_types", NamedTuple(sim.point_types))
+            LegendHDF5IO.writedata(h5f, "SSD_q_eff_fix", NamedTuple(sim.q_eff_fix))
+            LegendHDF5IO.writedata(h5f, "SSD_q_eff_imp", NamedTuple(sim.q_eff_imp))
+            LegendHDF5IO.writedata(h5f, "SSD_dielectric_distribution", NamedTuple(sim.ϵ_r))
+            LegendHDF5IO.writedata(h5f, "SSD_electric_field", NamedTuple(sim.electric_field))
+            for i in eachindex(sim.weighting_potentials)
+                LegendHDF5IO.writedata(h5f, "SSD_weighting_potential_$(i)", NamedTuple(sim.weighting_potentials[i]))
+            end
+        end
+        # SolidStateDetectors.ssd_write(h5fn, sim)
+        @info("-> Saved cached simulation to $h5fn")
+        sim
+    else
+        sim = construct_ssd_simulation(det_meta, env, sim_settings)
+        @info("Reading SSD simulation from cached file $h5fn")
+        HDF5.h5open(h5fn, "r") do h5f
+            sim.electric_potential = ElectricPotential(LegendHDF5IO.readdata(h5f, "SSD_electric_potential"))
+            sim.point_types = PointTypes(LegendHDF5IO.readdata(h5f, "SSD_point_types"))
+            sim.q_eff_fix = EffectiveChargeDensity(LegendHDF5IO.readdata(h5f, "SSD_q_eff_fix"))
+            sim.q_eff_imp = EffectiveChargeDensity(LegendHDF5IO.readdata(h5f, "SSD_q_eff_imp"))
+            sim.ϵ_r = DielectricDistribution(LegendHDF5IO.readdata(h5f, "SSD_dielectric_distribution"))
+            sim.electric_field = ElectricField(LegendHDF5IO.readdata(h5f, "SSD_electric_field"))
+            for i in eachindex(sim.weighting_potentials)
+                sim.weighting_potentials[i] = WeightingPotential(LegendHDF5IO.readdata(h5f, "SSD_weighting_potential_$(i)"))
+            end
+        end
+        sim
+    end
+end
