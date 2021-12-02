@@ -78,6 +78,7 @@ include("pet_to_raw.jl")
 
 include("waveform_utils.jl")
 include("temp_utils.jl")
+include("mjdsiggen_utils.jl")
 
 
 
