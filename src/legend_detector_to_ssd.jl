@@ -219,7 +219,7 @@ function LEGEND_SolidStateDetector(::Type{T}, meta::PropDict) where {T}
                 )
             end
 
-            if has_groove
+            if groove_outer_radius > 0
                 r_in = groove_outer_radius 
                 r_out = crystal_radius 
                 r = ((r_in, r_out), (r_in, r_out))
