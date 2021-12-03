@@ -10,8 +10,8 @@ using Unitful
 testdata_path = joinpath(LegendTestData.legend_test_data_path(), "data", "ldsim")
 
 @testset "Package LegendGeSim" begin
-    detector_metadata_file = joinpath(testdata_path, "invcoax-metadata.json") # path to my detector metadata
-    simulation_config_file = joinpath(dirname(dirname(pathof(LegendGeSim))), "examples/configs/SSD_NoiseSim.json")
+    detector_metadata_filename = joinpath(testdata_path, "invcoax-metadata.json") # path to my detector metadata
+    sim_settings_ssd_filename = joinpath(dirname(dirname(pathof(LegendGeSim))), "examples/configs/SSD_NoiseSim.json")
 
     
     @testset "Field Simulation (SSD)" begin
