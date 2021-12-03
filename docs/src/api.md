@@ -1,11 +1,5 @@
 # API
 
-```@meta
-DocTestSetup  = quote
-    using LegendGeSim
-end
-```
-
 ## Modules
 
 ```@index

@@ -7,6 +7,14 @@
 using Documenter
 using LegendGeSim
 
+# Doctest setup
+DocMeta.setdocmeta!(
+    LegendGeSim,
+    :DocTestSetup,
+    :(using LegendGeSim);
+    recursive=true,
+)
+
 makedocs(
     sitename = "LegendGeSim",
     modules = [LegendGeSim],
