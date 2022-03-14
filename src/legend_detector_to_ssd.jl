@@ -4,13 +4,13 @@ to_SSD_units(::Type{T}, x, unit) where {T} = T(SolidStateDetectors.to_internal_u
 
 function LEGEND_SolidStateDetector(::Type{T}, meta::PropDict) where {T}
         # Not all possible configurations are yet implemented!
-        # https://github.com/legend-exp/legend-metadata/blob/master/hardware/detectors/detector-metadata_1.pdf
-        # https://github.com/legend-exp/legend-metadata/blob/master/hardware/detectors/detector-metadata_2.pdf
-        # https://github.com/legend-exp/legend-metadata/blob/master/hardware/detectors/detector-metadata_3.pdf
-        # https://github.com/legend-exp/legend-metadata/blob/master/hardware/detectors/detector-metadata_4.pdf
-        # https://github.com/legend-exp/legend-metadata/blob/master/hardware/detectors/detector-metadata_5.pdf
-        # https://github.com/legend-exp/legend-metadata/blob/master/hardware/detectors/detector-metadata_6.pdf
-        # https://github.com/legend-exp/legend-metadata/blob/master/hardware/detectors/detector-metadata_7.pdf
+        # https://github.com/legend-exp/legend-metadata/blob/main/hardware/detectors/detector-metadata_1.pdf
+        # https://github.com/legend-exp/legend-metadata/blob/main/hardware/detectors/detector-metadata_2.pdf
+        # https://github.com/legend-exp/legend-metadata/blob/main/hardware/detectors/detector-metadata_3.pdf
+        # https://github.com/legend-exp/legend-metadata/blob/main/hardware/detectors/detector-metadata_4.pdf
+        # https://github.com/legend-exp/legend-metadata/blob/main/hardware/detectors/detector-metadata_5.pdf
+        # https://github.com/legend-exp/legend-metadata/blob/main/hardware/detectors/detector-metadata_6.pdf
+        # https://github.com/legend-exp/legend-metadata/blob/main/hardware/detectors/detector-metadata_7.pdf
 
         gap = to_SSD_units(T, 1, u"mm")
 
