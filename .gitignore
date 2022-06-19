@@ -2,6 +2,7 @@
 *.jl.cov
 *.jl.*.cov
 *.jl.mem
+*.h5f
 .ipynb_checkpoints
 .vscode
 Manifest.toml
