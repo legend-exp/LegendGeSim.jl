@@ -19,7 +19,7 @@ function LEGEND_SolidStateDetector(::Type{T}, meta::PropDict) where {T}
         crystal_radius = to_SSD_units(T, meta.geometry.radius_in_mm, u"mm")
         crystal_height = to_SSD_units(T, meta.geometry.height_in_mm, u"mm")
 
-        semiconductor_geometry = CSG.Cone{T, CSG.ClosedPrimitive, T, Nothing}(; 
+        semiconductor_geometry = CSG.Cone{T}(CSG.ClosedPrimitive; 
             r = crystal_radius, 
             hZ = crystal_height / 2, 
             origin = CartesianPoint{T}(0, 0, crystal_height / 2)
@@ -31,7 +31,7 @@ function LEGEND_SolidStateDetector(::Type{T}, meta::PropDict) where {T}
         borehole_radius = to_SSD_units(T, meta.geometry.well.radius_in_mm, u"mm")
         has_borehole =  borehole_well < crystal_height && borehole_radius > 0
         if has_borehole
-            semiconductor_geometry -= CSG.Cone{T, CSG.ClosedPrimitive, T, Nothing}(; 
+            semiconductor_geometry -= CSG.Cone{T}(CSG.ClosedPrimitive; 
                 r = borehole_radius, 
                 hZ = borehole_height / 2 + gap, 
                 origin = CartesianPoint{T}(0, 0, borehole_well + borehole_height/2 + gap)
@@ -50,7 +50,7 @@ function LEGEND_SolidStateDetector(::Type{T}, meta::PropDict) where {T}
             r_in_top = r_center - Δr
             r_out = crystal_radius + gap
             r = ((r_in_bot, r_out),(r_in_top, r_out))
-            semiconductor_geometry -= CSG.Cone{T, CSG.ClosedPrimitive, typeof(r), Nothing}(; 
+            semiconductor_geometry -= CSG.Cone{T}(CSG.ClosedPrimitive; 
                 r = r,
                 hZ = hZ, 
                 origin = CartesianPoint{T}(0, 0, crystal_height - top_outer_taper_height/2)
@@ -69,7 +69,7 @@ function LEGEND_SolidStateDetector(::Type{T}, meta::PropDict) where {T}
             r_out_top = r_center + Δr
             r_in = zero(T)
             r = ((r_in, r_out_bot),(r_in, r_out_top))
-            semiconductor_geometry -= CSG.Cone{T, CSG.ClosedPrimitive, typeof(r), Nothing}(; 
+            semiconductor_geometry -= CSG.Cone{T}(CSG.ClosedPrimitive; 
                 r = r,
                 hZ = hZ, 
                 origin = CartesianPoint{T}(0, 0, crystal_height - top_inner_taper_height/2)
@@ -88,7 +88,7 @@ function LEGEND_SolidStateDetector(::Type{T}, meta::PropDict) where {T}
             r_in_top = r_center + Δr
             r_out = crystal_radius + gap
             r = ((r_in_bot, r_out),(r_in_top, r_out))
-            semiconductor_geometry -= CSG.Cone{T, CSG.ClosedPrimitive, typeof(r), Nothing}(; 
+            semiconductor_geometry -= CSG.Cone{T}(CSG.ClosedPrimitive; 
                 r = r,
                 hZ = hZ, 
                 origin = CartesianPoint{T}(0, 0, bot_outer_taper_height/2)
@@ -105,7 +105,7 @@ function LEGEND_SolidStateDetector(::Type{T}, meta::PropDict) where {T}
             r_in = groove_outer_radius - groove_width
             r_out = groove_outer_radius
             r = ((r_in, r_out), (r_in, r_out))
-            semiconductor_geometry -= CSG.Cone{T, CSG.ClosedPrimitive, typeof(r), Nothing}(; 
+            semiconductor_geometry -= CSG.Cone{T}(CSG.ClosedPrimitive; 
                 r = r, 
                 hZ = groove_depth / 2 + gap, 
                 origin = CartesianPoint{T}(0, 0, groove_depth/2 - gap)
@@ -116,7 +116,7 @@ function LEGEND_SolidStateDetector(::Type{T}, meta::PropDict) where {T}
             pc_radius = to_SSD_units(T, meta.geometry.contact.radius_in_mm, u"mm")
             pc_depth = to_SSD_units(T, meta.geometry.contact.depth_in_mm, u"mm")
 
-            CSG.Cone{T, CSG.ClosedPrimitive, T, Nothing}(; 
+            CSG.Cone{T}(CSG.ClosedPrimitive; 
                 r = pc_radius, 
                 hZ = pc_depth / 2, 
                 origin = CartesianPoint{T}(0, 0, pc_depth / 2)
@@ -140,7 +140,7 @@ function LEGEND_SolidStateDetector(::Type{T}, meta::PropDict) where {T}
                 else
                     error("This case is not yet implemented.")
                 end
-                CSG.Cone{T, CSG.ClosedPrimitive, typeof(r), Nothing}(; 
+                CSG.Cone{T}(CSG.ClosedPrimitive; 
                     r = r, 
                     hZ = li_thickness / 2, 
                     origin = CartesianPoint{T}(0, 0, crystal_height - li_thickness / 2)
@@ -156,7 +156,7 @@ function LEGEND_SolidStateDetector(::Type{T}, meta::PropDict) where {T}
                 r_bot = r_center + Δr
                 r_top = r_center - Δr
                 r = ((r_bot - Δr_li_thickness, r_bot),(r_top - Δr_li_thickness, r_top))
-                mc_geometry += CSG.Cone{T, CSG.ClosedPrimitive, typeof(r), Nothing}(; 
+                mc_geometry += CSG.Cone{T}(CSG.ClosedPrimitive; 
                     r = r,
                     hZ = hZ, 
                     origin = CartesianPoint{T}(0, 0, crystal_height - top_outer_taper_height/2)
@@ -171,7 +171,7 @@ function LEGEND_SolidStateDetector(::Type{T}, meta::PropDict) where {T}
                 r_bot = r_center - Δr
                 r_top = r_center + Δr
                 r = ((r_bot, r_bot+Δr_li_thickness),(r_top, r_top+Δr_li_thickness))
-                mc_geometry += CSG.Cone{T, CSG.ClosedPrimitive, typeof(r), Nothing}(; 
+                mc_geometry += CSG.Cone{T}(CSG.ClosedPrimitive; 
                     r = r,
                     hZ = hZ, 
                     origin = CartesianPoint{T}(0, 0, crystal_height - top_inner_taper_height/2)
@@ -179,7 +179,7 @@ function LEGEND_SolidStateDetector(::Type{T}, meta::PropDict) where {T}
 
                 hZ = (borehole_height - top_inner_taper_height) / 2
                 r = ((borehole_radius, borehole_radius+Δr_li_thickness),(borehole_radius, borehole_radius+Δr_li_thickness))
-                mc_geometry += CSG.Cone{T, CSG.ClosedPrimitive, typeof(r), Nothing}(; 
+                mc_geometry += CSG.Cone{T}(CSG.ClosedPrimitive; 
                     r = r,
                     hZ = hZ, 
                     origin = CartesianPoint{T}(0, 0, crystal_height - top_inner_taper_height - hZ)
@@ -187,7 +187,7 @@ function LEGEND_SolidStateDetector(::Type{T}, meta::PropDict) where {T}
             elseif has_borehole
                 hZ = borehole_height / 2
                 r = ((borehole_radius, borehole_radius+Δr_li_thickness),(borehole_radius, borehole_radius+Δr_li_thickness))
-                mc_geometry += CSG.Cone{T, CSG.ClosedPrimitive, typeof(r), Nothing}(; 
+                mc_geometry += CSG.Cone{T}(CSG.ClosedPrimitive; 
                     r = r,
                     hZ = hZ, 
                     origin = CartesianPoint{T}(0, 0, crystal_height - hZ)
@@ -196,7 +196,7 @@ function LEGEND_SolidStateDetector(::Type{T}, meta::PropDict) where {T}
 
             if has_borehole
                 r = borehole_radius + li_thickness / 2
-                mc_geometry += CSG.Cone{T, CSG.ClosedPrimitive, typeof(r), Nothing}(; 
+                mc_geometry += CSG.Cone{T}(CSG.ClosedPrimitive; 
                     r = r, 
                     hZ = li_thickness / 2, 
                     origin = CartesianPoint{T}(0, 0, crystal_height - borehole_height - li_thickness / 2)
@@ -212,7 +212,7 @@ function LEGEND_SolidStateDetector(::Type{T}, meta::PropDict) where {T}
                     hZ -= bot_outer_taper_height 
                     z_origin += bot_outer_taper_height/2
                 end
-                mc_geometry += CSG.Cone{T, CSG.ClosedPrimitive, typeof(r), Nothing}(; 
+                mc_geometry += CSG.Cone{T}(CSG.ClosedPrimitive; 
                     r = r, 
                     hZ = hZ / 2, 
                     origin = CartesianPoint{T}(0, 0, z_origin)
@@ -223,7 +223,7 @@ function LEGEND_SolidStateDetector(::Type{T}, meta::PropDict) where {T}
                 r_in = groove_outer_radius 
                 r_out = crystal_radius 
                 r = ((r_in, r_out), (r_in, r_out))
-                mc_geometry += CSG.Cone{T, CSG.ClosedPrimitive, typeof(r), Nothing}(; 
+                mc_geometry += CSG.Cone{T}(CSG.ClosedPrimitive; 
                     r = r, 
                     hZ = li_thickness / 2, 
                     origin = CartesianPoint{T}(0, 0, li_thickness / 2)
