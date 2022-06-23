@@ -66,10 +66,10 @@ function simulate(wf::RDWaveform, trigger_index::Int, daq::GenericDAQ)
     # in case the waveform didn't trigger (which is what 0 index stands for)...
     if(trigger_index == 0)
         # ...return all zeros
-        return RDWaveform(ts, similar(wf.value[1:daq.nsamples])) # zeros
+        return RDWaveform(ts, similar(wf.signal[1:daq.nsamples])) # zeros
     else
         # ...otherwise store the waveform
         iStart = trigger_index - daq.baseline_length
-        return RDWaveform(ts, wf.value[iStart : iStart + daq.nsamples-1])
+        return RDWaveform(ts, wf.signal[iStart : iStart + daq.nsamples-1])
     end
 end

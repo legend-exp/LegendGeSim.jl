@@ -8,11 +8,11 @@ Take a given <baseline> and extend it to match the length (and sampling)
 """
 function extend_baseline(baseline::RDWaveform, wf::RDWaveform)
     # resample baseline to be the same as the waveform
-    baseline_sampled = baseline.value[begin:Int(step(wf.time)/step(baseline.time)):end]
+    baseline_sampled = baseline.signal[begin:Int(step(wf.time)/step(baseline.time)):end]
 
     ## create extended/shrinked baseline
     # offset
-    values = ones(length(wf.value)).*mean(baseline_sampled)
+    values = ones(length(wf.signal)).*mean(baseline_sampled)
     # noise
     gaussian_noise_dist = Normal(T(0), T(std(baseline_sampled)))
     values = values .+ rand!(gaussian_noise_dist, similar(values))
@@ -81,7 +81,7 @@ function basestart(wfs::ArrayOfRDWaveforms)
     # get the distribution of offset values at start 
     basestart_list = []
     for i in wfs
-        append!(basestart_list, i.value[1])
+        append!(basestart_list, i.signal[1])
     end
     uplim = mean(basestart_list) + 1000
     dolim = mean(basestart_list) - 1000
@@ -91,21 +91,21 @@ end
 
 function selection_cut(wf::RDWaveform, base_uplim::Real, base_lolim::Real)
     # baseline start cut
-    base_start = wf.value[1]
+    base_start = wf.signal[1]
     peak_index = risepoint(wf)
-    baseline = wf.value[begin:peak_index]
+    baseline = wf.signal[begin:peak_index]
     cut_base::Bool = (base_start < base_uplim) && (base_start > base_lolim) && (base_start - mean(baseline) < 50)
 
     # wveform value cut 
-    cut_value = wf.value[1000] > 1000
+    cut_value = wf.signal[1000] > 1000
 
     # peak cut 
-    peak = findmax(wf.value)[2]
+    peak = findmax(wf.signal)[2]
     cut_peak = peak < 2100 && peak > 1650
 
     # slope cut 
-    slope_t1 = tail_slope(wf, trunc(Int, (length(wf.value)-peak)*0.5))
-    slope_t2 = tail_slope(wf, length(wf.value)-peak)
+    slope_t1 = tail_slope(wf, trunc(Int, (length(wf.signal)-peak)*0.5))
+    slope_t2 = tail_slope(wf, length(wf.signal)-peak)
     cut_slope = slope_t2 - slope_t1 < 0.18
 
     # baseline slope cut
@@ -118,10 +118,10 @@ end
 
 function risepoint(wf::RDWaveform)
     #define the index of wf rising point
-    base_start = wf.value[1] 
+    base_start = wf.signal[1] 
     risepoint_index = 0
     for i in 1:1950
-        if wf.value[i] < base_start + 5
+        if wf.signal[i] < base_start + 5
             risepoint_index = i
         end
     end
@@ -131,8 +131,8 @@ end
 
 function tail_slope(wf::RDWaveform, n)
     #slope of the tail, n = 500, n= 1500, n=2000
-    peak = findmax(wf.value)[2]
-    charge = wf.value[peak:peak+n]
+    peak = findmax(wf.signal)[2]
+    charge = wf.signal[peak:peak+n]
     time = wf.time[peak:peak+n]
     _, slope = linear_fit(ustrip(time), ustrip(charge))
     slope
@@ -142,8 +142,8 @@ end
 
 function base_slope(wf::RDWaveform, n)
     #slope of the tail  n = 1800
-    peak = findmax(wf.value)[2]
-    charge = wf.value[begin:peak-n]
+    peak = findmax(wf.signal)[2]
+    charge = wf.signal[begin:peak-n]
     time = wf.time[begin:peak-n]
     _, slope = linear_fit(ustrip(time), ustrip(charge))
     slope
@@ -153,5 +153,5 @@ end
 function extract_baseline(wf::RDWaveform)
     #extract baseline
     baseline_index = risepoint(wf)
-    RDWaveform(wf.time[begin:baseline_index], wf.value[begin:baseline_index])
+    RDWaveform(wf.time[begin:baseline_index], wf.signal[begin:baseline_index])
 end

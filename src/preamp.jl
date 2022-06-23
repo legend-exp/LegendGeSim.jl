@@ -92,7 +92,7 @@ function simulate(wf::RDWaveform, preamp::GenericPreAmp)
         preamp.τ_rise / step(wf.time),
         uconvert(u"ns", preamp.τ_decay) / step(wf.time))
 
-    wf_preamp = RDWaveform(wf.time, filt(csa_filter, wf.value))
+    wf_preamp = RDWaveform(wf.time, filt(csa_filter, wf.signal))
 
     ## noise
     wf_preamp = simulate_noise(wf_preamp, preamp) 
@@ -100,17 +100,17 @@ function simulate(wf::RDWaveform, preamp::GenericPreAmp)
     ## offset
     # wf values are in eV but without u"eV" attached
     offset = ustrip(uconvert(u"eV", preamp.offset))
-    wf_preamp = RDWaveform(wf_preamp.time, wf_preamp.value .+ offset)
+    wf_preamp = RDWaveform(wf_preamp.time, wf_preamp.signal .+ offset)
 
     ## gain 
-    wf_preamp = RDWaveform(wf_preamp.time, wf_preamp.value * preamp.gain)
+    wf_preamp = RDWaveform(wf_preamp.time, wf_preamp.signal * preamp.gain)
       
     ## what is this step?
     # normalizing by germanium ionization energy?
     # basically converting to number of charge carriers?
     # but after the gain?
     # I guess it's like a dummy MeV -> ADC (calibration curve?)
-    wf_preamp = RDWaveform(wf_preamp.time, wf_preamp.value ./ ustrip(germanium_ionization_energy))
+    wf_preamp = RDWaveform(wf_preamp.time, wf_preamp.signal ./ ustrip(germanium_ionization_energy))
 
     wf_preamp
 end

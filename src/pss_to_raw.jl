@@ -27,7 +27,7 @@ function pss_to_raw(pss_table::Table, pss_truth::Table, simulation_settings::PSS
     ## construct array of waveforms for hdf5
     wf_final = ArrayOfRDWaveforms(result.wf_array)
     # why am I doing this?
-    wf_final = ArrayOfRDWaveforms((wf_final.time, VectorOfSimilarVectors(wf_final.value)))
+    wf_final = ArrayOfRDWaveforms((wf_final.time, VectorOfSimilarVectors(wf_final.signal)))
 
     raw_table = Table(
         baseline = result.baseline,
@@ -40,9 +40,9 @@ function pss_to_raw(pss_table::Table, pss_truth::Table, simulation_settings::PSS
         timestamp = getindex.(pss_truth.thit, 1), # frist MC truth hit time of each event?
         tracelist = VectorOfVectors([[1] for idx in 1:length(result.baseline)]), # lists of ADCs that triggered, 1 for HADES all the time
         waveform = wf_final,
-        wf_max = maximum.(wf_final.value),
+        wf_max = maximum.(wf_final.signal),
         # I was told that std is std of the whole waveform, not just the baseline
-        wf_std = std.(wf_final.value)
+        wf_std = std.(wf_final.signal)
     )
 
     # probably not needed because one can look this up in the simulation config file
@@ -134,19 +134,19 @@ function process_waveforms(pss_table::Table, sim::PSSimulator, elec_chain::Gener
 
         wf = pss_table.waveform[i]
         wf = if sim isa SSDSimulator
-            RDWaveform(wf.time, ustrip.(wf.value) .* ustrip(germanium_ionization_energy)) # SSD v0.7 returns the waveform in units of charge. 
+            RDWaveform(wf.time, ustrip.(wf.signal) .* ustrip(germanium_ionization_energy)) # SSD v0.7 returns the waveform in units of charge. 
         else
-            # RDWaveform(wf.time, ustrip.(wf.value) .* ustrip(germanium_ionization_energy)) # SSD v0.7 returns the waveform in units of charge. 
-            RDWaveform(wf.time, wf.value)
+            # RDWaveform(wf.time, ustrip.(wf.signal) .* ustrip(germanium_ionization_energy)) # SSD v0.7 returns the waveform in units of charge. 
+            RDWaveform(wf.time, wf.signal)
         end
 
         ## invert the pulse if it came from the n+ contact
-        sign = wf.value[end] < 0 ? -1 : 1
-        wf = RDWaveform(wf.time, sign * wf.value)
+        sign = wf.signal[end] < 0 ? -1 : 1
+        wf = RDWaveform(wf.time, sign * wf.signal)
 
         ## negative values control - TEMP
         # for now simply replace with zero 
-        wf = RDWaveform(wf.time, remove_negative.(wf.value))
+        wf = RDWaveform(wf.time, remove_negative.(wf.signal))
 
         # extend tail and baseline long enough for future DAQ processing
         wf = add_tail_and_baseline(wf, elec_chain.fadc, daq)
@@ -169,7 +169,7 @@ function process_waveforms(pss_table::Table, sim::PSSimulator, elec_chain::Gener
         # if online energy is zero, means didn't trigger
         # convert online energy to keV
         result.online_energy[i] = trigger_index == 0 ? 0u"keV" : uconvert(u"keV", online_energy / elec_chain.preamp.gain * germanium_ionization_energy)
-        result.baseline[i], result.baseline_rms[i] = mean_and_std(result.wf_array[i].value[1:daq.baseline_length])
+        result.baseline[i], result.baseline_rms[i] = mean_and_std(result.wf_array[i].signal[1:daq.baseline_length])
     end
 
     result

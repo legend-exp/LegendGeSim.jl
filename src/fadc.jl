@@ -76,12 +76,12 @@ Simulate effects of FADC module <fadc> on the waveform <wf>
 function simulate(wf::RDWaveform, fadc::GenericFADC)   
     T = Float32 # This should be somehow defined and be passed properly
     # resample -> currently simply pick every Nth sample, more elaborate simulation later
-    wf_sampled = wf.value[begin : Int(fadc.Δt/step(wf.time)) : end]
+    wf_sampled = wf.signal[begin : Int(fadc.Δt/step(wf.time)) : end]
     t_sampled = range(T(0)u"ns", step = fadc.Δt, length = length(wf_sampled))
     wf_daq = RDWaveform(t_sampled, wf_sampled)
 
     # digitize
-    wf_daq = RDWaveform(wf_daq.time, UInt16.(round.(wf_daq.value, digits = 0)))
+    wf_daq = RDWaveform(wf_daq.time, UInt16.(round.(wf_daq.signal, digits = 0)))
 
     wf_daq
 end
