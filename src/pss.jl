@@ -171,7 +171,7 @@ function simulate_waveforms(stp_events::Table, detector::SigGenSetup)
 
     waveforms = ArrayOfRDWaveforms(wf_array)
     # why am I doing this?
-    waveforms = ArrayOfRDWaveforms((waveforms.time, VectorOfSimilarVectors(waveforms.value)))    
+    waveforms = ArrayOfRDWaveforms((waveforms.time, VectorOfSimilarVectors(waveforms.signal)))    
 
     pss_table = Table(
         channel = [1 for idx in 1:length(waveforms)], # lists of ADCs that triggered, 1 for HADES all the time

@@ -128,7 +128,7 @@ function simulate_noise(wf::RDWaveform, preamp::PreAmp)
     # wf values are in eV (without u"eV" units attached), noise sigma is in keV
     noise_σ = ustrip(uconvert(u"eV", preamp.noise_σ))
     gaussian_noise_dist = Normal(T(0), T(noise_σ))
-    RDWaveform(wf.time, wf.value .+ rand!(gaussian_noise_dist, similar(wf.value)))
+    RDWaveform(wf.time, wf.signal .+ rand!(gaussian_noise_dist, similar(wf.signal)))
 end
 
 
@@ -146,7 +146,7 @@ function simulate_noise(wf::RDWaveform, noise_model::NoiseFromData)
     # extend to match the wf
     baseline_long = extend_baseline(baseline, wf)
     # slap on top of the waveform as promised
-    RDWaveform(wf.time, wf.value .+ baseline_long.value)
+    RDWaveform(wf.time, wf.signal .+ baseline_long.signal)
 end
 
 

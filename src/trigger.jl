@@ -90,7 +90,7 @@ end
 
 
 function trap_filter(wf::RDWaveform, sample_idx::Int, trigger::TrapFilter)
-    trap_filter(wf.value, sample_idx, trigger)
+    trap_filter(wf.signal, sample_idx, trigger)
 end
 
 
@@ -107,7 +107,7 @@ function simulate(wf::RDWaveform, trigger::TrapFilter)
     T = Float32 # This should be somehow defined and be passed properly
     trigger_window_length = sum(trigger.window_lengths)
 
-    online_filter_output = zeros(T, length(wf.value) - trigger_window_length)
+    online_filter_output = zeros(T, length(wf.signal) - trigger_window_length)
     t0_idx::Int = 0
     trig = false
     

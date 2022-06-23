@@ -57,7 +57,7 @@ In principle we should not do this in this simulation, and user has to provide
 """
 function preamp_gain(preamp::PreAmp, noise_model::NoiseFromData)
     # average offset in baselines 
-    offset = mean(mean.(noise_model.baseline_catalog.waveform.value))
+    offset = mean(mean.(noise_model.baseline_catalog.waveform.signal))
     # calculate gain based on offset in data baselines 
     (typemax(UInt16) - offset) * germanium_ionization_energy / uconvert(u"eV", preamp.max_e)
 end
@@ -119,7 +119,7 @@ In NoiseFromData setting, if trigger threshold in keV is not provided,
 Otherwise the final threshold is calculated based on <preamp> gain.
 """
 function trigger_threshold(trigger::Trigger, preamp::GenericPreAmp, noise_model::NoiseFromData)
-    trigger.threshold_keV == 0u"keV" ? std(noise_model.baseline_catalog.waveform[1].value) * 3 : uconvert(u"eV", trigger.threshold_keV) / germanium_ionization_energy * preamp.gain
+    trigger.threshold_keV == 0u"keV" ? std(noise_model.baseline_catalog.waveform[1].signal) * 3 : uconvert(u"eV", trigger.threshold_keV) / germanium_ionization_energy * preamp.gain
 end
 
 
