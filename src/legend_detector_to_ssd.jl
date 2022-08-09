@@ -14,7 +14,7 @@ function LEGEND_SolidStateDetector(::Type{T}, meta::PropDict) where {T}
 
         gap = to_SSD_units(T, 1, u"mm")
 
-        li_thickness =  to_SSD_units(T, 0, u"mm")
+        li_thickness =  to_SSD_units(T, meta.geometry.dl_thickness_in_mm, u"mm")
 
         crystal_radius = to_SSD_units(T, meta.geometry.radius_in_mm, u"mm")
         crystal_height = to_SSD_units(T, meta.geometry.height_in_mm, u"mm")

@@ -41,7 +41,7 @@ function simulate_detector(
     # returns the name of the resulting siggen config file
     # and the name of (already or to be) generated weighting potential file
     siggen_config_name, fieldgen_wp_name = siggen_config(det_meta, env, ps_simulator, cached_name)
-    # fieldgen_wp_name = joinpath("cache", fieldgen_wp_name)
+    fieldgen_wp_name = joinpath("cache", fieldgen_wp_name)
 
     # if the WP file with such a name exists...
     if !isfile(fieldgen_wp_name) || overwrite
