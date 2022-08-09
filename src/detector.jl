@@ -1,7 +1,7 @@
 function simulate_fields(config::LegendGeSimConfig, args...; kwargs...)
     Simulator = config.dict.simulation.method == "SSD" ? SSDSimulator : SiggenSimulator
     sim_settings = Simulator(config.dict)
-    env = Environment(config.dict)
+    env = Environment(config)
     cached_name = config.dict.simulation.cached_name
     simulate_fields(config.dict.detector_metadata, env, sim_settings, cached_name, args...; kwargs...)
 end
@@ -213,7 +213,7 @@ function construct_ssd_simulation(det_meta::PropDict, env::Environment, sim_sett
     T = Float32
     CS = SolidStateDetectors.Cylindrical
     sim = Simulation{T,CS}()
-    sim.medium = SolidStateDetectors.material_properties[SolidStateDetectors.materials["vacuum"]]
+    sim.medium = SolidStateDetectors.material_properties[SolidStateDetectors.materials[env.medium]]
     sim.detector = LEGEND_SolidStateDetector(T, det_meta)
     if sim_settings.comp != "2D"
         error("Only 2D is supported up to now.")

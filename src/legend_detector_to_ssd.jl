@@ -186,7 +186,7 @@ function LEGEND_SolidStateDetector(::Type{T}, meta::PropDict) where {T}
                 )
             elseif has_borehole
                 hZ = borehole_height / 2
-                r = ((borehole_radius, borehole_radius+Δr_li_thickness),(borehole_radius, borehole_radius+Δr_li_thickness))
+                r = ((borehole_radius, borehole_radius+li_thickness),(borehole_radius, borehole_radius+li_thickness))
                 mc_geometry += CSG.Cone{T}(CSG.ClosedPrimitive; 
                     r = r,
                     hZ = hZ, 
@@ -204,7 +204,7 @@ function LEGEND_SolidStateDetector(::Type{T}, meta::PropDict) where {T}
             end
 
             begin
-                r = ((crystal_radius-Δr_li_thickness, crystal_radius),(crystal_radius-Δr_li_thickness, crystal_radius))
+                r = ((crystal_radius-li_thickness, crystal_radius),(crystal_radius-li_thickness, crystal_radius))
                 hZ = crystal_height
                 if has_top_outer_taper hZ -= top_outer_taper_height end
                 z_origin = hZ/2

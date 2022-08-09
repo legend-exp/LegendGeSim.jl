@@ -6,7 +6,7 @@ end
 """
     load_config(input_file, det_metadata, sim_config_file)
 
-AbstractString or Table, AbstractString, AbstractString -> PropDict
+AbstractString or Table, AbstractString, AbstractString -> LegendGeSimConfig
 
 Merge simulation inputs and settings into one simulation config to pass around
 """
@@ -79,10 +79,10 @@ end
 """
 Simulation parameters related to the environment
 """
-function Environment(sim_conf::PropDict)
+function Environment(sim_conf::LegendGeSimConfig)
     Environment(
-        sim_conf.environment.medium,
-        sim_conf.environment.crystal_t,
-        sim_conf.environment.op_voltage
+        sim_conf.dict.environment.medium,
+        sim_conf.dict.environment.crystal_t,
+        sim_conf.dict.environment.op_voltage
     )
 end
