@@ -13,7 +13,7 @@ Current steps include:
     - grouping by detector
     - removing events reconstructed to be outisde of the detector
 """
-function pet_to_stp(pet_table::Table, detector_SSD::S) where {S}
+function pet_to_stp(pet_table::Table, detector_SSD::SolidStateDetector)
     ## in case it's the Geant4 CSV file from LegendTestData, it's already grouped correctly
     hits_by_evtno = pet_table
 
@@ -65,41 +65,29 @@ function pet_to_stp(pet_table::Table, detector_SSD::S) where {S}
 
     # We need to filter out the few events that, due to numerical effects, lie outside of the detector
     # (the proper solution is to shift them slightly, this feature will be added in the future)
+    T = Float32
+    stp_events = events_per_det[findall(pts -> all(p -> CartesianPoint{T}(T.(ustrip.(uconvert.(u"m", p)))) in detector_SSD, pts), events_per_det.pos)]
     # stp_events = events_det1[findall(pts -> all(p -> T.(ustrip.(uconvert.(u"m", p))) in detector_SSD.detector, pts), events_det1.pos)]
-    stp_events = if S isa SolidStateDetectors.Simulation
-        events_per_det[findall(pts -> all(p -> CartesianPoint{T}(T.(ustrip.(uconvert.(u"m", p)))) in detector_SSD.detector, pts), events_per_det.pos)]
-    else
-        events_per_det
-    end
+    # stp_events = if S isa SolidStateDetectors.Simulation
+    #     events_per_det[findall(pts -> all(p -> CartesianPoint{T}(T.(ustrip.(uconvert.(u"m", p)))) in detector_SSD.detector, pts), events_per_det.pos)]
+    # else
+    #     events_per_det
+    # end
     stp_events
 end
 
 
 
-function pet_to_stp(pet_filename::AbstractString, det_metadata::AbstractString)
-    # construct simplified config based on given info
-    sim_config = PropDict(:detector_metadata => det_metadata, :input_file => pet_filename)
+function pet_to_stp(pet_filename::AbstractString, sim_config::LegendGeSimConfig)
 
-    pet_to_stp(sim_config)
-end
-
-
-function pet_to_stp(sim_config_file::AbstractString)
-    # given config file already contains inputs as well
-    pet_to_stp(propdict(sim_config_file))
-end
-
-
-function pet_to_stp(sim_config::PropDict)
     @info "---------------------- pet -> stp (stepping info)"
+
     # SSD detector for geometry purposes (not simulation)
-    det_config_SSD = ssd_config(sim_config.detector_metadata)
-    detector_SSD = Simulation{T}(det_config_SSD)
+    detector_SSD = LEGEND_SolidStateDetector(Float32, sim_config.dict.detector_metadata)
+    pet_table = read_pet(pet_filename)
 
-    println("Processing file: $(sim_config.input_file) for detector $(sim_config.detector_metadata)")    
-    pet_table = read_pet(sim_config.input_file)
-
-    # launch pet->stp 
+    println("Processing file: $(pet_filename) for detector $(sim_config.dict.detector_metadata.det_name)")    
+    
     pet_to_stp(pet_table, detector_SSD)
 end
 

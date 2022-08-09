@@ -1,13 +1,19 @@
-function stp_to_pss(stp_table::Table, sim, config::LegendGeSimConfig)
-    Simulator = config.dict.simulation.method == "SSD" ? SSDSimulator : SiggenSimulator
-    sim_settings = Simulator(config.dict)
-    stp_to_pss(stp_table, sim, sim_settings)
+function stp_to_pss(stp_table::Table, config::LegendGeSimConfig)
+    @info "---------------------- stp -> pss (pulse shape simulation)"
+
+    env = Environment(config)
+    ps_simulator = PSSimulator(config)
+
+    stp_to_pss(stp_table, config.dict.detector_metadata, env, ps_simulator, config.dict.simulation.cached_name)
 end
 
+
 """
-    stp_to_pss(stp_table, det_meta, env, ps_simulator, noise_model, config_name)
+    stp_to_pss(stp_table, det_meta, env, ps_simulator, config_name)
 
 Table, PropDict, Env, PSSimulator, NoiseModel, AbstractString -> Table, Table    
+
+* NOTE * Lukas removed NoiseModel from here for some reason (search for fano_noise in old files)
 
 Simulate waveforms based on stepping info given in <stp_table>, 
     LEGEND detector metadata <det_meta>, environment settings given in <env>,
@@ -16,8 +22,7 @@ Simulate waveforms based on stepping info given in <stp_table>,
 The output is a table with simulated pulses, and a table with simulation truth
     (may be abolished in the future since basically corresponds to stp table)
 """
-function stp_to_pss(stp_table::Table, det_meta::PropDict, env::Environment, ps_simulator::SSDSimulator, noise_model::NoiseModel,
-    cached_name::AbstractString)
+function stp_to_pss(stp_table::Table, det_meta::PropDict, env::Environment, ps_simulator::SSDSimulator, cached_name::AbstractString)
 
     @info "_||_||_||_ Simulate detector" 
     sim = simulate_fields(det_meta, env, ps_simulator, cached_name)
@@ -60,13 +65,3 @@ function stp_tp_pss(sim_config_filename::AbstractString)
 end
 
 
-function stp_to_pss(sim_config::PropDict)
-    @info "---------------------- stp -> pss (pulse shape simulation)"
-
-    det_meta = propdict(sim_config.detector_metadata)
-    env = Environment(sim_config)
-    ps_simulator = PSSimulator(sim_config)
-    noise_model = NoiseModel(sim_config)
-
-    stp_to_pss(sim_config.input_file, det_meta, env, ps_simulator, noise_model, sim_config.pss.cached_name)
-end

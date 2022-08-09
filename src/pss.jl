@@ -19,24 +19,24 @@ end
 
 
 """
-    SSDSimulator(::PropDict)
+    SSDSimulator(sim_conf)
 
--> SSDSimulator
+LegendGeSimConfig -> SSDSimulator
 
 Construct SSDSimulator instance based on simulation
     configuration given in <sim_conf>.
 
 Currently SSDSimulator does not have any parameters
 """
-function SSDSimulator(sim_conf::PropDict)
-    coord = haskey(sim_conf.simulation, :coordinates) ? sim_conf.simulation.coordinates : "cylindrical"
+function SSDSimulator(sim_conf::LegendGeSimConfig)
+    coord = haskey(sim_conf.dict.simulation, :coordinates) ? sim_conf.dict.simulation.coordinates : "cylindrical"
     if !(coord in ["cartesian", "cylindrical"])
-        @error "$coord coordinates not implemented!\n Available: cartesian, cylindrical"
+        error("$coord coordinates not implemented!\n Available: cartesian, cylindrical")
     end
 
-    comp = haskey(sim_conf.simulation, :computation) ? sim_conf.simulation.computation : "2D"
+    comp = haskey(sim_conf.dict.simulation, :computation) ? sim_conf.dict.simulation.computation : "2D"
     if !(comp in ["2D", "3D"])
-        @error "$comp computation not implemented!\n Available: 2D, 3D"
+        error("$comp computation not implemented!\n Available: 2D, 3D")
     end
 
     SSDSimulator(coord, comp)
@@ -58,16 +58,16 @@ end
 """
     SiggeSimulator(sim_conf)
 
-PropDict -> SiggenSimulator
+    LegendGeSimConfig -> SiggenSimulator
 
 Construct SiggeSimulator instance based on simulation
     configuration given in <sim_conf>.
 """
-function SiggenSimulator(sim_conf::PropDict)
+function SiggenSimulator(sim_conf::LegendGeSimConfig)
     # @info "Taking fieldgen input from $(sim_conf.simulation.fieldgen_config)"
     SiggenSimulator( 
-        haskey(sim_conf.simulation, "fieldgen_config") ? sim_conf.simulation.fieldgen_config : "fieldgen_settings.txt",
-        haskey(sim_conf.simulation, "drift_vel") ? sim_conf.simulation.drift_vel : "drift_vel_tcorr.tab"
+        haskey(sim_conf.dict.simulation, "fieldgen_config") ? sim_conf.dict.simulation.fieldgen_config : "fieldgen_settings.txt",
+        haskey(sim_conf.dict.simulation, "drift_vel") ? sim_conf.dict.simulation.drift_vel : "drift_vel_tcorr.tab"
     )
 end
 
@@ -75,21 +75,21 @@ end
 """
     PSSimulator(sim_config)
 
-PropDict -> <PSSimulator>
+LegendGeSimConfig -> <PSSimulator>
 
 Construct a PSSSimulator supertype instance based on given simulation
     configuration <sim_config>.
 Returned type depends on the simulation
     method given in the config.
 """
-function PSSimulator(sim_config::PropDict)
-    @info "Simulation method: $(sim_config.simulation.method)"
-    if sim_config.simulation.method == "SSD"
+function PSSimulator(sim_config::LegendGeSimConfig)
+    @info "Simulation method: $(sim_config.dict.simulation.method)"
+    if sim_config.dict.simulation.method in ["SSD", "ssd"]
         SSDSimulator(sim_config)
-    elseif sim_config.simulation.method in ["siggen", "fieldgen"]
+    elseif sim_config.dict.simulation.method in ["siggen", "fieldgen"]
         SiggenSimulator(sim_config)
     else
-        println("This simulation method is not implemented!")
+        error("This simulation method is not implemented!")
     end
 end
 

@@ -25,14 +25,14 @@ end
 """
     NoiseFromSim(sim_conf)
 
-PropDict -> NoiseFromSim 
+LegendGeSimConfig -> NoiseFromSim 
 
 Construct a NoiseFromSim struct based on given simulation configuration <sim_conf>
 """
-function NoiseFromSim(sim_conf::PropDict)
+function NoiseFromSim(sim_conf::LegendGeSimConfig)
     T = Float32 # This should be somehow defined and be passed properly
     @info "//\\//\\// Noise simulated from scratch (fano, preamp noise)"
-    noise_σ = haskey(sim_conf.setup, :preamp) ? T(sim_conf.setup.preamp.noise_sigma)u"keV" : 0u"keV"
+    noise_σ = haskey(sim_conf.dict.setup, :preamp) ? T(sim_conf.dict.setup.preamp.noise_sigma)u"keV" : 0u"keV"
 
     NoiseFromSim(noise_σ)
 end
@@ -53,14 +53,14 @@ end
 """
     NoiseFromData(sim_conf)
 
-PropDict -> NoiseFromData 
+LegendGeSimConfig -> NoiseFromData 
 
 Construct a NoiseFromData struct based on given simulation configuration <sim_conf>
 """
-function NoiseFromData(sim_conf::PropDict)
+function NoiseFromData(sim_conf::LegendGeSimConfig)
     @info "//\\//\\// Noise levels and offset added via slapping the baseline from data on top of the waveform"
     # construct table of baselines based on given raw data hdf5 file
-    baseline_table = baseline_catalog(sim_conf.noise_data)
+    baseline_table = baseline_catalog(sim_conf.dict.noise_data)
     NoiseFromData(baseline_table) 
 end
 
@@ -68,14 +68,14 @@ end
 """
     NoiseModel(sim_config)
 
-PropDict -> <NoiseModel>
+LegendGeSimConfig -> <NoiseModel>
 
 Constuct a NoiseModel supertype instance based on simulation settings 
     given in <sim_config>
 Type of <NoiseModel> depends on <sim_config> settings.
 """
-function NoiseModel(sim_config::PropDict)
-    if haskey(sim_config, :noise_data)
+function NoiseModel(sim_config::LegendGeSimConfig)
+    if haskey(sim_config.dict, :noise_data)
         NoiseFromData(sim_config)
     else
         NoiseFromSim(sim_config)
@@ -94,6 +94,7 @@ Calculate fano noise level based on the detector specification provided in
     and add it to given <events>
 """
 function fano_noise(events::Table, det_meta::PropDict, env::Environment, ::NoiseFromSim)
+    #!! Lukas removed from stp_to_pss?
     println("Adding fano noise")
     ssd_conf = ssd_config(det_meta, env)
     simulation = Simulation(SolidStateDetector{T}(ssd_conf))
