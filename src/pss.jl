@@ -115,6 +115,9 @@ function simulate_waveforms(stp_events::Table, detector::SolidStateDetectors.Sim
             Δt = 1u"ns",
             verbose = false);
 
+    # waveforms = ArrayOfRDWaveforms(contact_charge_signals.waveform)
+    # !! conversion should be here, not in pss->raw
+    # RDWaveform(wf.time, ustrip.(wf.signal) .* ustrip(germanium_ionization_energy))
     waveforms = ArrayOfRDWaveforms(contact_charge_signals.waveform)
 
     # convert to Tier1 format
