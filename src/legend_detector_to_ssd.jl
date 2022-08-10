@@ -14,11 +14,16 @@ function LEGEND_SolidStateDetector(::Type{T}, meta::PropDict) where {T}
 
         gap = to_SSD_units(T, 1, u"mm")
 
-        li_thickness =  to_SSD_units(T, 0, u"mm")
+        dl_thickness_in_mm = :dl_thickness_in_mm in keys(meta.geometry) ? meta.geometry.dl_thickness_in_mm : 0
+        li_thickness =  to_SSD_units(T, dl_thickness_in_mm, u"mm")
+
+
+        ### GERMANIUM CRYSTAL ###
 
         crystal_radius = to_SSD_units(T, meta.geometry.radius_in_mm, u"mm")
         crystal_height = to_SSD_units(T, meta.geometry.height_in_mm, u"mm")
 
+        # main crystal
         semiconductor_geometry = CSG.Cone{T}(CSG.ClosedPrimitive; 
             r = crystal_radius, 
             hZ = crystal_height / 2, 
@@ -40,7 +45,15 @@ function LEGEND_SolidStateDetector(::Type{T}, meta::PropDict) where {T}
 
         # top outer taper
         top_outer_taper_height = to_SSD_units(T, meta.geometry.taper.top.outer.height_in_mm, u"mm")
-        top_outer_taper_angle = to_SSD_units(T, meta.geometry.taper.top.outer.angle_in_deg, u"°") # now in radiance
+        if :radius_in_mm in keys(meta.geometry.taper.top.outer)
+            top_outer_taper_radius = to_SSD_units(T, meta.geometry.taper.top.outer.radius_in_mm, u"mm")
+            top_outer_taper_angle = atan(top_outer_taper_radius, top_outer_taper_height)
+        elseif :angle_in_deg in keys(meta.geometry.taper.top.outer)
+            top_outer_taper_angle = to_SSD_units(T, meta.geometry.taper.top.outer.angle_in_deg, u"°")
+            top_outer_taper_radius = top_outer_taper_height * tan(top_outer_taper_angle)
+        else
+            error("The top outer taper needs either radius_in_mm or angle_in_deg")
+        end
         has_top_outer_taper = top_outer_taper_height > 0 && top_outer_taper_angle > 0
         if has_top_outer_taper
             r_center = crystal_radius - top_outer_taper_height * tan(top_outer_taper_angle) / 2
@@ -59,8 +72,19 @@ function LEGEND_SolidStateDetector(::Type{T}, meta::PropDict) where {T}
 
         # top inner taper
         top_inner_taper_height = to_SSD_units(T, meta.geometry.taper.top.inner.height_in_mm, u"mm")
-        top_inner_taper_angle = to_SSD_units(T, meta.geometry.taper.top.inner.angle_in_deg, u"°") # now in radiance
+        if :radius_in_mm in keys(meta.geometry.taper.top.inner)
+            top_inner_taper_radius = to_SSD_units(T, meta.geometry.taper.top.inner.radius_in_mm, u"mm")
+            top_inner_taper_angle = atan(top_inner_taper_radius, top_inner_taper_height)
+        elseif :angle_in_deg in keys(meta.geometry.taper.top.inner)
+            top_inner_taper_angle = to_SSD_units(T, meta.geometry.taper.top.inner.angle_in_deg, u"°")
+            top_inner_taper_radius = top_inner_taper_height * tan(top_inner_taper_angle)
+        else
+            error("The top inner taper needs either radius_in_mm or angle_in_deg")
+        end
         has_top_inner_taper = top_inner_taper_height > 0 && top_inner_taper_angle > 0
+        if has_top_inner_taper && !has_borehole 
+            error("A detector without a borehole cannot have a top inner taper.")
+        end
         if has_top_inner_taper
             r_center = borehole_radius + top_inner_taper_height * tan(top_inner_taper_angle) / 2
             hZ = top_inner_taper_height/2 + 1gap
@@ -78,7 +102,15 @@ function LEGEND_SolidStateDetector(::Type{T}, meta::PropDict) where {T}
 
         # bot outer taper
         bot_outer_taper_height = to_SSD_units(T, meta.geometry.taper.bottom.outer.height_in_mm, u"mm")
-        bot_outer_taper_angle = to_SSD_units(T, meta.geometry.taper.bottom.outer.angle_in_deg, u"°") # now in radiance
+        if :radius_in_mm in keys(meta.geometry.taper.bottom.outer)
+            bot_outer_taper_radius = to_SSD_units(T, meta.geometry.taper.bottom.outer.radius_in_mm, u"mm")
+            bot_outer_taper_angle = atan(bot_outer_taper_radius, bot_outer_taper_height)
+        elseif :angle_in_deg in keys(meta.geometry.taper.bottom.outer)
+            bot_outer_taper_angle = to_SSD_units(T, meta.geometry.taper.bottom.outer.angle_in_deg, u"°")
+            bot_outer_taper_radius = bot_outer_taper_height * tan(bot_outer_taper_angle)
+        else
+            error("The bottom outer tape needs either radius_in_mm or angle_in_deg")
+        end
         has_bot_outer_taper = bot_outer_taper_height > 0 && bot_outer_taper_angle > 0
         if has_bot_outer_taper
             r_center = crystal_radius - bot_outer_taper_height * tan(bot_outer_taper_angle) / 2
@@ -112,6 +144,26 @@ function LEGEND_SolidStateDetector(::Type{T}, meta::PropDict) where {T}
             )
         end
 
+        # bulletization
+        is_bulletized = !all(values(meta.geometry.bulletization) .== 0)
+        is_bulletized && @warn "Bulletization is not implemented yet, ignore for now."
+
+        # crack
+        has_crack = !all(values(meta.geometry.crack) .== 0)
+        has_crack && @warn "Cracks are not implemented yet, ignore for now."
+
+        # bottom cyl
+        has_bottom_cyl = !all(values(meta.geometry.bottom_cyl) .== 0)
+        has_bottom_cyl && @warn "Multi radius detectors are not implemented yet, ignore for now."
+
+        # topgroove
+        has_topgroove = !all(values(meta.geometry.topgroove) .== 0)
+        has_topgroove && @warn "Top grooves are not implemented yet, ignore for now."
+
+
+
+        ### POINT CONTACT ###
+
         point_contact_geometry = begin
             pc_radius = to_SSD_units(T, meta.geometry.contact.radius_in_mm, u"mm")
             pc_depth = to_SSD_units(T, meta.geometry.contact.depth_in_mm, u"mm")
@@ -122,23 +174,20 @@ function LEGEND_SolidStateDetector(::Type{T}, meta::PropDict) where {T}
                 origin = CartesianPoint{T}(0, 0, pc_depth / 2)
             )
         end
+
+
+        ### MANTLE CONTACT ###
         
         mantle_contact_geometry = begin # top plate
             top_plate = begin
-                r = if !has_borehole && !has_top_outer_taper && !has_top_inner_taper
-                    crystal_radius
-                elseif has_borehole && !has_top_outer_taper && !has_top_inner_taper
-                    ((borehole_radius, crystal_radius), (borehole_radius, crystal_radius))
-                elseif has_borehole && has_top_outer_taper && !has_top_inner_taper
+                r = if !has_borehole 
+                    !has_top_outer_taper ? crystal_radius : crystal_radius - top_outer_taper_radius
+                else 
                     r_in = borehole_radius
-                    r_out = crystal_radius - top_outer_taper_height * tan(top_outer_taper_angle)  
+                    r_out = crystal_radius
+                    if has_top_inner_taper r_in += top_inner_taper_radius end
+                    if has_top_outer_taper r_out -= top_outer_taper_radius end
                     ((r_in, r_out), (r_in, r_out))
-                elseif has_borehole && has_top_outer_taper && has_top_inner_taper
-                    r_in = borehole_radius + top_inner_taper_height * tan(top_inner_taper_angle)  
-                    r_out = crystal_radius - top_outer_taper_height * tan(top_outer_taper_angle)  
-                    ((r_in, r_out), (r_in, r_out))
-                else
-                    error("This case is not yet implemented.")
                 end
                 CSG.Cone{T}(CSG.ClosedPrimitive; 
                     r = r, 
@@ -147,14 +196,13 @@ function LEGEND_SolidStateDetector(::Type{T}, meta::PropDict) where {T}
                 )
             end
             mc_geometry = top_plate
-
+            
+            # borehole at outer taper
             if has_top_outer_taper
                 Δr_li_thickness = li_thickness / cos(top_outer_taper_angle)
-                r_center = crystal_radius - top_outer_taper_height * tan(top_outer_taper_angle) / 2
-                hZ = top_outer_taper_height/2 
-                Δr = hZ * tan(top_outer_taper_angle)         
-                r_bot = r_center + Δr
-                r_top = r_center - Δr
+                hZ = top_outer_taper_height/2
+                r_bot = crystal_radius 
+                r_top = crystal_radius - top_outer_taper_radius
                 r = ((r_bot - Δr_li_thickness, r_bot),(r_top - Δr_li_thickness, r_top))
                 mc_geometry += CSG.Cone{T}(CSG.ClosedPrimitive; 
                     r = r,
@@ -163,13 +211,12 @@ function LEGEND_SolidStateDetector(::Type{T}, meta::PropDict) where {T}
                 )
             end
 
-            if has_top_inner_taper && has_borehole
+            # contact in borehole
+            if has_top_inner_taper
                 Δr_li_thickness = li_thickness / cos(top_inner_taper_angle)
-                r_center = borehole_radius + top_inner_taper_height * tan(top_inner_taper_angle) / 2
-                hZ = top_inner_taper_height/2
-                Δr = hZ * tan(top_inner_taper_angle)         
-                r_bot = r_center - Δr
-                r_top = r_center + Δr
+                hZ = top_inner_taper_height/2    
+                r_bot = borehole_radius
+                r_top = borehole_radius + top_inner_taper_radius
                 r = ((r_bot, r_bot+Δr_li_thickness),(r_top, r_top+Δr_li_thickness))
                 mc_geometry += CSG.Cone{T}(CSG.ClosedPrimitive; 
                     r = r,
@@ -184,9 +231,9 @@ function LEGEND_SolidStateDetector(::Type{T}, meta::PropDict) where {T}
                     hZ = hZ, 
                     origin = CartesianPoint{T}(0, 0, crystal_height - top_inner_taper_height - hZ)
                 )
-            elseif has_borehole
+            elseif has_borehole # but no inner taper
                 hZ = borehole_height / 2
-                r = ((borehole_radius, borehole_radius+Δr_li_thickness),(borehole_radius, borehole_radius+Δr_li_thickness))
+                r = ((borehole_radius, borehole_radius+li_thickness),(borehole_radius, borehole_radius+li_thickness))
                 mc_geometry += CSG.Cone{T}(CSG.ClosedPrimitive; 
                     r = r,
                     hZ = hZ, 
@@ -195,7 +242,7 @@ function LEGEND_SolidStateDetector(::Type{T}, meta::PropDict) where {T}
             end
 
             if has_borehole
-                r = borehole_radius + li_thickness / 2
+                r = borehole_radius + li_thickness
                 mc_geometry += CSG.Cone{T}(CSG.ClosedPrimitive; 
                     r = r, 
                     hZ = li_thickness / 2, 
@@ -203,8 +250,9 @@ function LEGEND_SolidStateDetector(::Type{T}, meta::PropDict) where {T}
                 )
             end
 
+            # outer surface of mantle contact
             begin
-                r = ((crystal_radius-Δr_li_thickness, crystal_radius),(crystal_radius-Δr_li_thickness, crystal_radius))
+                r = ((crystal_radius-li_thickness, crystal_radius),(crystal_radius-li_thickness, crystal_radius))
                 hZ = crystal_height
                 if has_top_outer_taper hZ -= top_outer_taper_height end
                 z_origin = hZ/2
@@ -219,9 +267,25 @@ function LEGEND_SolidStateDetector(::Type{T}, meta::PropDict) where {T}
                 )
             end
 
+            # bottom outer taper contact
+            if has_bot_outer_taper
+                Δr_li_thickness = li_thickness / cos(bot_outer_taper_angle)
+                hZ = bot_outer_taper_height/2
+                r_bot = crystal_radius - bot_outer_taper_radius
+                r_top = crystal_radius
+                r = ((r_bot - Δr_li_thickness, r_bot),(r_top - Δr_li_thickness, r_top))
+                mc_geometry += CSG.Cone{T}(CSG.ClosedPrimitive; 
+                    r = r,
+                    hZ = hZ, 
+                    origin = CartesianPoint{T}(0, 0, hZ)
+                )
+            end  
+
+            # bottom surface of mantle contact (only if it has a groove ?)
             if groove_outer_radius > 0
                 r_in = groove_outer_radius 
-                r_out = crystal_radius 
+                r_out = crystal_radius
+                if has_bot_outer_taper r_out -= bot_outer_taper_radius end
                 r = ((r_in, r_out), (r_in, r_out))
                 mc_geometry += CSG.Cone{T}(CSG.ClosedPrimitive; 
                     r = r, 
@@ -238,7 +302,7 @@ function LEGEND_SolidStateDetector(::Type{T}, meta::PropDict) where {T}
         temperature = T(78) 
         material = SolidStateDetectors.material_properties[:HPGe]
         
-        # Impurity Model: Information are stored in `meta[:production][:impcc]`
+        # Impurity Model: Information are stored in `meta.production.impcc`
         # For now: Constant impurity density: 
         #   n-type: positive impurity density
         #   p-type: negative impurity density
@@ -257,7 +321,7 @@ function LEGEND_SolidStateDetector(::Type{T}, meta::PropDict) where {T}
 
         semiconductor = SolidStateDetectors.Semiconductor(temperature, material, impurity_density_model, charge_drift_model, semiconductor_geometry)
 
-        operation_voltage = T(meta[:characterization][:manufacturer][:op_voltage_in_V])
+        operation_voltage = T(meta.characterization.manufacturer.op_voltage_in_V)
         point_contact = SolidStateDetectors.Contact( zero(T), material, 1, "Point Contact", point_contact_geometry )
         mantle_contact = SolidStateDetectors.Contact( operation_voltage, material, 2, "Mantle Contact", mantle_contact_geometry )
 
@@ -265,5 +329,5 @@ function LEGEND_SolidStateDetector(::Type{T}, meta::PropDict) where {T}
 
         passives = missing # possible holding structure around the detector
         virtual_drift_volumes = missing
-        SolidStateDetector{T}( meta[:det_name], semiconductor, [point_contact, mantle_contact], passives, virtual_drift_volumes )
+        SolidStateDetector{T}( meta.det_name, semiconductor, [point_contact, mantle_contact], passives, virtual_drift_volumes )
     end
