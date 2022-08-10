@@ -1,11 +1,13 @@
 function pss_to_raw(pss_table::Table, pss_truth::Table, config::LegendGeSimConfig)
-    Simulator = config.dict.simulation.method == "SSD" ? SSDSimulator : SiggenSimulator
-    sim_settings = Simulator(config.dict)
-    elec_chain = ElecChain(config.dict)
-    trigger = Trigger(config.dict)
-    daq = DAQ(config.dict)
-    noise_model = NoiseModel(config.dict)
-    pss_to_raw(pss_table, pss_truth, sim_settings, elec_chain, trigger, daq, noise_model)
+    @info "---------------------- pss -> raw (DAQ simulation)"
+
+    ps_simulator = PSSimulator(config)
+    elec_chain = ElecChain(config)
+    trigger = Trigger(config)
+    daq = DAQ(config)
+    noise_model = NoiseModel(config)
+
+    pss_to_raw(pss_table, pss_truth, ps_simulator, elec_chain, trigger, daq, noise_model)
 end
 
 """
@@ -54,37 +56,17 @@ function pss_to_raw(pss_table::Table, pss_truth::Table, simulation_settings::PSS
     raw_table
 end
 
-function pss_to_raw(pss_table::Table, pss_truth::Table, det_meta_fullpath::AbstractString, sim_config_file::AbstractString)
-    # construct config based on given inputs and settings 
-    sim_config = load_config(pss_table, det_meta_fullpath, sim_config_file)
+# function pss_to_raw(pss_file::AbstractString, det_meta_fullpath::AbstractString, sim_config_file::AbstractString)
+#     pss_h5 = h5open(pss_file, "r")
+#     pss_table = LegendHDF5IO.readdata(pss_h5, "pss/pss")
+#     pss_truth = LegendHDF5IO.readdata(pss_h5, "pss/truth")
+#     close(pss_h5)
 
-    # for now pss_truth tags along for the timestamp
-    pss_to_raw(sim_config, pss_truth)
-end
-
-
-function pss_to_raw(pss_file::AbstractString, det_meta_fullpath::AbstractString, sim_config_file::AbstractString)
-    pss_h5 = h5open(pss_file, "r")
-    pss_table = LegendHDF5IO.readdata(pss_h5, "pss/pss")
-    pss_truth = LegendHDF5IO.readdata(pss_h5, "pss/truth")
-    close(pss_h5)
-
-    pss_to_raw(pss_table, pss_truth, det_meta_fullpath, sim_config_file)
-end
+#     pss_to_raw(pss_table, pss_truth, det_meta_fullpath, sim_config_file)
+# end
 
 
-function pss_to_raw(sim_config::PropDict, pss_truth::Table)
-    @info "---------------------- pss -> raw (DAQ simulation)"
-
-    elec_chain = ElecChain(sim_config)
-    trigger = Trigger(sim_config)
-    daq = DAQ(sim_config)
-    noise_model = NoiseModel(sim_config)
-
-    pss_to_raw(sim_config.input_file, pss_truth, elec_chain, trigger, daq, noise_model)
-end
-  
-
+# ------------------------------
 
 
 

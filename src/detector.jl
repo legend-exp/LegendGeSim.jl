@@ -1,23 +1,15 @@
-function simulate_fields(config::LegendGeSimConfig, args...; kwargs...)
-    Simulator = config.dict.simulation.method == "SSD" ? SSDSimulator : SiggenSimulator
-    sim_settings = Simulator(config.dict)
-    env = Environment(config.dict)
+function simulate_fields(config::LegendGeSimConfig; overwrite::Bool = false)
+
+    sim_settings = PSSimulator(config)
+    env = Environment(config)
     cached_name = config.dict.simulation.cached_name
-    simulate_fields(config.dict.detector_metadata, env, sim_settings, cached_name, args...; kwargs...)
+
+    simulate_detector(config.dict.detector_metadata, env, cached_name, sim_settings; overwrite)
 end
 
-############
+####################################
 ### FieldGen
-
-function simulate_fields(
-    det_meta::PropDict,
-    env::Environment,
-    sim_settings::SiggenSimulator,
-    cached_name::AbstractString;
-    overwrite::Bool = false
-)
-    simulate_detector(det_meta, env, cached_name, sim_settings; overwrite)
-end
+####################################
 
 """
     simulate_detector(det_meta, env, config_name, ps_simulator)
@@ -30,18 +22,14 @@ Construct a fieldgen/siggen configuration file
 Look up fieldgen generated electric field and weighting potential files
     based on given <config_name>, and if not found, call fieldgen.
 """
-function simulate_detector(
-        det_meta::PropDict,
-        env::Environment,
-        cached_name::AbstractString,
-        ps_simulator::SiggenSimulator;
-        overwrite::Bool = false
-    )
+function simulate_detector(det_meta::PropDict, env::Environment, cached_name::AbstractString, ps_simulator::SiggenSimulator;
+        overwrite::Bool = false)
+
     @info "Constructing Fieldgen/Siggen configuration file"
     # returns the name of the resulting siggen config file
     # and the name of (already or to be) generated weighting potential file
     siggen_config_name, fieldgen_wp_name = siggen_config(det_meta, env, ps_simulator, cached_name)
-    # fieldgen_wp_name = joinpath("cache", fieldgen_wp_name)
+    fieldgen_wp_name = joinpath("cache", fieldgen_wp_name)
 
     # if the WP file with such a name exists...
     if !isfile(fieldgen_wp_name) || overwrite
@@ -198,76 +186,17 @@ end
 
 
 
-#######
+####################################
 ### SSD
+####################################
 
-"""
-    construct_ssd_simulation(det_meta::AbstractString, env::Environment, sim_settings::SSDSimulator)
-
-Construct a `SolidStateDetectors.Simulation` based on geometry as given in LEGEND metadata `det_meta`
-and on envorinmental settings specified in `env` and on simulational settings specified in `sim_settings`.
-
-ToDo: Actually use `env`. 
-"""
-function construct_ssd_simulation(det_meta::PropDict, env::Environment, sim_settings::SSDSimulator)
-    T = Float32
-    CS = SolidStateDetectors.Cylindrical
-    sim = Simulation{T,CS}()
-    sim.medium = SolidStateDetectors.material_properties[SolidStateDetectors.materials["vacuum"]]
-    sim.detector = LEGEND_SolidStateDetector(T, det_meta)
-    if sim_settings.comp != "2D"
-        error("Only 2D is supported up to now.")
-    end
-    sim.world = begin
-        crystal_radius = to_SSD_units(T, det_meta.geometry.radius_in_mm, u"mm")
-        crystal_height = to_SSD_units(T, det_meta.geometry.height_in_mm, u"mm")
-        SolidStateDetectors.World{T,3,CS}((
-            SolidStateDetectors.SSDInterval{T,:closed,:closed,:r0,:infinite}(zero(T), crystal_radius * 1.2),
-            SolidStateDetectors.SSDInterval{T,:closed,:closed,:reflecting,:reflecting}(zero(T), zero(T)),
-            SolidStateDetectors.SSDInterval{T,:closed,:closed,:infinite,:infinite}(-0.2 * crystal_height, 1.2 * crystal_height)
-        ))
-    end
-    sim.weighting_potentials = Missing[missing for i = 1:2]
-    sim
-end
-
-function simulate_fields(det_meta::PropDict, env::Environment, sim_settings::SSDSimulator)
-    sim = construct_ssd_simulation(det_meta, env, sim_settings)
-
-    field_sim_settings = (
-        refinement_limits = [0.2, 0.1, 0.05, 0.02, 0.01],
-        depletion_handling = true,
-        convergence_limit = 1e-7,
-        max_n_iterations = 50000,
-        verbose = false
-    )
-
-    println("...electric potential")
-    calculate_electric_potential!(sim; field_sim_settings...)
-
-    println("...electric field")
-    calculate_electric_field!(sim, n_points_in_φ = 72)
-
-    for contact in sim.detector.contacts
-        println("...weighting potential $(contact.id)")
-        calculate_weighting_potential!(sim, contact.id; field_sim_settings...)
-    end
-
-    return sim
-end
-
-function simulate_fields(
-    det_meta::PropDict,
-    env::Environment,
-    sim_settings::SSDSimulator,
-    cached_name::AbstractString;
-    overwrite::Bool = false
-)
+function simulate_detector(det_meta::PropDict, env::Environment, cached_name::AbstractString, sim_settings::SSDSimulator;
+    overwrite::Bool = false)
 
     h5fn = joinpath("cache", cached_name * "_fields_ssd.h5f")
     return if !isfile(h5fn) || overwrite
         @info("Simulating $h5fn with SSD from scratch for given settings")
-        sim = simulate_fields(det_meta, env, sim_settings)
+        sim = simulate_ssd_fields(det_meta, env, sim_settings)
         if !ispath(dirname(h5fn))
             mkpath(dirname(h5fn))
         end
@@ -302,3 +231,61 @@ function simulate_fields(
         sim
     end
 end
+
+function simulate_ssd_fields(det_meta::PropDict, env::Environment, sim_settings::SSDSimulator)
+    sim = construct_ssd_simulation(det_meta, env, sim_settings)
+
+    field_sim_settings = (
+        refinement_limits = [0.2, 0.1, 0.05, 0.02, 0.01],
+        depletion_handling = true,
+        convergence_limit = 1e-7,
+        max_n_iterations = 50000,
+        verbose = false
+    )
+
+    println("...electric potential")
+    calculate_electric_potential!(sim; field_sim_settings...)
+
+    println("...electric field")
+    calculate_electric_field!(sim, n_points_in_φ = 72)
+
+    for contact in sim.detector.contacts
+        println("...weighting potential $(contact.id)")
+        calculate_weighting_potential!(sim, contact.id; field_sim_settings...)
+    end
+
+    return sim
+end
+
+
+"""
+    construct_ssd_simulation(det_meta, env, sim_settings)
+
+PropDict, Environment, SSDSimulator -> SSD.Simulation
+
+Construct a `SolidStateDetectors.Simulation` based on geometry as given in LEGEND metadata `det_meta`
+and on envorinmental settings specified in `env` and on simulational settings specified in `sim_settings`.
+"""
+function construct_ssd_simulation(det_meta::PropDict, env::Environment, sim_settings::SSDSimulator)
+    T = Float32
+    CS = SolidStateDetectors.Cylindrical
+    sim = Simulation{T,CS}()
+    sim.medium = SolidStateDetectors.material_properties[SolidStateDetectors.materials[env.medium]]
+    sim.detector = LEGEND_SolidStateDetector(T, det_meta)
+    if sim_settings.comp != "2D"
+        error("Only 2D is supported up to now.")
+    end
+    sim.world = begin
+        crystal_radius = to_SSD_units(T, det_meta.geometry.radius_in_mm, u"mm")
+        crystal_height = to_SSD_units(T, det_meta.geometry.height_in_mm, u"mm")
+        SolidStateDetectors.World{T,3,CS}((
+            SolidStateDetectors.SSDInterval{T,:closed,:closed,:r0,:infinite}(zero(T), crystal_radius * 1.2),
+            SolidStateDetectors.SSDInterval{T,:closed,:closed,:reflecting,:reflecting}(zero(T), zero(T)),
+            SolidStateDetectors.SSDInterval{T,:closed,:closed,:infinite,:infinite}(-0.2 * crystal_height, 1.2 * crystal_height)
+        ))
+    end
+    sim.weighting_potentials = Missing[missing for i = 1:2]
+    sim
+end
+
+
