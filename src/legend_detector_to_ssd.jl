@@ -17,9 +17,6 @@ function LEGEND_SolidStateDetector(::Type{T}, meta::PropDict) where {T}
         dl_thickness_in_mm = :dl_thickness_in_mm in keys(meta.geometry) ? meta.geometry.dl_thickness_in_mm : 0
         li_thickness =  to_SSD_units(T, dl_thickness_in_mm, u"mm")
 
-
-        ### GERMANIUM CRYSTAL ###
-
         crystal_radius = to_SSD_units(T, meta.geometry.radius_in_mm, u"mm")
         crystal_height = to_SSD_units(T, meta.geometry.height_in_mm, u"mm")
 

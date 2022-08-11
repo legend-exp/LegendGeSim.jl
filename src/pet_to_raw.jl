@@ -10,10 +10,9 @@ AbstractString, PropDict, AbstractString -> Table
 The output name <config_name> is used to construct filenames for cached
     simulation files (currently the same as the simulation config basename)
 """
-function pet_to_raw(sim_config::PropDict)
-    # function pet_to_raw(pet_file_path::AbstractString, sim_config::PropDict, config_name::AbstractString)
+function pet_to_raw(pet_filename::AbstractString, sim_config::LegendGeSimConfig)
     ## step 1: stepping information
-    stp_table = pet_to_stp(sim_config)
+    stp_table = pet_to_stp(pet_filename, sim_config)
 
 
     ## step 2: simulate pulses
@@ -24,7 +23,7 @@ function pet_to_raw(sim_config::PropDict)
 
     # pss_table, pss_truth = stp_to_pss(stp_table, det_meta, env, ps_simulator, noise_model, config_name)
     # launch with sim config updated with stp table as new input file
-    pss_table, pss_truth = stp_to_pss(load_config(stp_table, sim_config))
+    pss_table, pss_truth = stp_to_pss(stp_table, sim_config)
 
     ## step 3: simulate DAQ
     # elec_chain = ElecChain(sim_config)
@@ -36,13 +35,13 @@ function pet_to_raw(sim_config::PropDict)
     
     # pss_to_raw(pss_table, pss_truth, elec_chain, trigger, daq, noise_model)
     # launch with sim config updated with pss table as new input file
-    pss_to_raw(load_config(pss_table, sim_config), pss_truth)
+    pss_to_raw(pss_table, pss_truth, sim_config)
 end
 
 
-# for users
-function simulate_raw(pet_input_fullpath::AbstractString, det_meta_fullpath::AbstractString, sim_config_filename::AbstractString)
-    pet_to_raw(load_config(pet_input_fullpath, det_meta_fullpath, sim_config_filename))
+# !! for users?
+function simulate_raw(pet_filename::AbstractString, sim_config::LegendGeSimConfig)
+    pet_to_raw(pet_filename, sim_config)
 end
 
 

@@ -19,13 +19,13 @@ end
 """
     GenericElecChain(sim_conf)
 
-PropDict -> GenericElecChain
+LegendGeSimConfig -> GenericElecChain
 
 Construct electronics components based on simulation 
     configuration <sim_conf> and create a GenericChain instance
     based on these components.
 """
-function GenericElecChain(sim_conf::PropDict)
+function GenericElecChain(sim_conf::LegendGeSimConfig)
     preamp = PreAmp(sim_conf)
     fadc = FADC(sim_conf)
 
@@ -36,14 +36,14 @@ end
 """
     ElecChain(sim_conf)
 
-PropDict -> <ElecChain>
+LegendGeSimConfig -> <ElecChain>
 
 Construct an ElecChain supertype struct based on given simulation configuration.
 Type of returned instance depends on settings in <sim_conf>
 Currently only one type of ElecChain available (GenericElecChain),
     rendering this function temporarily redundant.
 """
-function ElecChain(sim_conf::PropDict)
+function ElecChain(sim_conf::LegendGeSimConfig)
     GenericElecChain(sim_conf)
 end
 

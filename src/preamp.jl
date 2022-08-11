@@ -48,18 +48,18 @@ struct CC2 <: PreAmp end
 """
     GenericPreAmp(sim_conf)
 
-PropDict -> GenericPreAmp    
+LegendGeSimConfig -> GenericPreAmp    
 
 Construct a GenericPreAmp instance based on given simulation configuration <sim_conf>
 """
-function GenericPreAmp(sim_conf::PropDict)
+function GenericPreAmp(sim_conf::LegendGeSimConfig)
     T = Float32 # This should be somehow defined and be passed properly
     GenericPreAmp(
-        τ_decay=T(sim_conf.setup.preamp.t_decay)*u"μs",
-        τ_rise=T(sim_conf.setup.preamp.t_rise)*u"ns",
-        offset = T(sim_conf.setup.preamp.offset)u"keV",
-        max_e = T(sim_conf.setup.preamp.max_e)u"keV",
-        noise_σ = haskey(sim_conf.setup.preamp, :noise_sigma) ? T(sim_conf.setup.preamp.noise_sigma)u"keV" : 0u"keV"
+        τ_decay=T(sim_conf.dict.setup.preamp.t_decay)*u"μs",
+        τ_rise=T(sim_conf.dict.setup.preamp.t_rise)*u"ns",
+        offset = T(sim_conf.dict.setup.preamp.offset)u"keV",
+        max_e = T(sim_conf.dict.setup.preamp.max_e)u"keV",
+        noise_σ = haskey(sim_conf.dict.setup.preamp, :noise_sigma) ? T(sim_conf.dict.setup.preamp.noise_sigma)u"keV" : 0u"keV"
     )
 end
 
@@ -67,13 +67,13 @@ end
 """
     PreAmp(sim_conf)
 
-PropDict -> <PreAmp>    
+LegendGeSimConfig -> <PreAmp>    
 
 Construct a PreAmp supertype instance based on given simulation configuration <sim_conf>.
 Returned type depends on the settings in <sim_conf>.
 Currently only GenericPreAmp is available.
 """
-function PreAmp(sim_conf::PropDict)
+function PreAmp(sim_conf::LegendGeSimConfig)
     GenericPreAmp(sim_conf)
 end
 
