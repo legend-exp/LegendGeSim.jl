@@ -299,22 +299,19 @@ function LEGEND_SolidStateDetector(::Type{T}, meta::PropDict) where {T}
         temperature = T(78) 
         material = SolidStateDetectors.material_properties[:HPGe]
         
-        # Impurity Model: Information are stored in `meta.production.impcc`
-        # For now: Constant impurity density: 
-        #   n-type: positive impurity density
-        #   p-type: negative impurity density
-        # Assume p-type
-        constant_impurity_density = ustrip(uconvert(u"m^-3", T(-1e9) * u"cm^-3"))
-        impurity_density_model = SolidStateDetectors.CylindricalImpurityDensity{T}(
-            (0, 0, constant_impurity_density), # offsets
-            (0, 0, 0)                          # linear slopes
-        )
-
         # Charge Drift Model: 
         # Use example ADL charge drift model from SSD (Crystal axis <100> is at φ = 0):
         adl_charge_drift_config_file = joinpath(dirname(dirname(pathof(SolidStateDetectors))), 
             "examples/example_config_files/ADLChargeDriftModel/drift_velocity_config.yaml")
         charge_drift_model = SolidStateDetectors.ADLChargeDriftModel{T}(adl_charge_drift_config_file);
+
+        # Impurity Model: Information are stored in `meta.production.impcc`
+        mjd_imp_dens_pars = LegendGeSim.determine_MJDFieldGenImpurityParameter_from_metadata(T, meta)
+        impurity_density_model = MJDFieldGenImpurityModel{T}(
+            mjd_imp_dens_pars, 
+            T(meta.geometry.height_in_mm),
+            T(meta.geometry.radius_in_mm)
+        )
 
         semiconductor = SolidStateDetectors.Semiconductor(temperature, material, impurity_density_model, charge_drift_model, semiconductor_geometry)
 
