@@ -103,8 +103,8 @@ function determine_MJDFieldGenImpurityParameter_from_metadata(::Type{T}, detecto
     # SolidStateDetectors.get_impurity_density(cdm::MJDFieldGenImpurityModel{T}, pt::SolidStateDetectors.AbstractCoordinatePoint{T})
     # for the z component
     impurity_z0 = imp_level_at_0
-    impurity_quadratic = -sub_poly.coeffs[3] * H^2
-    impurity_gradient = (sub_poly.coeffs[2] - 2*impurity_quadratic/H) * 10  # *10 since unit conversion inv(cm^3 * mm)
+    impurity_quadratic = length(sub_poly.coeffs) == 3 ? (-sub_poly.coeffs[3] * H^2) : 0
+    impurity_gradient = (((length(sub_poly.coeffs[2]) >= 2) ? sub_poly.coeffs[2] : 0) - 2*impurity_quadratic/H) * 10  # *10 since unit conversion inv(cm^3 * mm)
 
     return (;
         impurity_z0,
