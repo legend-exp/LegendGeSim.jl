@@ -104,6 +104,22 @@ function siggen_config(meta::PropDict, env::Environment, siggen_sim::SiggenSimul
     fieldgen_lines = readlines(open(joinpath(dirname(@__DIR__), "examples", "configs", "fieldgen_settings.txt")))
     fieldgen_lines = replace.(fieldgen_lines, "\t" => "   ")
 
+    # Impurities from Legend metadata:
+    begin
+        mjd_imp_pars = LegendGeSim.determine_MJDFieldGenImpurityParameter_from_metadata(Float64, meta)
+        iline = findfirst(l -> startswith(l, "impurity_z0"), fieldgen_lines) 
+        fieldgen_lines[iline] = "impurity_z0         $(mjd_imp_pars.impurity_z0)   # net impurity concentration at Z=0, in 1e10 e/cm3"
+        iline = findfirst(l -> startswith(l, "impurity_gradient"), fieldgen_lines) 
+        fieldgen_lines[iline] = "impurity_gradient         $(mjd_imp_pars.impurity_gradient)   # net impurity concentration at Z=0, in 1e10 e/cm3"
+        iline = findfirst(l -> startswith(l, "impurity_quadratic"), fieldgen_lines) 
+        fieldgen_lines[iline] = "impurity_quadratic         $(mjd_imp_pars.impurity_quadratic)   # net impurity concentration at Z=0, in 1e10 e/cm3"
+        # ToDo: add also those... for now only z-profile
+        # impurity_surface = T(0),
+        # impurity_radial_add = T(0),
+        # impurity_radial_mult = T(1),
+        # impurity_rpower = T(0)
+    end
+    
     # unite constructed detector geometry and fieldgen settings
     total_lines = vcat(detector_lines, [""], fieldgen_lines)
 
