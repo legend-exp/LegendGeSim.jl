@@ -1,8 +1,7 @@
-function SolidStateDetectors.ElectricPotential(sim::SigGenSetup)
+function SolidStateDetectors.ElectricPotential(sim::SigGenSetup, ::Type{T} = Float32) where {T}
     E_pot, W_pot, E_abs, E_r, E_z = LegendGeSim.MJDSigGen.read_fields(sim);
-    T = eltype(E_pot)
-    r_axis = (0:(sim.rlen - 1)) * sim.xtal_grid
-    z_axis = (0:(sim.zlen - 1)) * sim.xtal_grid
+    r_axis = (0:(sim.rlen - 1)) * sim.xtal_grid / 1000 # SSD is in SI Units: m
+    z_axis = (0:(sim.zlen - 1)) * sim.xtal_grid / 1000 # SSD is in SI Units: m
     ax1 = SolidStateDetectors.DiscreteAxis{T, :r0, :fixed, ClosedInterval{T}}(r_axis[1]..r_axis[end], r_axis)
     ax2 = SolidStateDetectors.DiscreteAxis{T, :reflecting, :reflecting, ClosedInterval{T}}(zero(T)..zero(T), zeros(T, 1))
     ax3 = SolidStateDetectors.DiscreteAxis{T, :reflecting, :reflecting, ClosedInterval{T}}(z_axis[1]..z_axis[end], z_axis)
@@ -13,11 +12,10 @@ function SolidStateDetectors.ElectricPotential(sim::SigGenSetup)
     ElectricPotential(data, grid)
 end
 
-function SolidStateDetectors.WeightingPotential(sim::SigGenSetup)
+function SolidStateDetectors.WeightingPotential(sim::SigGenSetup, ::Type{T} = Float32) where {T}
     E_pot, W_pot, E_abs, E_r, E_z = LegendGeSim.MJDSigGen.read_fields(sim);
-    T = eltype(W_pot)
-    r_axis = (0:(sim.rlen - 1)) * sim.xtal_grid
-    z_axis = (0:(sim.zlen - 1)) * sim.xtal_grid
+    r_axis = (0:(sim.rlen - 1)) * sim.xtal_grid / 1000 # SSD is in SI Units: m
+    z_axis = (0:(sim.zlen - 1)) * sim.xtal_grid / 1000 # SSD is in SI Units: m
     ax1 = SolidStateDetectors.DiscreteAxis{T, :r0, :fixed, ClosedInterval{T}}(r_axis[1]..r_axis[end], r_axis)
     ax2 = SolidStateDetectors.DiscreteAxis{T, :reflecting, :reflecting, ClosedInterval{T}}(zero(T)..zero(T), zeros(T, 1))
     ax3 = SolidStateDetectors.DiscreteAxis{T, :reflecting, :reflecting, ClosedInterval{T}}(z_axis[1]..z_axis[end], z_axis)
