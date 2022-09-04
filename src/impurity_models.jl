@@ -82,6 +82,10 @@ end
 function get_impurity_density_poly_from_metadata(::Type{T}, imp_dict::PropDict) where {T}
     zs_from_contact = T.(imp_dict.array.dist_from_contact_in_mm) # in mm
     imp_levels_at_z = T.(imp_dict.array[Symbol("value_in_1e9e/cm3")] ./ 10)  # in T(1e10) * u"cm^-3"
+    detector_is_p_type = true # should be defined in the config files? Assume this for now
+    if detector_is_p_type
+        imp_levels_at_z *= -1
+    end
     return Polynomials.fit(zs_from_contact, imp_levels_at_z)
 end
 
