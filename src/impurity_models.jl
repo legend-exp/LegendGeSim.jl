@@ -78,7 +78,18 @@ function SolidStateDetectors.get_impurity_density(
 end
 
 
+"""
+    get_impurity_density_poly_from_metadata(::Type{T}, imp_dict::PropDict) where {T}
 
+This function extracts an polynomial for the impurity density along z
+from the legend metadata configuration file. 
+
+If there is a offset (and/or direction change) between the 
+in the metadata file defined impurity density profile of the CRYSTAL (not detector)
+and the coordinate system of the detector, this has to be taken into account in this function.
+
+The returned polynomial should be in detector coordinates!
+"""
 function get_impurity_density_poly_from_metadata(::Type{T}, imp_dict::PropDict) where {T}
     zs_from_contact = T.(imp_dict.array.dist_from_contact_in_mm) # in mm
     imp_levels_at_z = T.(imp_dict.array[Symbol("value_in_1e9e/cm3")] ./ 10)  # in T(1e10) * u"cm^-3"
@@ -86,6 +97,9 @@ function get_impurity_density_poly_from_metadata(::Type{T}, imp_dict::PropDict) 
     if detector_is_p_type
         imp_levels_at_z *= -1
     end
+
+    # zs in mm
+    # imp values (return value of the polynomial) in 1e10/cm3
     return Polynomials.fit(zs_from_contact, imp_levels_at_z)
 end
 
@@ -104,7 +118,7 @@ function determine_MJDFieldGenImpurityParameter_from_metadata(::Type{T}, detecto
     # for the z component
     impurity_z0 = imp_level_at_0
     impurity_quadratic = length(sub_poly.coeffs) == 3 ? (-sub_poly.coeffs[3] * H^2) : 0
-    impurity_gradient = (((length(sub_poly.coeffs[2]) >= 2) ? sub_poly.coeffs[2] : 0) - 2*impurity_quadratic/H) * 10  # *10 since unit conversion inv(cm^3 * mm)
+    impurity_gradient = (((length(sub_poly.coeffs) >= 2) ? sub_poly.coeffs[2] : 0) - 2*impurity_quadratic/H) * 10  # *10 since unit conversion inv(cm^3 * mm)
 
     return (;
         impurity_z0,
