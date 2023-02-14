@@ -58,7 +58,7 @@ function LEGEND_SolidStateDetector(::Type{T}, meta::PropDict) where {T}
             Δr = hZ * tan(top_outer_taper_angle)         
             r_in_bot = r_center + Δr
             r_in_top = r_center - Δr
-            r_out = crystal_radius + gap
+            r_out = max(r_in_top, r_in_bot) + gap # ensure that r_out is always bigger as r_in
             r = ((r_in_bot, r_out),(r_in_top, r_out))
             semiconductor_geometry -= CSG.Cone{T}(CSG.ClosedPrimitive; 
                 r = r,
@@ -115,7 +115,7 @@ function LEGEND_SolidStateDetector(::Type{T}, meta::PropDict) where {T}
             Δr = hZ * tan(bot_outer_taper_angle)         
             r_in_bot = r_center - Δr
             r_in_top = r_center + Δr
-            r_out = crystal_radius + gap
+            r_out = max(r_in_top, r_in_bot) + gap # ensure that r_out is always bigger as r_in
             r = ((r_in_bot, r_out),(r_in_top, r_out))
             semiconductor_geometry -= CSG.Cone{T}(CSG.ClosedPrimitive; 
                 r = r,
