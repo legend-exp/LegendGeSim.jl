@@ -84,16 +84,15 @@ function LEGEND_SolidStateDetector(::Type{T}, meta::PropDict) where {T}
         end
         if has_top_inner_taper
             r_center = borehole_radius + top_inner_taper_height * tan(top_inner_taper_angle) / 2
-            hZ = top_inner_taper_height/2 + 1gap
+            hZ = top_inner_taper_height/2
             Δr = hZ * tan(top_inner_taper_angle)         
             r_out_bot = r_center - Δr
-            r_out_top = r_center + Δr
-            r_in = zero(T)
-            r = ((r_in, r_out_bot),(r_in, r_out_top))
+	    r_out_top = r_center + Δr * (1 + 2*gap/hZ)
+	    r = ((r_out_bot,), (r_out_top,))
             semiconductor_geometry -= CSG.Cone{T}(CSG.ClosedPrimitive; 
                 r = r,
-                hZ = hZ, 
-                origin = CartesianPoint{T}(0, 0, crystal_height - top_inner_taper_height/2)
+                hZ = hZ + gap, 
+                origin = CartesianPoint{T}(0, 0, crystal_height - top_inner_taper_height/2 + gap)
             )
         end
 
