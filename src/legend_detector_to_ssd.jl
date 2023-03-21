@@ -28,11 +28,11 @@ function LEGEND_SolidStateDetector(::Type{T}, meta::PropDict) where {T}
         )
             
         # borehole
-        borehole_well = to_SSD_units(T, meta.geometry.well.gap_in_mm, u"mm")
-        borehole_height = crystal_height - borehole_well
-        borehole_radius = to_SSD_units(T, meta.geometry.well.radius_in_mm, u"mm")
-        has_borehole =  borehole_well < crystal_height && borehole_radius > 0
+        has_borehole = haskey(meta.geometry, :borehole)
         if has_borehole
+            borehole_well = to_SSD_units(T, meta.geometry.borehole.gap_in_mm, u"mm")
+            borehole_height = crystal_height - borehole_well
+            borehole_radius = to_SSD_units(T, meta.geometry.borehole.radius_in_mm, u"mm")
             semiconductor_geometry -= CSG.Cone{T}(CSG.ClosedPrimitive; 
                 r = borehole_radius, 
                 hZ = borehole_height / 2 + gap, 
@@ -58,7 +58,7 @@ function LEGEND_SolidStateDetector(::Type{T}, meta::PropDict) where {T}
             Δr = hZ * tan(top_outer_taper_angle)         
             r_in_bot = r_center + Δr
             r_in_top = r_center - Δr
-            r_out = crystal_radius + gap
+            r_out = max(r_in_top, r_in_bot) + gap # ensure that r_out is always bigger as r_in
             r = ((r_in_bot, r_out),(r_in_top, r_out))
             semiconductor_geometry -= CSG.Cone{T}(CSG.ClosedPrimitive; 
                 r = r,
@@ -84,16 +84,15 @@ function LEGEND_SolidStateDetector(::Type{T}, meta::PropDict) where {T}
         end
         if has_top_inner_taper
             r_center = borehole_radius + top_inner_taper_height * tan(top_inner_taper_angle) / 2
-            hZ = top_inner_taper_height/2 + 1gap
+            hZ = top_inner_taper_height/2
             Δr = hZ * tan(top_inner_taper_angle)         
             r_out_bot = r_center - Δr
-            r_out_top = r_center + Δr
-            r_in = zero(T)
-            r = ((r_in, r_out_bot),(r_in, r_out_top))
+	    r_out_top = r_center + Δr * (1 + 2*gap/hZ)
+	    r = ((r_out_bot,), (r_out_top,))
             semiconductor_geometry -= CSG.Cone{T}(CSG.ClosedPrimitive; 
                 r = r,
-                hZ = hZ, 
-                origin = CartesianPoint{T}(0, 0, crystal_height - top_inner_taper_height/2)
+                hZ = hZ + gap, 
+                origin = CartesianPoint{T}(0, 0, crystal_height - top_inner_taper_height/2 + gap)
             )
         end
 
@@ -115,7 +114,7 @@ function LEGEND_SolidStateDetector(::Type{T}, meta::PropDict) where {T}
             Δr = hZ * tan(bot_outer_taper_angle)         
             r_in_bot = r_center - Δr
             r_in_top = r_center + Δr
-            r_out = crystal_radius + gap
+            r_out = max(r_in_top, r_in_bot) + gap # ensure that r_out is always bigger as r_in
             r = ((r_in_bot, r_out),(r_in_top, r_out))
             semiconductor_geometry -= CSG.Cone{T}(CSG.ClosedPrimitive; 
                 r = r,
@@ -145,18 +144,8 @@ function LEGEND_SolidStateDetector(::Type{T}, meta::PropDict) where {T}
         is_bulletized = !all(values(meta.geometry.bulletization) .== 0)
         is_bulletized && @warn "Bulletization is not implemented yet, ignore for now."
 
-        # crack
-        has_crack = !all(values(meta.geometry.crack) .== 0)
-        has_crack && @warn "Cracks are not implemented yet, ignore for now."
-
-        # bottom cyl
-        has_bottom_cyl = !all(values(meta.geometry.bottom_cyl) .== 0)
-        has_bottom_cyl && @warn "Multi radius detectors are not implemented yet, ignore for now."
-
-        # topgroove
-        has_topgroove = !all(values(meta.geometry.topgroove) .== 0)
-        has_topgroove && @warn "Top grooves are not implemented yet, ignore for now."
-
+        # extras
+        haskey(meta.geometry, :extra) && @warn "Extras are not implemented yet, ignore for now."
 
 
         ### POINT CONTACT ###
@@ -318,7 +307,7 @@ function LEGEND_SolidStateDetector(::Type{T}, meta::PropDict) where {T}
 
         semiconductor = SolidStateDetectors.Semiconductor(temperature, material, impurity_density_model, charge_drift_model, semiconductor_geometry)
 
-        operation_voltage = T(meta.characterization.manufacturer.op_voltage_in_V)
+        operation_voltage = T(meta.characterization.manufacturer.recommended_voltage_in_V)
         point_contact = SolidStateDetectors.Contact( zero(T), material, 1, "Point Contact", point_contact_geometry )
         mantle_contact = SolidStateDetectors.Contact( operation_voltage, material, 2, "Mantle Contact", mantle_contact_geometry )
 
@@ -326,5 +315,5 @@ function LEGEND_SolidStateDetector(::Type{T}, meta::PropDict) where {T}
 
         passives = missing # possible holding structure around the detector
         virtual_drift_volumes = missing
-        SolidStateDetector{T}( meta.det_name, semiconductor, [point_contact, mantle_contact], passives, virtual_drift_volumes )
+        SolidStateDetector{T}( meta.name, semiconductor, [point_contact, mantle_contact], passives, virtual_drift_volumes )
     end
