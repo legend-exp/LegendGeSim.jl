@@ -11,7 +11,6 @@ module LegendGeSim
 
 using ArgCheck
 using ArraysOfArrays
-using Clustering
 using CurveFit
 using DelimitedFiles
 using Distributions
