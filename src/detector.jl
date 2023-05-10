@@ -190,6 +190,13 @@ end
 ### SSD
 ####################################
 
+to_SSD_units(::Type{T}, x, unit) where {T} = T(SolidStateDetectors.to_internal_units(x*unit)) 
+
+function LEGEND_SolidStateDetector(::Type{T}, meta::PropDict) where {T}
+    SolidStateDetector{T}(LegendData, meta)
+end
+
+
 function simulate_detector(det_meta::PropDict, env::Environment, cached_name::AbstractString, sim_settings::SSDSimulator;
     overwrite::Bool = false)
 
