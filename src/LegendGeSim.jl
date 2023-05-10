@@ -17,7 +17,6 @@ using Distributions
 using DSP 
 using ElasticArrays
 using EncodedArrays
-using FillArrays
 using HDF5
 using IntervalSets
 using JSON
