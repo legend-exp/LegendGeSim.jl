@@ -1,11 +1,24 @@
 function simulate_fields(config::LegendGeSimConfig; overwrite::Bool = false)
+    meta_dict = config.dict.detector_metadata
+    env = Environment(config.dict.environment)
+    simulator = PSSimulator(config.dict.simulation)
 
-    sim_settings = PSSimulator(config)
-    env = Environment(config)
-    cached_name = config.dict.simulation.cached_name
+    # sim_settings = PSSimulator(config)
+    # cached_name = config.dict.simulation.cached_name
 
-    simulate_detector(config.dict.detector_metadata, env, cached_name, sim_settings; overwrite)
+    # cached name
+    simulate_fields(meta_dict, env, simulator; overwrite)
 end
+
+# when user launches directly inputting dicts
+function simulate_fields(detector_metadata_path::AbstractString, environment_settings::Dict, simulation_settings::Dict, overwrite::Bool = false)
+    meta_dict = propdict(detector_metadata_path)
+    env = Environment(PropDict(environment_settings))
+    simulator = PSSimulator(PropDict(simulation_settings))
+
+    simulate_detector(meta_dict, env, simulator; overwrite)
+end
+
 
 ####################################
 ### FieldGen
@@ -190,20 +203,23 @@ end
 ### SSD
 ####################################
 
-to_SSD_units(::Type{T}, x, unit) where {T} = T(SolidStateDetectors.to_internal_units(x*unit)) 
+# to_SSD_units(::Type{T}, x, unit) where {T} = T(SolidStateDetectors.to_internal_units(x*unit)) 
 
-function LEGEND_SolidStateDetector(::Type{T}, meta::PropDict) where {T}
-    SolidStateDetector{T}(LegendData, meta)
-end
+# function LEGEND_SolidStateDetector(::Type{T}, meta::PropDict) where {T}
+#     SolidStateDetector{T}(LegendData, meta)
+# end
 
 
-function simulate_detector(det_meta::PropDict, env::Environment, cached_name::AbstractString, sim_settings::SSDSimulator;
+# function simulate_detector(det_meta::PropDict, env::Environment, cached_name::AbstractString, sim_settings::SSDSimulator;
+function simulate_detector(det_meta::PropDict, env::Environment, simulator::SSDSimulator;
     overwrite::Bool = false)
 
     h5fn = joinpath("cache", cached_name * "_fields_ssd.h5f")
     return if !isfile(h5fn) || overwrite
         @info("Simulating $h5fn with SSD from scratch for given settings")
-        sim = simulate_ssd_fields(det_meta, env, sim_settings)
+        # launch simulation
+        sim = simulate_ssd_fields(det_meta, env, simulator)
+        # cache it
         if !ispath(dirname(h5fn))
             mkpath(dirname(h5fn))
         end
@@ -218,11 +234,11 @@ function simulate_detector(det_meta::PropDict, env::Environment, cached_name::Ab
                 LegendHDF5IO.writedata(h5f, "SSD_weighting_potential_$(i)", NamedTuple(sim.weighting_potentials[i]))
             end
         end
-        # SolidStateDetectors.ssd_write(h5fn, sim)
+        # SolidStateDetectors.ssd_write(h5fn, sim) -> why commented out? and doing how is above?
         @info("-> Saved cached simulation to $h5fn")
         sim
     else
-        sim = construct_ssd_simulation(det_meta, env, sim_settings)
+        sim = construct_ssd_simulation(det_meta, env, simulator)
         @info("Reading SSD simulation from cached file $h5fn")
         HDF5.h5open(h5fn, "r") do h5f
             sim.electric_potential = ElectricPotential(LegendHDF5IO.readdata(h5f, "SSD_electric_potential"))
@@ -239,8 +255,8 @@ function simulate_detector(det_meta::PropDict, env::Environment, cached_name::Ab
     end
 end
 
-function simulate_ssd_fields(det_meta::PropDict, env::Environment, sim_settings::SSDSimulator)
-    sim = construct_ssd_simulation(det_meta, env, sim_settings)
+function simulate_ssd_fields(det_meta::PropDict, env::Environment, simulator::SSDSimulator)
+    sim = construct_ssd_simulation(det_meta, env, simulator)
 
     field_sim_settings = (
         refinement_limits = [0.2, 0.1, 0.05, 0.02, 0.01],
@@ -273,12 +289,15 @@ PropDict, Environment, SSDSimulator -> SSD.Simulation
 Construct a `SolidStateDetectors.Simulation` based on geometry as given in LEGEND metadata `det_meta`
 and on envorinmental settings specified in `env` and on simulational settings specified in `sim_settings`.
 """
-function construct_ssd_simulation(det_meta::PropDict, env::Environment, sim_settings::SSDSimulator)
+function construct_ssd_simulation(det_meta::PropDict, env::Environment, simulator::SSDSimulator)
     T = Float32
     CS = SolidStateDetectors.Cylindrical
     sim = Simulation{T,CS}()
     sim.medium = SolidStateDetectors.material_properties[SolidStateDetectors.materials[env.medium]]
-    sim.detector = LEGEND_SolidStateDetector(T, det_meta)
+    # temporary quickfix to provide path to crystal jsons to get impurity
+    # later will be read from legend-metadata similar to pylegendmeta
+    # note: currently does nothing with crystal path
+    sim.detector = LEGEND_SolidStateDetector(T, det_meta, env, simulator.crystal_metadata_path)
     if sim_settings.comp != "2D"
         error("Only 2D is supported up to now.")
     end

@@ -15,6 +15,9 @@ Simulation method: SolidStateDetectors
 
     "Computation: 3D or 2D (phi symmetry)"
     comp::AbstractString = "2D"
+
+    "Path to crystal jsons"
+    crystal_metadata_path::AbstractString = ""
 end
 
 
@@ -28,18 +31,24 @@ Construct SSDSimulator instance based on simulation
 
 Currently SSDSimulator does not have any parameters
 """
-function SSDSimulator(sim_conf::LegendGeSimConfig)
-    coord = haskey(sim_conf.dict.simulation, :coordinates) ? sim_conf.dict.simulation.coordinates : "cylindrical"
+# function SSDSimulator(sim_conf::LegendGeSimConfig)
+function SSDSimulator(simulation_settings::PropDict)
+    coord = haskey(simulation_settings, :coordinates) ? simulation_settings.coordinates : "cylindrical"
     if !(coord in ["cartesian", "cylindrical"])
         error("$coord coordinates not implemented!\n Available: cartesian, cylindrical")
     end
 
-    comp = haskey(sim_conf.dict.simulation, :computation) ? sim_conf.dict.simulation.computation : "2D"
+    comp = haskey(simulation_settings, :computation) ? simulation_settings.computation : "2D"
     if !(comp in ["2D", "3D"])
         error("$comp computation not implemented!\n Available: 2D, 3D")
     end
 
-    SSDSimulator(coord, comp)
+    crystal_metadata_path = haskey(simulation_settings, :crystal_metadata_path) ? simulation_settings.crystal_metadata_path : ""
+    if crystal_metadata_path == ""
+        warning("No crystal metadata path given. Simulating with dummy constant impurity density.")
+    end
+
+    SSDSimulator(coord, comp, crystal_metadata_path)
 end
 
 
@@ -82,16 +91,26 @@ Construct a PSSSimulator supertype instance based on given simulation
 Returned type depends on the simulation
     method given in the config.
 """
-function PSSimulator(sim_config::LegendGeSimConfig)
-    @info "Simulation method: $(sim_config.dict.simulation.method)"
-    if sim_config.dict.simulation.method in ["SSD", "ssd"]
-        SSDSimulator(sim_config)
-    elseif sim_config.dict.simulation.method in ["siggen", "fieldgen"]
-        SiggenSimulator(sim_config)
+function PSSimulator(simulation_settings::PropDict)    
+    @info "Simulation method: $(simulation_settings.simulation.method)"
+    if simulation_settings.simulation.method in ["SSD", "ssd"]
+        SSDSimulator(simulation_settings)
+    elseif simulation_settings.simulation.method in ["siggen", "fieldgen"]
+        SiggenSimulator(simulation_settings)
     else
         error("This simulation method is not implemented!")
     end
 end
+
+# useful when user defines own dict in notebook rather than json for small studies
+# function PSSimulator(simulation_settings::Dict)
+#     PSSSimulator(propdict(simulation_settings))
+# end
+
+# for main production chain stuff
+# function PSSimulator(sim_config::LegendGeSimConfig)
+#     PSSSimulator(sim_config.dict.simulation)
+# end    
 
 # -------------------------------------------------------------------
 
