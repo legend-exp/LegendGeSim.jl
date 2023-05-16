@@ -1,14 +1,14 @@
-function pss_to_raw(pss_table::Table, pss_truth::Table, config::LegendGeSimConfig)
-    @info "---------------------- pss -> raw (DAQ simulation)"
+# function pss_to_raw(pss_table::Table, pss_truth::Table, config::LegendGeSimConfig)
+#     @info "---------------------- pss -> raw (DAQ simulation)"
 
-    ps_simulator = PSSimulator(config)
-    elec_chain = ElecChain(config)
-    trigger = Trigger(config)
-    daq = DAQ(config)
-    noise_model = NoiseModel(config)
+#     ps_simulator = PSSimulator(config)
+#     elec_chain = ElecChain(config)
+#     trigger = Trigger(config)
+#     daq = DAQ(config)
+#     noise_model = NoiseModel(config)
 
-    pss_to_raw(pss_table, pss_truth, ps_simulator, elec_chain, trigger, daq, noise_model)
-end
+#     pss_to_raw(pss_table, pss_truth, ps_simulator, elec_chain, trigger, daq, noise_model)
+# end
 
 """
     pss_to_raw(pss_table, pss_truth, simulation_settings, elec_chain, trigger, daq, noise_model)
@@ -23,6 +23,8 @@ Currently timing information in <pss_truth> is used for dummy timestamps in the 
     raw tier table.
 """
 function pss_to_raw(pss_table::Table, pss_truth::Table, simulation_settings::PSSimulator, elec_chain::ElecChain, trigger::Trigger, daq::DAQ, noise_model::NoiseModel)
+
+    @info "---------------------- pss -> raw (realistic waveforms)"
 
     result = process_waveforms(pss_table, simulation_settings, elec_chain, trigger, daq, noise_model)
    

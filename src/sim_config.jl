@@ -62,7 +62,7 @@ function Environment(env_conf::PropDict)
     Environment(
         env_conf.medium,
         env_conf.crystal_temperature_in_K,
-        env_conf.operating_voltage_in_V
+        haskey(env_conf, :operating_voltage_in_V) ? env_conf.operating_voltage_in_V : 0
     )
 end
 

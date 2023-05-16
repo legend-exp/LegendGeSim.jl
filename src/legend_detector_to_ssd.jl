@@ -2,7 +2,7 @@
 
 to_SSD_units(::Type{T}, x, unit) where {T} = T(SolidStateDetectors.to_internal_units(x*unit)) 
 
-# if user just wants to see geometry
+# if just want geometry
 function LEGEND_SolidStateDetector(metapath::AbstractString)
     LEGEND_SolidStateDetector(Float32, propdict(metapath), Environment("",0,0))
 end
@@ -313,7 +313,7 @@ function LEGEND_SolidStateDetector(::Type{T}, meta::PropDict, env::Environment, 
             mc_geometry
         end
 
-        temperature = T(env.crystal_t)
+        temperature = T(env.crystal_temperature)
         material = SolidStateDetectors.material_properties[:HPGe]
         
         # Impurity Model: Information are stored in `meta.production.impcc`
@@ -336,7 +336,8 @@ function LEGEND_SolidStateDetector(::Type{T}, meta::PropDict, env::Environment, 
         semiconductor = SolidStateDetectors.Semiconductor(temperature, material, impurity_density_model, charge_drift_model, semiconductor_geometry)
 
         # operation_voltage = :op_voltage in keys(env) ? T(env.op_voltage) : T(meta.characterization.l200_site.recommended_voltage_in_V)
-        operation_voltage = env.op_voltage > 0 ? T(env.op_voltage) : T(meta.characterization.l200_site.recommended_voltage_in_V)
+        operation_voltage = env.operating_voltage > 0 ? T(env.operating_voltage) : T(meta.characterization.l200_site.recommended_voltage_in_V)
+        # ToDo: what if metadata has null
 
         point_contact = SolidStateDetectors.Contact( zero(T), material, 1, "Point Contact", point_contact_geometry )
         mantle_contact = SolidStateDetectors.Contact( operation_voltage, material, 2, "Mantle Contact", mantle_contact_geometry )

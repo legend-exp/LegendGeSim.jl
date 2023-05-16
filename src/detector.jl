@@ -1,22 +1,29 @@
-function simulate_fields(config::LegendGeSimConfig; overwrite::Bool = false)
-    meta_dict = config.dict.detector_metadata
-    env = Environment(config.dict.environment)
-    simulator = PSSimulator(config.dict.simulation)
+# launch from official config - is it even needed anymore? defaults should be set in each thing
+# function simulate_fields(config::LegendGeSimConfig; overwrite::Bool = false)
+#     meta_dict = config.dict.detector_metadata
+#     env = Environment(config.dict.environment)
+#     simulator = PSSimulator(config.dict.simulation)
 
-    # sim_settings = PSSimulator(config)
-    # cached_name = config.dict.simulation.cached_name
+#     # sim_settings = PSSimulator(config)
+#     # cached_name = config.dict.simulation.cached_name
 
-    # cached name
-    simulate_fields(meta_dict, env, simulator; overwrite)
-end
+#     # cached name
+#     simulate_fields(meta_dict, env, simulator; overwrite)
+# end
 
 # when user launches directly inputting dicts
-function simulate_fields(detector_metadata_path::AbstractString, environment_settings::Dict, simulation_settings::Dict, overwrite::Bool = false)
+function simulate_fields(detector_metadata_path::AbstractString, environment_settings::Dict, simulation_settings::Dict; overwrite::Bool = false)    
     meta_dict = propdict(detector_metadata_path)
     env = Environment(PropDict(environment_settings))
     simulator = PSSimulator(PropDict(simulation_settings))
 
     simulate_detector(meta_dict, env, simulator; overwrite)
+end
+
+# one dict just like the LegendGeSim config json
+# ToDo: option to include detector name there - with path? with legendmeta?
+function simulate_fields(detector_metadata_path::AbstractString, all_settings::Dict; overwrite::Bool = false)
+    simulate_fields(detector_metadata_path, all_settings["environment"], all_settings["simulation"]; overwrite)
 end
 
 
@@ -193,7 +200,7 @@ function meta2siggen(meta::PropDict, env::Environment)
 
         # configuration for signal calculation 
         # crystal temperature in Kelvin
-        "xtal_temp" => env.crystal_t
+        "xtal_temp" => env.crystal_temperature
     )
 end
 
@@ -213,31 +220,41 @@ end
 # function simulate_detector(det_meta::PropDict, env::Environment, cached_name::AbstractString, sim_settings::SSDSimulator;
 function simulate_detector(det_meta::PropDict, env::Environment, simulator::SSDSimulator;
     overwrite::Bool = false)
+    # append detector name to cached name
+    # ToDo: should happen above this in simulate_fields or something, cause the same for SSD or siggen
+    # filename: extract filename without extension from path
+    full_cached_name = "$(det_meta.name)_$(simulator.cached_name)"
 
-    h5fn = joinpath("cache", cached_name * "_fields_ssd.h5f")
+    h5fn = joinpath("cache", full_cached_name * "_fields_ssd.h5f")
+    # simulate from scratch if file not found, or overwrite is asked
+    # or if no cached name was given (i.e. don't cache) - such file is never saved (clumsy! ToDo)
     return if !isfile(h5fn) || overwrite
-        @info("Simulating $h5fn with SSD from scratch for given settings")
+        @info("Simulating with SSD from scratch for given settings")
         # launch simulation
         sim = simulate_ssd_fields(det_meta, env, simulator)
         # cache it
-        if !ispath(dirname(h5fn))
-            mkpath(dirname(h5fn))
-        end
-        HDF5.h5open(h5fn, "w") do h5f
-            LegendHDF5IO.writedata(h5f, "SSD_electric_potential", NamedTuple(sim.electric_potential))
-            LegendHDF5IO.writedata(h5f, "SSD_point_types", NamedTuple(sim.point_types))
-            LegendHDF5IO.writedata(h5f, "SSD_q_eff_fix", NamedTuple(sim.q_eff_fix))
-            LegendHDF5IO.writedata(h5f, "SSD_q_eff_imp", NamedTuple(sim.q_eff_imp))
-            LegendHDF5IO.writedata(h5f, "SSD_dielectric_distribution", NamedTuple(sim.ϵ_r))
-            LegendHDF5IO.writedata(h5f, "SSD_electric_field", NamedTuple(sim.electric_field))
-            for i in eachindex(sim.weighting_potentials)
-                LegendHDF5IO.writedata(h5f, "SSD_weighting_potential_$(i)", NamedTuple(sim.weighting_potentials[i]))
+        if !(simulator.cached_name == "")
+            # ToDo: notify user at the beginning about cached name? So that they can see if it's wrong and stop?
+            if !ispath(dirname(h5fn))
+                mkpath(dirname(h5fn))
             end
+            HDF5.h5open(h5fn, "w") do h5f
+                LegendHDF5IO.writedata(h5f, "SSD_electric_potential", NamedTuple(sim.electric_potential))
+                LegendHDF5IO.writedata(h5f, "SSD_point_types", NamedTuple(sim.point_types))
+                LegendHDF5IO.writedata(h5f, "SSD_q_eff_fix", NamedTuple(sim.q_eff_fix))
+                LegendHDF5IO.writedata(h5f, "SSD_q_eff_imp", NamedTuple(sim.q_eff_imp))
+                LegendHDF5IO.writedata(h5f, "SSD_dielectric_distribution", NamedTuple(sim.ϵ_r))
+                LegendHDF5IO.writedata(h5f, "SSD_electric_field", NamedTuple(sim.electric_field))
+                for i in eachindex(sim.weighting_potentials)
+                    LegendHDF5IO.writedata(h5f, "SSD_weighting_potential_$(i)", NamedTuple(sim.weighting_potentials[i]))
+                end
+            end
+            # SolidStateDetectors.ssd_write(h5fn, sim) -> why commented out? and doing how is above?
+            @info("-> Saved cached simulation to $h5fn")
         end
-        # SolidStateDetectors.ssd_write(h5fn, sim) -> why commented out? and doing how is above?
-        @info("-> Saved cached simulation to $h5fn")
         sim
     else
+        # read from previously cached
         sim = construct_ssd_simulation(det_meta, env, simulator)
         @info("Reading SSD simulation from cached file $h5fn")
         HDF5.h5open(h5fn, "r") do h5f
@@ -298,7 +315,7 @@ function construct_ssd_simulation(det_meta::PropDict, env::Environment, simulato
     # later will be read from legend-metadata similar to pylegendmeta
     # note: currently does nothing with crystal path
     sim.detector = LEGEND_SolidStateDetector(T, det_meta, env, simulator.crystal_metadata_path)
-    if sim_settings.comp != "2D"
+    if simulator.comp != "2D"
         error("Only 2D is supported up to now.")
     end
     sim.world = begin

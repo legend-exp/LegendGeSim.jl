@@ -18,6 +18,9 @@ Simulation method: SolidStateDetectors
 
     "Path to crystal jsons"
     crystal_metadata_path::AbstractString = ""
+
+    "Name for cached simulation. Not caching if empty string"
+    cached_name::AbstractString = ""
 end
 
 
@@ -43,12 +46,17 @@ function SSDSimulator(simulation_settings::PropDict)
         error("$comp computation not implemented!\n Available: 2D, 3D")
     end
 
-    crystal_metadata_path = haskey(simulation_settings, :crystal_metadata_path) ? simulation_settings.crystal_metadata_path : ""
-    if crystal_metadata_path == ""
-        warning("No crystal metadata path given. Simulating with dummy constant impurity density.")
-    end
+    # crystal_metadata_path = haskey(simulation_settings, :crystal_metadata_path) ? simulation_settings.crystal_metadata_path : ""
+    # if crystal_metadata_path == ""
+    #     @warn "No crystal metadata path given. Simulating with dummy constant impurity density."
+    # end
 
-    SSDSimulator(coord, comp, crystal_metadata_path)
+    # cached_name = haskey(simulation_settings, :cached_name) ? simulation_settings.cached_name : ""
+    # if cached_name == ""
+    #     @warn "No cached name was given. Not caching the SSD simulation."
+    # end
+
+    SSDSimulator(coord, comp, simulation_settings.crystal_metadata_path, simulation_settings.cached_name)
 end
 
 
@@ -92,10 +100,27 @@ Returned type depends on the simulation
     method given in the config.
 """
 function PSSimulator(simulation_settings::PropDict)    
-    @info "Simulation method: $(simulation_settings.simulation.method)"
-    if simulation_settings.simulation.method in ["SSD", "ssd"]
+    @info "Simulation method: $(simulation_settings.method)"
+
+    # defaults
+    # crystal_metadata_path = haskey(simulation_settings, :crystal_metadata_path) ? simulation_settings.crystal_metadata_path : ""
+    if(!haskey(simulation_settings, :crystal_metadata_path))
+    # if crystal_metadata_path == ""
+        simulation_settings[:crystal_metadata_path] = ""
+        # simulation_settings.crystal_metadata_path = crystal_metadata_path
+        @warn "No crystal metadata path given. Simulating with dummy constant impurity density."
+    end
+
+    # cached_name = haskey(simulation_settings, :cached_name) ? simulation_settings.cached_name : ""
+    if(!haskey(simulation_settings, :cached_name))
+        # if cached_name == ""
+        simulation_settings[:cached_name] = ""
+        @warn "No cached name was given. Not caching the SSD simulation."
+    end
+
+    if simulation_settings.method in ["SSD", "ssd"]
         SSDSimulator(simulation_settings)
-    elseif simulation_settings.simulation.method in ["siggen", "fieldgen"]
+    elseif simulation_settings.method in ["siggen", "fieldgen"]
         SiggenSimulator(simulation_settings)
     else
         error("This simulation method is not implemented!")

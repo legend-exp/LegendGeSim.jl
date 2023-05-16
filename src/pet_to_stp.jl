@@ -76,20 +76,33 @@ function pet_to_stp(pet_table::Table, detector_SSD::SolidStateDetector)
     stp_events
 end
 
-
-
-function pet_to_stp(pet_filename::AbstractString, sim_config::LegendGeSimConfig)
+# user never calls this, intermediate internal step in the chain, called only from chain
+function pet_to_stp(detector_metadata::PropDict, pet_filename::AbstractString)
 
     @info "---------------------- pet -> stp (stepping info)"
 
     # SSD detector for geometry purposes (not simulation)
-    detector_SSD = LEGEND_SolidStateDetector(Float32, sim_config.dict.detector_metadata)
+    detector_SSD = LEGEND_SolidStateDetector(Float32, detector_metadata, Environment())
+
     pet_table = read_pet(pet_filename)
 
-    println("Processing file: $(pet_filename) for detector $(sim_config.dict.detector_metadata.det_name)")    
+    println("Processing file: $(pet_filename) for detector $(detector_metadata)")    
     
     pet_to_stp(pet_table, detector_SSD)
 end
+
+# function pet_to_stp(pet_filename::AbstractString, sim_config::LegendGeSimConfig)
+
+#     @info "---------------------- pet -> stp (stepping info)"
+
+#     # SSD detector for geometry purposes (not simulation)
+#     detector_SSD = LEGEND_SolidStateDetector(Float32, sim_config.dict.detector_metadata)
+#     pet_table = read_pet(pet_filename)
+
+#     println("Processing file: $(pet_filename) for detector $(sim_config.dict.detector_metadata.det_name)")    
+    
+#     pet_to_stp(pet_table, detector_SSD)
+# end
 
 
 """

@@ -26,10 +26,10 @@ LegendGeSimConfig -> GenericDAQ
 
 Construct a GenericDAQ struct based on given simulation configuration 
 """
-function GenericDAQ(sim_conf::LegendGeSimConfig)
+function GenericDAQ(daq_settings::PropDict)
     GenericDAQ(
-        nsamples = sim_conf.dict.setup.daq.nsamples,
-        baseline_length = sim_conf.dict.setup.daq.baseline_length
+        nsamples = daq_settings.nsamples,
+        baseline_length = daq_settings.baseline_length
     )
 end
 
@@ -44,8 +44,8 @@ Type of returned instance depends on settings in <sim_conf>
 Currently only one type of DAQ available (GenericDAQ),
     rendering this function temporarily redundant.
 """
-function DAQ(sim_config::LegendGeSimConfig)
-    GenericDAQ(sim_config)
+function DAQ(daq_settings::PropDict)
+    GenericDAQ(daq_settings)
 end
 
 # -------------------------------------------------------------------
