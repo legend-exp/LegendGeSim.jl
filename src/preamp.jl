@@ -85,9 +85,9 @@ Construct a PreAmp supertype instance based on given simulation configuration <s
 Returned type depends on the settings in <sim_conf>.
 Currently only GenericPreAmp is available.
 """
-function PreAmp(pream_settings::PropDict)
+function PreAmp(preamp_settings::PropDict)
     if preamp_settings.type == "generic"
-        GenericPreamp(pream_settings)
+        GenericPreamp(preamp_settings)
     else
         error("Preamp type $(preamp_settings.type) not implemented!\n
         Available type: generic")

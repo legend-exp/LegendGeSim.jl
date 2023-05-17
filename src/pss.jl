@@ -63,12 +63,15 @@ end
 """
 Simulation method: siggen
 """
-struct SiggenSimulator <: PSSimulator
+@with_kw struct SiggenSimulator <: PSSimulator
     "Path to fieldgen settings"
     fieldgen_config::AbstractString
 
     "Drift velocity correction (?)"
     drift_vel::AbstractString
+
+    "Name for cached simulation. Not caching if empty string"
+    cached_name::AbstractString = ""    
 end
 
 
@@ -80,11 +83,24 @@ end
 Construct SiggeSimulator instance based on simulation
     configuration given in <sim_conf>.
 """
-function SiggenSimulator(sim_conf::LegendGeSimConfig)
-    # @info "Taking fieldgen input from $(sim_conf.simulation.fieldgen_config)"
+function SiggenSimulator(simulation_settings::PropDict)
+    # check if provided paths exist
+    inputs = Dict(
+        "fieldgen_config" => haskey(simulation_settings, :fieldgen_config) ? simulation_settings.fieldgen_config : "",
+        "drift_vel" => haskey(simulation_settings, :drift_vel) ? simulation_settings.drift_vel : ""
+    )
+    for (param, path) in inputs
+        if (path != "") && !isfile(path)
+        @error "The file for $(param) that you provided does not exist: $(path)"
+        end
+    end
+
     SiggenSimulator( 
-        haskey(sim_conf.dict.simulation, "fieldgen_config") ? sim_conf.dict.simulation.fieldgen_config : "fieldgen_settings.txt",
-        haskey(sim_conf.dict.simulation, "drift_vel") ? sim_conf.dict.simulation.drift_vel : "drift_vel_tcorr.tab"
+        # haskey(simulation_settings, "fieldgen_config") ? simulation_settings.fieldgen_config : "fieldgen_settings.txt",
+        # haskey(simulation_settings, "drift_vel") ? simulation_settings.drift_vel : "drift_vel_tcorr.tab"
+        inputs["fieldgen_config"],
+        inputs["drift_vel"],
+        simulation_settings.cached_name
     )
 end
 
@@ -108,14 +124,18 @@ function PSSimulator(simulation_settings::PropDict)
     # if crystal_metadata_path == ""
         simulation_settings[:crystal_metadata_path] = ""
         # simulation_settings.crystal_metadata_path = crystal_metadata_path
-        @warn "No crystal metadata path given. Simulating with dummy constant impurity density."
+        # ToDo: move somewhere else - irrelevant if only geometry is constructed, or when simulation read from cache
+        @warn "No crystal metadata path given. Simulation with dummy constant impurity density."
     end
 
     # cached_name = haskey(simulation_settings, :cached_name) ? simulation_settings.cached_name : ""
     if(!haskey(simulation_settings, :cached_name))
         # if cached_name == ""
         simulation_settings[:cached_name] = ""
-        @warn "No cached name was given. Not caching the SSD simulation."
+    end
+
+    if simulation_settings.cached_name == ""
+        @warn "No cached name was given. Not caching the simulation."
     end
 
     if simulation_settings.method in ["SSD", "ssd"]

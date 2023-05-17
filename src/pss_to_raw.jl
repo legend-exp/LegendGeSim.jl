@@ -58,17 +58,31 @@ function pss_to_raw(pss_table::Table, pss_truth::Table, simulation_settings::PSS
     raw_table
 end
 
-# function pss_to_raw(pss_file::AbstractString, det_meta_fullpath::AbstractString, sim_config_file::AbstractString)
-#     pss_h5 = h5open(pss_file, "r")
-#     pss_table = LegendHDF5IO.readdata(pss_h5, "pss/pss")
-#     pss_truth = LegendHDF5IO.readdata(pss_h5, "pss/truth")
-#     close(pss_h5)
+# wrapper for user reading from pre-saved pss file
+# !! again, does not need to know sim settings! that's just for stupid E conversion, should happen before outputting pss...
+function pss_to_raw(pss_file::AbstractString, simulation_settings::Dict, setup_settings::Dict)
+    pss_h5 = h5open(pss_file, "r")
+    pss_table = LegendHDF5IO.readdata(pss_h5, "pss/pss")
+    pss_truth = LegendHDF5IO.readdata(pss_h5, "pss/truth")
+    close(pss_h5)
 
-#     pss_to_raw(pss_table, pss_truth, det_meta_fullpath, sim_config_file)
-# end
+    simulator = PSSimulator(PropDict(simulation_settings))
+
+    setup = PropDict(setup_settings)
+    elec_chain = ElecChain(setup) # needs preamp and fadc
+    trigger = Trigger(setup.trigger)
+    daq = DAQ(setup.daq)
+    # noise_model = NoiseModel(setup.noise)
+    # TEMP ! !
+    noise_model = NoiseFromSim(0)
+
+    pss_to_raw(pss_table, pss_truth, simulator, elec_chain, trigger, daq, noise_model)
+end
 
 
 # ------------------------------
+
+
 
 
 
