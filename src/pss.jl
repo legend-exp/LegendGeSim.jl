@@ -146,16 +146,7 @@ function PSSimulator(simulation_settings::PropDict)
         error("This simulation method is not implemented!")
     end
 end
-
-# useful when user defines own dict in notebook rather than json for small studies
-# function PSSimulator(simulation_settings::Dict)
-#     PSSSimulator(propdict(simulation_settings))
-# end
-
-# for main production chain stuff
-# function PSSimulator(sim_config::LegendGeSimConfig)
-#     PSSSimulator(sim_config.dict.simulation)
-# end    
+   
 
 # -------------------------------------------------------------------
 
@@ -179,10 +170,19 @@ function simulate_waveforms(stp_events::Table, detector::SolidStateDetectors.Sim
             Δt = 1u"ns",
             verbose = false);
 
-    # waveforms = ArrayOfRDWaveforms(contact_charge_signals.waveform)
-    # !! conversion should be here, not in pss->raw
-    # RDWaveform(wf.time, ustrip.(wf.signal) .* ustrip(germanium_ionization_energy))
-    waveforms = ArrayOfRDWaveforms(contact_charge_signals.waveform)
+    # SSD returns in units of "e" -> convert to eV
+    n_waveforms = size(contact_charge_signals.waveform, 1)
+    wf_array = Array{RDWaveform}(undef, n_waveforms)
+    for i = 1:n_waveforms
+        wf = contact_charge_signals.waveform[i]
+        wf_array[i] = RDWaveform(wf.time, ustrip.(wf.signal) .* germanium_ionization_energy) # units eV
+    end
+
+    # ToDo: SSD returns double the number of wfs, because also inverse ones from n+ contact
+    # -> just take the first half corr. to n_events in stp?
+    # -> filter in a smarter way by contact?
+
+    waveforms = ArrayOfRDWaveforms(wf_array)
 
     # convert to Tier1 format
     pss_table = Table(

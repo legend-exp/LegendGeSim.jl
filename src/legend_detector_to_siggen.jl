@@ -12,7 +12,48 @@ The resulting siggen config will be cached based on given <config_name>
 The function returns the path to the cached siggen config file, and
     the relative path to the fieldgen WP file (to check if already exists later)
 """
-function siggen_config(meta::PropDict, env::Environment, simulator::SiggenSimulator)
+function siggen_config(meta::PropDict, env::Environment, simulator::SiggenSimulator; overwrite::Bool=false)
+    # ----------------------------------------------------------------------------
+    # set up & check if already present in cache
+    # ----------------------------------------------------------------------------
+
+    # if no cached name was given by user, make a temporaty name - needed for fieldgen to read from file
+    # also if no cached name was given means definitely doing from scratch
+    if simulator.cached_name == ""
+        simulator.cached_name = "tmp"
+        overwrite = true
+    end
+
+    # cached_name = simulator.cached_name == "" ? "tmp" : simulator.cached_name    
+    # append detector name
+    cached_name = meta.name * "_" * simulator.cached_name  
+    
+    # filenames for fieldgen input/output 
+    # ! no need to add cache/ folder because siggen does it by itself...
+    fieldgen_names = Dict(
+        "field_name" => cached_name * "_fieldgen_EV.dat",
+        "wp_name" => cached_name * "_fieldgen_WP.dat"
+    )
+
+    # siggen config filename
+    sig_conf_name = joinpath("cache", cached_name * "_siggen_config.txt")
+
+    # if field exists, no need to construct config, just read cached simulation -> return
+    # if config exists, no need to construct again -> return -> maybe just the cached field? not sure
+    # of course unless asked to overwrite, then construct new config
+    if ( isfile(joinpath("cache", fieldgen_names["wp_name"])) || isfile(sig_conf_name) ) && !overwrite
+        return sig_conf_name, fieldgen_names["wp_name"]
+    end
+
+    @info "Constructing Fieldgen/Siggen configuration file"
+
+    if !ispath("cache") mkpath("cache") end
+
+
+    # ----------------------------------------------------------------------------
+    # construct config
+    # ----------------------------------------------------------------------------
+
     println("...detector geometry")
     
     # construct siggen geometry based on LEGEND metadata JSON + environment settings
@@ -26,13 +67,6 @@ function siggen_config(meta::PropDict, env::Environment, simulator::SiggenSimula
     end
 
     println("...fieldgen configuration")
-
-    # if no cached name was given by user, make a temporaty name - needed for fieldgen to read from file
-    cached_name = simulator.cached_name == "" ? "tmp" : simulator.cached_name    
-    # append detector name
-    cached_name = meta.name * "_" * cached_name
-
-    if !ispath("cache") mkpath("cache") end
 
     # ----------------------------------------------------------------------------
     # drift velocity, field, wp
@@ -50,15 +84,8 @@ function siggen_config(meta::PropDict, env::Environment, simulator::SiggenSimula
     cache_drift_file = cached_name * "_" * basename(drift_file_path)
     cp(drift_file_path, joinpath("cache", cache_drift_file), force=true) # later think what to do here
 
-    # filenames for fieldgen input/output 
-    # ! no need to add cache/ folder because siggen does it by itself...
-    fieldgen_names = Dict(
-        # input
-        "drift_name" => cache_drift_file,
-        # output
-        "field_name" => cached_name * "_fieldgen_EV.dat",
-        "wp_name" => cached_name * "_fieldgen_WP.dat"
-    )
+    # add to field fieldgen_names
+    fieldgen_names["drift_name"] = cache_drift_file
 
     # why is this needed? 
     for name in ["field_name", "wp_name"]
@@ -88,7 +115,7 @@ function siggen_config(meta::PropDict, env::Environment, simulator::SiggenSimula
         @warn "No extra fieldgen settings given; using default"
         config_file_path = joinpath(dirname(@__DIR__), "examples", "configs", "fieldgen_settings.txt")      
     end
-    # copy to cache
+    # copy to cache -> maybe not needed, are appended in main settings?
     cache_config_file = joinpath("cache", cached_name * "_" * basename(config_file_path))
     cp(config_file_path, cache_config_file, force=true) # later think what to do here
 
@@ -103,8 +130,7 @@ function siggen_config(meta::PropDict, env::Environment, simulator::SiggenSimula
     # ----------------------------------------------------------------------------
 
     # write a siggen/fieldgen config file 
-    sig_conf_name = joinpath("cache", cached_name * "_siggen_config.txt")
-    
+
     writedlm(sig_conf_name, total_lines)
     println("...fieldgen/siggen config written to $sig_conf_name")
 
@@ -140,19 +166,22 @@ function meta2siggen(meta::PropDict, env::Environment)
         # It's width/angle is defined using either the outer_taper_width parameter or the taper_angle parameter.
         # Likewise, the inner taper width/angle is defined using either the inner_taper_width parameter or the taper_angle parameter.
         # The inner_taper_length can be anything from zero to the hole_length
-        # Mariia: how about top taper?..
 
         # size of 45-degree taper at bottom of ORTEC-type crystal (for r=z)
-        # Mariia: it's only 45 deg for PPCs. This is a mess. I don't know how to implement this right
-        "bottom_taper_length" => meta.geometry.taper.bottom.height_in_mm,
+        # -> for now, ignore bottom taper if not 45
+        # -> works for 1) the ones with actual 45 taper, 2) the ones bulletized (saved as 45 deg taper with bullet radius)
+        # few that have proper non-45 taper - not possible. ToDo: put some warning
+        "bottom_taper_length" => meta.geometry.taper.bottom.angle_in_deg == 45 ? meta.geometry.taper.bottom.height_in_mm : 0,
         # current metadata format: always angle
-        "bottom_taper_width" => meta.geometry.taper.bottom.height_in_mm * tan(deg2rad(meta.geometry.taper.bottom.angle_in_deg)),
+        "bottom_taper_width" => meta.geometry.taper.bottom.angle_in_deg == 45 ? meta.geometry.taper.bottom.height_in_mm * tan(deg2rad(meta.geometry.taper.bottom.angle_in_deg)) : 0,
         # z-length of outside taper for inverted-coax style -> Mariia: you mean top taper here?
         "outer_taper_length" => meta.geometry.taper.top.height_in_mm,
         "outer_taper_width" => meta.geometry.taper.top.height_in_mm * tan(deg2rad(meta.geometry.taper.top.angle_in_deg)),
         # taper angle in degrees, for inner or outer taper -> how? why are they the same? how about borehole? not using this parameter...
         # "taper_angle" => meta.geometry.taper.top.outer.angle_in_deg,
         # "taper_angle" => meta.geometry.taper.top.inner.angle_in_deg,
+        # with this setting, it somehow takes taper angle: 45.000038 anyway -> force to zero?
+        # "taper_angle" => 0,
         # depth of full-charge-collection boundary for Li contact -> was removed from geometry because is not 
         # use manufacturer DL? in the future when our FCCD is in metadata, use that?
         # "Li_thickness" => meta.geometry.dl_thickness_in_mm,

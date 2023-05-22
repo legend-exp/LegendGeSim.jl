@@ -10,7 +10,8 @@ AbstractString, PropDict, AbstractString -> Table
 The output name <config_name> is used to construct filenames for cached
     simulation files (currently the same as the simulation config basename)
 """
-function pet_to_raw(detector_metadata::PropDict, pet_filename::AbstractString, environment_settings::PropDict, simulation_settings::PropDict, setup_settings::PropDict)
+function pet_to_raw(detector_metadata::PropDict, pet_filename::AbstractString, environment_settings::PropDict,
+    simulation_settings::PropDict, setup_settings::PropDict; n_waveforms::Int = 0)
     ## step 1: stepping information (pet->stp)
     # det meta just for geometry
     stp_table = pet_to_stp(detector_metadata, pet_filename)
@@ -20,14 +21,10 @@ function pet_to_raw(detector_metadata::PropDict, pet_filename::AbstractString, e
     env = Environment(PropDict(environment_settings))
     simulator = PSSimulator(PropDict(simulation_settings))
 
-    # det_meta = PropDicts.read(PropDict, sim_config.detector_metadata)
-    # env = Environment(sim_config)
-    # ps_simulator = PSSimulator(sim_config)
-
     # pss_table, pss_truth = stp_to_pss(stp_table, det_meta, env, ps_simulator, noise_model, config_name)
     # ToDo: overwrite
     # ToDo: noise model ! ! ! ! !
-    pss_table, pss_truth = stp_to_pss(stp_table, detector_metadata, env, simulator)
+    pss_table, pss_truth = stp_to_pss(stp_table, detector_metadata, env, simulator; n_waveforms)
 
     ## step 3: simulate DAQ
     setup = PropDict(setup_settings)
@@ -37,42 +34,28 @@ function pet_to_raw(detector_metadata::PropDict, pet_filename::AbstractString, e
     # noise_model = NoiseModel(setup.noise)
     # TEMP ! !
     noise_model = NoiseFromSim(0)
-
-    # update sim config
-    # sim_config = load_config(pss_table, sim_config)
     
     # pss_to_raw(pss_table, pss_truth, elec_chain, trigger, daq, noise_model)
     # launch with sim config updated with pss table as new input file
     # ToDo: does not need to know simulator!!
-    pss_to_raw(pss_table, pss_truth, simulator, elec_chain, trigger, daq, noise_model)
+    pss_to_raw(pss_table, pss_truth, elec_chain, trigger, daq, noise_model)
 end
 
 
-# provided by user through dicts in notebook
-function simulate_raw(detector_metadata::AbstractString, pet_filename::AbstractString, environment_settings::Dict, simulation_settings::Dict, setup_settings::Dict)
-    pet_to_raw(propdict(detector_metadata), pet_filename, PropDict(environment_settings), PropDict(simulation_settings), PropDict(setup_settings))    
+# user launches directly inputting separate dicts
+function simulate_raw(detector_metadata::AbstractString, pet_filename::AbstractString, environment_settings::Union{Dict,PropDict},
+    simulation_settings::Union{Dict,PropDict}, setup_settings::Union{Dict,PropDict}; n_waveforms::Int = 0)
+    pet_to_raw(propdict(detector_metadata), pet_filename,
+        PropDict(environment_settings), PropDict(simulation_settings), PropDict(setup_settings); n_waveforms=n_waveforms)    
 end
 
-function simulate_raw(detector_metadata::AbstractString, pet_filename::AbstractString, all_settings::Dict)
+# user launches with all settings in one dict
+function simulate_raw(detector_metadata::AbstractString, pet_filename::AbstractString, all_settings::Union{Dict,PropDict}; n_waveforms::Int = 0)
     all_set = PropDict(all_settings)
-    pet_to_raw(detector_metadata, pet_filename, all_set.environment, all_set.simulation, all_set.setup)    
+    simulate_raw(detector_metadata, pet_filename, all_set.environment, all_set.simulation, all_set.setup; n_waveforms)    
 end
 
-# ToDo provided through json
-
-
-# function pet_to_pss(sim_config::PropDict)
-#     ## step 1: stepping information
-#     stp_table = pet_to_stp(sim_config)
-
-#     # pss_table, pss_truth = stp_to_pss(stp_table, det_meta, env, ps_simulator, noise_model, config_name)
-#     # launch with sim config updated with stp table as new input file
-#     pss_table, pss_truth = stp_to_pss(load_config(stp_table, sim_config))
-
-#     pss_table, pss_truth 
-# end
-
-
-# function pet_to_pss(pet_input_fullpath::AbstractString, det_meta_fullpath::AbstractString, sim_config_filename::AbstractString)
-#     pet_to_pss(load_config(pet_input_fullpath, det_meta_fullpath, sim_config_filename))
-# end
+# user launches with all settings in json
+function simulate_raw(detector_metadata::AbstractString, pet_filename::AbstractString, all_settings::AbstractString; n_waveforms::Int = 0)
+    simulate_raw(detector_metadata, pet_filename, propdict(all_settings); n_waveforms=n_waveforms)
+end

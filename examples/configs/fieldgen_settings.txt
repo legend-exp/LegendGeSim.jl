@@ -7,9 +7,10 @@ verbosity_level       0   #  0 = terse, 1 = normal, 2 = chatty/verbose
 
 # configuration for mjd_fieldgen (calculates electric fields & weighing potentials)
 xtal_grid 			0.1		# grid size in mm for field files (usually 0.5 or 0.1 mm)
-impurity_z0      	-0.92	# net impurity concentration at Z=0, in 1e10 e/cm3
-impurity_gradient	0.031	# net impurity gradient, in 1e10 e/cm4
-impurity_quadratic	0.01	# net impurity difference from linear, at z=L/2, in 1e10 e/cm3
+# constant impurity density (default)
+impurity_z0      	-0.9	# net impurity concentration at Z=0, in 1e10 e/cm3
+impurity_gradient	0	# net impurity gradient, in 1e10 e/cm4
+impurity_quadratic	0	# net impurity difference from linear, at z=L/2, in 1e10 e/cm3
 
 # options for mjd_fieldgen:
 max_iterations    30000  # maximum number of iterations to use in mjd_fieldgen

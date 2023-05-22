@@ -1,16 +1,3 @@
-# launch from official config - is it even needed anymore? defaults should be set in each thing
-# function simulate_fields(config::LegendGeSimConfig; overwrite::Bool = false)
-#     meta_dict = config.dict.detector_metadata
-#     env = Environment(config.dict.environment)
-#     simulator = PSSimulator(config.dict.simulation)
-
-#     # sim_settings = PSSimulator(config)
-#     # cached_name = config.dict.simulation.cached_name
-
-#     # cached name
-#     simulate_fields(meta_dict, env, simulator; overwrite)
-# end
-
 function simulate_fields(detector_metadata_path::AbstractString, environment_settings::PropDict, simulation_settings::PropDict; overwrite::Bool = false)    
     meta_dict = propdict(detector_metadata_path)
     env = Environment(environment_settings)
@@ -20,26 +7,20 @@ function simulate_fields(detector_metadata_path::AbstractString, environment_set
 end
 
 # user launches directly inputting separate dicts
-function simulate_fields(detector_metadata_path::AbstractString, environment_settings::Dict, simulation_settings::Dict; overwrite::Bool = false)    
+function simulate_fields(detector_metadata_path::AbstractString, environment_settings::Dict,
+    simulation_settings::Dict; overwrite::Bool = false)    
     simulate_fields(detector_metadata_path, PropDict(environment_settings), PropDict(simulation_settings); overwrite)
 end
 
-# all settings in one
-function simulate_fields(detector_metadata_path::AbstractString, all_settings::PropDict; overwrite::Bool = false)
-    simulate_fields(detector_metadata_path, all_settings.environment, all_settings.simulation; overwrite)
+# user launches with all settings in one dict
+function simulate_fields(detector_metadata_path::AbstractString, all_settings::Union{Dict,PropDict}; overwrite::Bool = false)
+    simulate_fields(detector_metadata_path, PropDict(all_settings).environment, PropDict(all_settings).simulation; overwrite)
 end
 
-# reading from json 
+# user launches with all settings in json
 function simulate_fields(detector_metadata_path::AbstractString, all_settings::AbstractString; overwrite::Bool = false)
     simulate_fields(detector_metadata_path, propdict(all_settings); overwrite)
 end
-
-# reading from user dict
-function simulate_fields(detector_metadata_path::AbstractString, all_settings::Dict; overwrite::Bool = false)
-    simulate_fields(detector_metadata_path, PropDict(all_settings); overwrite)
-end
-
-
 
 
 
@@ -61,10 +42,10 @@ Look up fieldgen generated electric field and weighting potential files
 function simulate_detector(det_meta::PropDict, env::Environment, simulator::SiggenSimulator;
         overwrite::Bool = false)
 
-    @info "Constructing Fieldgen/Siggen configuration file"
     # returns the name of the resulting siggen config file
     # and the name of (already or to be) generated weighting potential file
-    siggen_config_name, fieldgen_wp_name = siggen_config(det_meta, env, simulator)
+    # ToDo: don't create if already present already at this stage -> check in siggen_config() if name exists and just return name
+    siggen_config_name, fieldgen_wp_name = siggen_config(det_meta, env, simulator; overwrite)
     fieldgen_wp_name = joinpath("cache", fieldgen_wp_name)
 
     # if the WP file with such a name does not exist yet or want to overwrite it...

@@ -57,7 +57,7 @@ Currently only TrapFilter type is implemented.
 """
 function Trigger(trigger_settings::PropDict)
     if trigger_settings.type == "trapezoidal"
-        TrapFilter(sim_conf)
+        TrapFilter(trigger_settings)
     else
         error("Trigger type $(trigger_settings.type) not implemented!\n
         Available type: trapezoidal")

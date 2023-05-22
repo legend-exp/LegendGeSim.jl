@@ -321,7 +321,7 @@ function LEGEND_SolidStateDetector(::Type{T}, meta::PropDict, env::Environment, 
         #   n-type: positive impurity density
         #   p-type: negative impurity density
         # Assume p-type
-        constant_impurity_density = ustrip(uconvert(u"m^-3", T(-1e9) * u"cm^-3"))
+        constant_impurity_density = ustrip(uconvert(u"m^-3", T(-9*1e9) * u"cm^-3"))
         impurity_density_model = SolidStateDetectors.CylindricalImpurityDensity{T}(
             (0, 0, constant_impurity_density), # offsets
             (0, 0, 0)                          # linear slopes
