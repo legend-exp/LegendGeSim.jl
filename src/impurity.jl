@@ -17,16 +17,34 @@ end
 
 
 # note: reading and fitting is now the same for SSD or siggen, only outcome different (save file for siggen)
-function impurity_density_model(meta::PropDict, ::SSDSimulator)
+function impurity_density_model(meta::PropDict, crystal_metadata_path::AbstractString, ::SSDSimulator)
     # get crystal corresponding to detector 
-    # in the future change to accessing LegendMetadata
-    crystal_no = meta.production.crystal # XXX
-    crystal_path = 
+    # ToDo: change to accessing via LegendMetadata
+    ## v1: construct from crystal name and order? -> need det type too
+    # crystal_no = meta.production.crystal # XXX
+    # order = meta.production.order
+    # crystal_path = joinpath(simulator.crystal_metadata_path, order*crystal_no*".json")
+    ## v2: remove slice from name to have det type + order + crystal name
+    crystal_name = first(meta.name, length(meta.name)-1)
+    crystal_path = joinpath(crystal_metadata_path, crystal_name*".json")
 
-    # get array of impurity measurements
+    if !ispath(crystal_path)
+        @error "Crystal $(meta.production.crystal) does not exist in path $crystal_path"
+    end
+
+    crystal_dict = propdict(crystal_path)
+
+    # get impurity measurements
     T = Float32
-    imp_values = T.(meta.production.impcc.array[Symbol("value_in_1e9e/cm3")]).* (1e6 * 1e9) # SSD in e/m^3
-    dist = T.(meta.production.impcc.array.dist_from_contact_in_mm) ./ 1e3 # SSD in m
+    # distance from seed end in mm (crystal axis)
+    dist = T.(crystal_dict.impurity_measurements.distance_from_seed_end_mm) # in mm for now
+    # measurements corr to dist
+    imp_values = T.(crystal_dict.impurity_measurements.value_in_1e9e_cm3).* (1e6 * 1e9) # SSD in e/m^3
+
+    # position of detector axis Z=0 (p+ contact) of this detector (slice) in the crystal from seed end
+    det_z0 = crystal_dict.slice_Z0_position_from_seed_end_in_mm[Symbol(meta.production.slice)]
+    # convert points from crystal axis to detector axis, convert to SSD unit
+    dist = (det_z0 .- dist) ./ 1e3 # SSD in m
 
     # fit
     a, b, c = poly_fit(dist, imp_values, 2)

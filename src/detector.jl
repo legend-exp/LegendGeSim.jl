@@ -75,7 +75,6 @@ end
 # end
 
 
-# function simulate_detector(det_meta::PropDict, env::Environment, cached_name::AbstractString, sim_settings::SSDSimulator;
 function simulate_detector(det_meta::PropDict, env::Environment, simulator::SSDSimulator;
     overwrite::Bool = false)
     # append detector name to cached name
@@ -83,7 +82,7 @@ function simulate_detector(det_meta::PropDict, env::Environment, simulator::SSDS
     # filename: extract filename without extension from path
     full_cached_name = "$(det_meta.name)_$(simulator.cached_name)"
 
-    h5fn = joinpath("cache", full_cached_name * "_fields_ssd.h5f")
+    h5fn = joinpath("cache", full_cached_name * "_ssd_fields.h5f")
     # simulate from scratch if file not found, or overwrite is asked
     # or if no cached name was given (i.e. don't cache) - such file is never saved (clumsy! ToDo)
     return if !isfile(h5fn) || overwrite

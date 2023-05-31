@@ -17,6 +17,11 @@ function LEGEND_SolidStateDetector(::Type{T}, meta::PropDict, env::Environment, 
         # https://github.com/legend-exp/legend-metadata/blob/main/hardware/detectors/detector-metadata_6.pdf
         # https://github.com/legend-exp/legend-metadata/blob/main/hardware/detectors/detector-metadata_7.pdf
 
+
+        # ------------------------------------------------------------------------------
+        # GEOMETRY
+        # ------------------------------------------------------------------------------
+
         gap = to_SSD_units(T, 1, u"mm")
 
         # dl_thickness_in_mm = :dl_thickness_in_mm in keys(meta.geometry) ? meta.geometry.dl_thickness_in_mm : 0
@@ -313,19 +318,32 @@ function LEGEND_SolidStateDetector(::Type{T}, meta::PropDict, env::Environment, 
             mc_geometry
         end
 
+        # ------------------------------------------------------------------------------
+
         temperature = T(env.crystal_temperature)
         material = SolidStateDetectors.material_properties[:HPGe]
-        
-        # Impurity Model: Information are stored in `meta.production.impcc`
-        # For now: Constant impurity density: 
-        #   n-type: positive impurity density
-        #   p-type: negative impurity density
-        # Assume p-type
-        constant_impurity_density = ustrip(uconvert(u"m^-3", T(-9*1e9) * u"cm^-3"))
-        impurity_density_model = SolidStateDetectors.CylindricalImpurityDensity{T}(
-            (0, 0, constant_impurity_density), # offsets
-            (0, 0, 0)                          # linear slopes
-        )
+
+        # ------------------------------------------------------------------------------
+        # IMPURITY
+        # ------------------------------------------------------------------------------
+
+        # if no impurity path given, simulate with constant impurity density
+        imp_density_model = 
+            if impurity_path == ""
+                # Impurity Model: Information are stored in `meta.production.impcc`
+                # For now: Constant impurity density: 
+                #   n-type: positive impurity density
+                #   p-type: negative impurity density
+                # Assume p-type
+                constant_impurity_density = ustrip(uconvert(u"m^-3", T(-9*1e9) * u"cm^-3"))
+                SolidStateDetectors.CylindricalImpurityDensity{T}(
+                    (0, 0, constant_impurity_density), # offsets
+                    (0, 0, 0)                          # linear slopes
+                )
+            else
+                # currently only quadratic fit
+                impurity_density_model(meta, impurity_path, SSDSimulator())
+            end
 
         # Charge Drift Model: 
         # Use example ADL charge drift model from SSD (Crystal axis <100> is at φ = 0):
@@ -333,7 +351,7 @@ function LEGEND_SolidStateDetector(::Type{T}, meta::PropDict, env::Environment, 
             "examples/example_config_files/ADLChargeDriftModel/drift_velocity_config.yaml")
         charge_drift_model = SolidStateDetectors.ADLChargeDriftModel{T}(adl_charge_drift_config_file);
 
-        semiconductor = SolidStateDetectors.Semiconductor(temperature, material, impurity_density_model, charge_drift_model, semiconductor_geometry)
+        semiconductor = SolidStateDetectors.Semiconductor(temperature, material, imp_density_model, charge_drift_model, semiconductor_geometry)
 
         # operation_voltage = :op_voltage in keys(env) ? T(env.op_voltage) : T(meta.characterization.l200_site.recommended_voltage_in_V)
         operation_voltage = env.operating_voltage > 0 ? T(env.operating_voltage) : T(meta.characterization.l200_site.recommended_voltage_in_V)

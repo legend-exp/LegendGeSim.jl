@@ -46,16 +46,6 @@ function SSDSimulator(simulation_settings::PropDict)
         error("$comp computation not implemented!\n Available: 2D, 3D")
     end
 
-    # crystal_metadata_path = haskey(simulation_settings, :crystal_metadata_path) ? simulation_settings.crystal_metadata_path : ""
-    # if crystal_metadata_path == ""
-    #     @warn "No crystal metadata path given. Simulating with dummy constant impurity density."
-    # end
-
-    # cached_name = haskey(simulation_settings, :cached_name) ? simulation_settings.cached_name : ""
-    # if cached_name == ""
-    #     @warn "No cached name was given. Not caching the SSD simulation."
-    # end
-
     SSDSimulator(coord, comp, simulation_settings.crystal_metadata_path, simulation_settings.cached_name)
 end
 
@@ -119,22 +109,17 @@ function PSSimulator(simulation_settings::PropDict)
     @info "Simulation method: $(simulation_settings.method)"
 
     # defaults
-    # crystal_metadata_path = haskey(simulation_settings, :crystal_metadata_path) ? simulation_settings.crystal_metadata_path : ""
     if(!haskey(simulation_settings, :crystal_metadata_path))
-    # if crystal_metadata_path == ""
         simulation_settings[:crystal_metadata_path] = ""
         # simulation_settings.crystal_metadata_path = crystal_metadata_path
         # ToDo: move somewhere else - irrelevant if only geometry is constructed, or when simulation read from cache
         @warn "No crystal metadata path given. Simulation with dummy constant impurity density."
+    elseif !ispath(simulation_settings.crystal_metadata_path)
+        @error "The path to crystal metadata you provided is not valid! ($simulation_settings.crystal_metadata_path)"
     end
 
-    # cached_name = haskey(simulation_settings, :cached_name) ? simulation_settings.cached_name : ""
     if(!haskey(simulation_settings, :cached_name))
-        # if cached_name == ""
         simulation_settings[:cached_name] = ""
-    end
-
-    if simulation_settings.cached_name == ""
         @warn "No cached name was given. Not caching the simulation."
     end
 
