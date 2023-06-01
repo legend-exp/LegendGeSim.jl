@@ -47,7 +47,7 @@ function pss_to_raw(pss_table::Table, pss_truth::Table, elec_chain::ElecChain, t
 end
 
 # wrapper for user reading from pre-saved pss file
-function pss_to_raw(pss_file::AbstractString, setup_settings::Dict)
+function pss_to_raw(pss_file::AbstractString, setup_settings::Dict, noise_settings::Dict=Dict("type"=>"none"))
     pss_h5 = h5open(pss_file, "r")
     pss_table = LegendHDF5IO.readdata(pss_h5, "pss/pss")
     pss_truth = LegendHDF5IO.readdata(pss_h5, "pss/truth")
@@ -57,9 +57,9 @@ function pss_to_raw(pss_file::AbstractString, setup_settings::Dict)
     elec_chain = ElecChain(setup) # needs preamp and fadc
     trigger = Trigger(setup.trigger)
     daq = DAQ(setup.daq)
-    # noise_model = NoiseModel(setup.noise)
+    noise_model = NoiseModel(PropDict(noise_settings))
     # TEMP ! !
-    noise_model = NoiseFromSim(0u"keV")
+    # noise_model = NoiseFromSim(0u"keV")
 
     pss_to_raw(pss_table, pss_truth, elec_chain, trigger, daq, noise_model)
 end

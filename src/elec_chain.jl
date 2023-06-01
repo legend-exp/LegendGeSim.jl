@@ -59,9 +59,11 @@ Simulate effects of the electronics chain on the waveform
     modelling noise based on each component.
 
 """
-function simulate(wf::RDWaveform, elec_chain::ElecChain, ::NoiseFromSim)
-    # simply simulate elec chain the way it is
-    # noise simulation of components is included in the simulation of components
+function simulate(wf::RDWaveform, elec_chain::ElecChain, ::Union{NoiseFromSim, NoiseNone})
+    # simply simulate elec chain the way it is is 
+    # no noise is asked
+    # noise is simulated from scratch -> noise simulation of components is included in the simulation of components
+    # so no need to do anything here
     simulate(wf, elec_chain)
 end
 

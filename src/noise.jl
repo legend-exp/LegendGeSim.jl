@@ -115,10 +115,10 @@ Calculate fano noise level based on the detector specification provided in
 function fano_noise(events::Table, det_meta::PropDict, env::Environment, ::NoiseFromSim)
     @info "//\\//\\//\\ Fano noise"
     # println("Adding fano noise")
-    simulation = LEGEND_SolidStateDetector(Float32, det_meta, env)
+    detector = LEGEND_SolidStateDetector(Float32, det_meta, env)
     # ssd_conf = ssd_config(det_meta, env)
     # simulation = Simulation(SolidStateDetector{T}(ssd_conf))
-    det_material = simulation.detector.semiconductors[1].material
+    det_material = detector.semiconductor.material
     add_fano_noise(events, det_material.E_ionisation, det_material.f_fano)
 end
 
@@ -151,6 +151,8 @@ Simulate effects of the preamplifier <preamp> on the given waveform <wf>.
 function simulate_noise(wf::RDWaveform, preamp::PreAmp)
     T = Float32 # This should be somehow defined and be passed properly
     # wf values are in eV (without u"eV" units attached), noise sigma is in keV
+    # if we're not simulating noise from scratch, we'll do this anyway, but noise sigma will be 0
+    # -> maybe there's a better way?
     noise_σ = ustrip(uconvert(u"eV", preamp.noise_σ))
     gaussian_noise_dist = Normal(T(0), T(noise_σ))
     RDWaveform(wf.time, wf.signal .+ rand!(gaussian_noise_dist, similar(wf.signal)))
