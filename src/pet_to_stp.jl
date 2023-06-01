@@ -86,7 +86,7 @@ function pet_to_stp(detector_metadata::PropDict, pet_filename::AbstractString)
 
     pet_table = read_pet(pet_filename)
 
-    println("Processing file: $(pet_filename) for detector $(detector_metadata)")    
+    println("Processing file: $(pet_filename) for detector $(detector_metadata.name)")    
     
     pet_to_stp(pet_table, detector_SSD)
 end

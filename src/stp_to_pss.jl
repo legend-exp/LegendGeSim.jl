@@ -12,8 +12,11 @@ Simulate waveforms based on stepping info given in <stp_table>,
 The output is a table with simulated pulses, and a table with simulation truth
     (may be abolished in the future since basically corresponds to stp table)
 """
-function stp_to_pss(stp_table::Table, det_meta::PropDict, env::Environment, simulator::PSSimulator)
+function stp_to_pss(stp_table::Table, det_meta::PropDict, env::Environment, simulator::PSSimulator, noise_model::NoiseModel)
     @info "---------------------- stp -> pss (ideal pulses)"
+
+    # @info "//\\//\\//\\ Fano noise"
+    stp_table = fano_noise(stp_table, det_meta, env, noise_model)
 
     @info "_||_||_||_ Simulate detector" 
     sim = simulate_detector(det_meta, env, simulator; overwrite = false)
@@ -41,7 +44,7 @@ end
 # pet->pss
 # user launches directly inputting separate dicts
 function simulate_pulses(detector_metadata::AbstractString, pet_filename::AbstractString, environment_settings::Union{Dict,PropDict},
-    simulation_settings::Union{Dict,PropDict}; n_waveforms::Int = 0)
+    simulation_settings::Union{Dict,PropDict}, noise_settings::Union{Dict,PropDict} = Dict("type" => "none"); n_waveforms::Int = 0)
     ## step 1: stepping information
     det_meta = propdict(detector_metadata)
 
@@ -52,15 +55,18 @@ function simulate_pulses(detector_metadata::AbstractString, pet_filename::Abstra
 
     env = Environment(PropDict(environment_settings))
     simulator = PSSimulator(PropDict(simulation_settings))
+    noise_model = NoiseModel(PropDict(noise_settings))
 
-    pss_table, pss_truth = stp_to_pss(stp_of_interest, det_meta, env, simulator)
+    pss_table, pss_truth = stp_to_pss(stp_of_interest, det_meta, env, simulator, noise_model)
 
     pss_table, pss_truth 
 end
 
 # user launches with all settings in one dict
 function simulate_pulses(detector_metadata::AbstractString, pet_filename::AbstractString, all_settings::Union{Dict,PropDict}; n_waveforms::Int = 0)
-    simulate_pulses(detector_metadata, pet_filename, PropDict(all_settings).environment, PropDict(all_settings).simulation; n_waveforms)
+    all_settings = PropDict(all_settings)
+    noise_settings = haskey(all_settings, :noise_model) ? all_settings.noise_model : Dict("type" => "none")
+    simulate_pulses(detector_metadata, pet_filename, all_settings.environment, all_settings.simulation, noise_settings; n_waveforms)
 end
 
 # user launches with all settings in json

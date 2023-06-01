@@ -42,7 +42,7 @@ function impurity_density_model(meta::PropDict, crystal_metadata_path::AbstractS
     imp_values = T.(crystal_dict.impurity_measurements.value_in_1e9e_cm3).* (1e6 * 1e9) # SSD in e/m^3
 
     # position of detector axis Z=0 (p+ contact) of this detector (slice) in the crystal from seed end
-    det_z0 = crystal_dict.slice_Z0_position_from_seed_end_in_mm[Symbol(meta.production.slice)]
+    det_z0 = crystal_dict.slices[Symbol(meta.production.slice)].detector_offset_in_mm
     # convert points from crystal axis to detector axis, convert to SSD unit
     dist = (det_z0 .- dist) ./ 1e3 # SSD in m
 

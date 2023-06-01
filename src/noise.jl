@@ -10,16 +10,19 @@ It is not simply a string in the ElecChain struct because
 """
 abstract type NoiseModel end
 
+# in case no noise wanted just ideal pulses
+struct NoiseNone <: NoiseModel end
 
 """
 The NoiseFromSim model means simulating noise from scratch
     starting from fano noise of the germanium crystal
     and ending with noise coming from electronics components.
 """
-@with_kw struct NoiseFromSim <: NoiseModel
-    "Noise σ in keV for Gaussian noise simulation"
-    noise_σ::typeof(1.0*energy_unit) = 0
-end
+struct NoiseFromSim <: NoiseModel end
+# @with_kw struct NoiseFromSim <: NoiseModel
+#     "Noise σ in keV for Gaussian noise simulation"
+#     noise_σ::typeof(1.0*energy_unit) = 0u"keV"
+# end
 
 
 """
@@ -28,7 +31,7 @@ end
 LegendGeSimConfig -> NoiseFromSim 
 
 Construct a NoiseFromSim struct based on given simulation configuration <sim_conf>
-"""
+""" 
 # function NoiseFromSim(sim_conf::LegendGeSimConfig)
 #     T = Float32 # This should be somehow defined and be passed properly
 #     @info "//\\//\\// Noise simulated from scratch (fano, preamp noise)"
@@ -57,6 +60,12 @@ LegendGeSimConfig -> NoiseFromData
 
 Construct a NoiseFromData struct based on given simulation configuration <sim_conf>
 """
+function NoiseFromData(noise_settings::PropDict)
+    @info "//\\//\\// Noise levels and offset added via slapping the baseline from data on top of the waveform"
+    # construct table of baselines based on given raw data hdf5 file
+    baseline_table = baseline_catalog(noise_settings.path_to_data_file)
+    NoiseFromData(baseline_table) 
+end
 # function NoiseFromData(sim_conf::LegendGeSimConfig)
 #     @info "//\\//\\// Noise levels and offset added via slapping the baseline from data on top of the waveform"
 #     # construct table of baselines based on given raw data hdf5 file
@@ -74,12 +83,22 @@ Constuct a NoiseModel supertype instance based on simulation settings
     given in <sim_config>
 Type of <NoiseModel> depends on <sim_config> settings.
 """
+function NoiseModel(noise_settings::PropDict)
+    # if !haskey(noise_settings, :type)
+    if noise_settings.type == "none"
+        NoiseNone()
+    elseif noise_settings.type == "sim"
+        NoiseFromSim()
+    else
+        NoiseFromData(noise_settings)
+    end
+end
 # function NoiseModel(sim_config::LegendGeSimConfig)
-#     if haskey(sim_config.dict, :noise_data)
-#         NoiseFromData(sim_config)
-#     else
-#         NoiseFromSim(sim_config)
-#     end
+    # if haskey(sim_config.dict, :noise_data)
+        # NoiseFromData(sim_config)
+    # else
+        # NoiseFromSim(sim_config)
+    # end
 # end
 
 # -------------------------------------------------------------------
@@ -94,10 +113,11 @@ Calculate fano noise level based on the detector specification provided in
     and add it to given <events>
 """
 function fano_noise(events::Table, det_meta::PropDict, env::Environment, ::NoiseFromSim)
-    #!! Lukas removed from stp_to_pss?
-    println("Adding fano noise")
-    ssd_conf = ssd_config(det_meta, env)
-    simulation = Simulation(SolidStateDetector{T}(ssd_conf))
+    @info "//\\//\\//\\ Fano noise"
+    # println("Adding fano noise")
+    simulation = LEGEND_SolidStateDetector(Float32, det_meta, env)
+    # ssd_conf = ssd_config(det_meta, env)
+    # simulation = Simulation(SolidStateDetector{T}(ssd_conf))
     det_material = simulation.detector.semiconductors[1].material
     add_fano_noise(events, det_material.E_ionisation, det_material.f_fano)
 end
@@ -116,6 +136,10 @@ function fano_noise(events::Table, ::PropDict, ::Environment, ::NoiseFromData)
     events
 end
 
+function fano_noise(events::Table, ::PropDict, ::Environment, ::NoiseNone)
+    println("No fano noise (ideal simulation)")
+    events
+end
 
 """
     simulate_noise(wf, preamp)
