@@ -89,7 +89,7 @@ function siggen_config(meta::PropDict, env::Environment, simulator::SiggenSimula
 
     # why is this needed? 
     for name in ["field_name", "wp_name"]
-        path = joinpath("cache", name)
+        path = joinpath("cache", fieldgen_names[name])
         if !isfile(path)
             touch(path)
         end
@@ -184,8 +184,8 @@ function meta2siggen(meta::PropDict, env::Environment)
         # "taper_angle" => 0,
         # depth of full-charge-collection boundary for Li contact -> was removed from geometry because is not 
         # use manufacturer DL? in the future when our FCCD is in metadata, use that?
-        # "Li_thickness" => meta.geometry.dl_thickness_in_mm,
-        "Li_thickness" => 0,
+        # "Li_thickness" => 0,
+        "Li_thickness" => meta.characterization.manufacturer.dl_thickness_in_mm,
 
         # configuration for mjd_fieldgen (calculates electric fields & weighing potentials)
         # detector bias for fieldgen, in Volts

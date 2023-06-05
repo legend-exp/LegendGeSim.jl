@@ -21,7 +21,22 @@ function LEGEND_SolidStateDetector(::Type{T}, meta::PropDict, env::Environment, 
 
     gap = to_SSD_units(T, 1, u"mm")
 
-    dl_thickness_in_mm = :dl_thickness_in_mm in keys(meta.geometry) ? meta.geometry.dl_thickness_in_mm : 0
+    # dl_vendor = meta.characterization.manufacturer.dl_thickness_in_mm
+    # dl_thickness_in_mm = 
+    #     if dl_vendor == nothing
+    #         @warn "No DL provided by vendor, simulating with DL = 0mm"
+    #         0
+    #     else
+    #         @info "Vendor measurement DL=$(dl_vendor)mm"
+    #         dl_vendor
+    #     end
+    
+    # dl_thickness_in_mm = 0
+
+    # temporary quickfix!!
+    # dl = vendor => take vendor; dl = number => take that; no dl => take 0
+    dl_thickness_in_mm = env.dl
+
     li_thickness =  to_SSD_units(T, dl_thickness_in_mm, u"mm")
 
     crystal_radius = to_SSD_units(T, meta.geometry.radius_in_mm, u"mm")

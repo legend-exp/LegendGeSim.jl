@@ -115,7 +115,9 @@ function PSSimulator(simulation_settings::PropDict)
         # ToDo: move somewhere else - irrelevant if only geometry is constructed, or when simulation read from cache
         @warn "No crystal metadata path given. Simulation with dummy constant impurity density."
     elseif !ispath(simulation_settings.crystal_metadata_path)
-        @error "The path to crystal metadata you provided is not valid! ($simulation_settings.crystal_metadata_path)"
+        @error "The path to crystal metadata you provided is not valid! ($(simulation_settings.crystal_metadata_path))"
+    else
+        @info "Impurity profile information based on $(simulation_settings.crystal_metadata_path)"
     end
 
     if(!haskey(simulation_settings, :cached_name))
