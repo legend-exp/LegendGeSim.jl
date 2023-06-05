@@ -189,6 +189,7 @@ function meta2siggen(meta::PropDict, env::Environment)
 
         # configuration for mjd_fieldgen (calculates electric fields & weighing potentials)
         # detector bias for fieldgen, in Volts
+        # ToDo: sometime there is null in metadata -> throw error and ask for opV input
         "xtal_HV" => env.operating_voltage > 0 ? env.operating_voltage : meta.characterization.l200_site.recommended_voltage_in_V,
 
         # configuration for signal calculation 

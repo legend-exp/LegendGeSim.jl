@@ -362,8 +362,9 @@ function LEGEND_SolidStateDetector(::Type{T}, meta::PropDict, env::Environment, 
             @warn "You did not provide operating voltage in environment settings -> taking recommended voltage from metadata"
             recV = meta.characterization.l200_site.recommended_voltage_in_V
             if recV == nothing
-                error("Metadata does not provide recommended voltage. Please provide operating voltage in settings")
+                error("Metadata does not provide recommended voltage (null). Please provide operating voltage in settings")
             end
+            @info "Simulating at $(recV)V"
             T(recV)
         else
             T(env.operating_voltage)

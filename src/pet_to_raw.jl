@@ -24,20 +24,13 @@ function pet_to_raw(detector_metadata::PropDict, pet_filename::AbstractString, e
 
     # pss_table, pss_truth = stp_to_pss(stp_table, det_meta, env, ps_simulator, noise_model, config_name)
     # ToDo: overwrite
-    # ToDo: noise model ! ! ! ! !
     pss_table, pss_truth = stp_to_pss(stp_of_interest, detector_metadata, env, simulator, noise_model)
 
     ## step 3: simulate DAQ
     elec_chain = ElecChain(setup_settings) # needs preamp and fadc
     trigger = Trigger(setup_settings.trigger)
     daq = DAQ(setup_settings.daq)
-    # noise_model = NoiseModel(setup.noise)
-    # TEMP ! !
-    # noise_model = NoiseFromSim(0u"keV")
     
-    # pss_to_raw(pss_table, pss_truth, elec_chain, trigger, daq, noise_model)
-    # launch with sim config updated with pss table as new input file
-    # ToDo: does not need to know simulator!!
     pss_to_raw(pss_table, pss_truth, elec_chain, trigger, daq, noise_model)
 end
 
