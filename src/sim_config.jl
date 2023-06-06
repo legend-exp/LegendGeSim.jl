@@ -52,9 +52,9 @@
 
     "Oprating voltage in V"
     operating_voltage::Real = 0
-
+    
     "Quickfix DL"
-    dl::Real = 0
+    dl::Union{Real,AbstractString} = 0
 end
 
 
@@ -62,27 +62,10 @@ end
 Simulation parameters related to the environment
 """
 function Environment(env_conf::PropDict)
-    dl =
-    if haskey(env_conf, :dl)
-        if env_conf.dl == "vendor"
-            dl_vendor = meta.characterization.manufacturer.dl_thickness_in_mm
-            if dl_vendor == nothing
-                @error "No DL provided by vendor!"
-            end
-            dl_vendor
-        else
-            env_conf.dl 
-        end
-    else
-        0
-    end
-
-    @info "DL = $(dl)mm"
-
     Environment(
         env_conf.medium,
         env_conf.crystal_temperature_in_K,
         haskey(env_conf, :operating_voltage_in_V) ? env_conf.operating_voltage_in_V : 0,
-        dl
+        haskey(env_conf, :dl) ? env_conf.dl : 0
     )
 end

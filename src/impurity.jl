@@ -16,6 +16,27 @@ function SolidStateDetectors.get_impurity_density(
 end
 
 
+struct RadfordImpurityDensity{T} <: SolidStateDetectors.AbstractImpurityDensity{T}
+    # a + b*z + c*exp((z-L)/tau) -> needs at least 4 points
+    a::T
+    b::T 
+    c::T 
+    tau::T
+    L::T
+    det_z0::T
+end
+
+function SolidStateDetectors.get_impurity_density(
+    idm::RadfordImpurityDensity, pt::SolidStateDetectors.AbstractCoordinatePoint{T}
+    )::T where {T}
+    cpt = CartesianPoint(pt)
+    z = cpt[3]
+
+    -(idm.a .+ idm.b * (idm.det_z0 .- z) .+ idm.c * exp.((idm.det_z0 .- z .- idm.L)/idm.tau)) 
+
+end
+
+
 # note: reading and fitting is now the same for SSD or siggen, only outcome different (save file for siggen)
 function impurity_density_model(meta::PropDict, crystal_metadata_path::AbstractString, ::SSDSimulator)
     # get crystal corresponding to detector 
@@ -43,13 +64,35 @@ function impurity_density_model(meta::PropDict, crystal_metadata_path::AbstractS
 
     # position of detector axis Z=0 (p+ contact) of this detector (slice) in the crystal from seed end
     det_z0 = crystal_dict.slices[Symbol(meta.production.slice)].detector_offset_in_mm
+
+    # quadratic fit
     # convert points from crystal axis to detector axis, convert to SSD unit
-    dist = (det_z0 .- dist) ./ 1e3 # SSD in m
+    # dist_det = (det_z0 .- dist) ./ 1e3 # SSD in m
+    # a, b, c = poly_fit(dist_det, imp_values, 2)
+    # QuadraticImpurityDensity{Float32}(a, b, c)
 
-    # fit
-    a, b, c = poly_fit(dist, imp_values, 2)
+    # Radford fit -> in the future need to make settings to choose
+    # fit in crystal coordinates
+    # convert to SSD units
+    dist = dist / 1e3 #m
+    L = dist[end] - dist[1]
 
-    QuadraticImpurityDensity{Float32}(a, b, c)
+    @. radford(z, p) = p[1] + p[2] * z + p[3] * exp.((z-L)/p[4])
+
+    # @ z = 0 equals first value
+    a = imp_values[1]
+    # 0.04 was a good starting value using mm and 1e9e/cm^3 -> scale
+    b = 0.04 * (1e6 * 1e9) * 1e3
+    # @ z = L
+    c = (imp_values[end] - a - b*L)
+    # tau = 20 was a good starting value in mm -> scale
+    tau = 20 / 1e3
+    p0 = [a, b, c, tau]
+    fit = LsqFit.curve_fit(radford, dist, imp_values, p0)
+
+    a,b,c,tau = fit.param
+    RadfordImpurityDensity(T(a),T(b),T(c),T(tau),T(L),T(det_z0/1e3))
+
 end
 
 
