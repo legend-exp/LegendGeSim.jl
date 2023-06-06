@@ -185,7 +185,9 @@ function meta2siggen(meta::PropDict, env::Environment)
         # depth of full-charge-collection boundary for Li contact -> was removed from geometry because is not 
         # use manufacturer DL? in the future when our FCCD is in metadata, use that?
         # "Li_thickness" => 0,
-        "Li_thickness" => meta.characterization.manufacturer.dl_thickness_in_mm,
+        # QUICKFIX
+        # dl = vendor => take vendor; dl = number => take that; no dl => take 0
+        "Li_thickness" => env.dl == "vendor" ? meta.characterization.manufacturer.dl_thickness_in_mm : env.dl,
 
         # configuration for mjd_fieldgen (calculates electric fields & weighing potentials)
         # detector bias for fieldgen, in Volts

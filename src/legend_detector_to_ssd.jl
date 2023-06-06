@@ -6,7 +6,7 @@ to_SSD_units(::Type{T}, x, unit) where {T} = T(SolidStateDetectors.to_internal_u
 function LEGEND_SolidStateDetector(metapath::AbstractString)
     # put non-zero opV because if we only want geometry, we don't care anyway;
     # and if metadata has null for recV and we give zero here, it will complain
-    LEGEND_SolidStateDetector(Float32, propdict(metapath), Environment("",0,1))
+    LEGEND_SolidStateDetector(Float32, propdict(metapath), Environment("",0,1,0))
 end
 
 function LEGEND_SolidStateDetector(::Type{T}, meta::PropDict, env::Environment, impurity_path::AbstractString = "") where {T}
@@ -34,8 +34,20 @@ function LEGEND_SolidStateDetector(::Type{T}, meta::PropDict, env::Environment, 
     # dl_thickness_in_mm = 0
 
     # temporary quickfix!!
-    # dl = vendor => take vendor; dl = number => take that; no dl => take 0
-    dl_thickness_in_mm = env.dl
+    # dl = vendor => take vendor; dl = number => take that
+
+    dl_thickness_in_mm =
+        if env.dl == "vendor"
+            dl_vendor = meta.characterization.manufacturer.dl_thickness_in_mm
+            if dl_vendor == nothing
+                @error "No DL provided by vendor!"
+            end
+            dl_vendor
+        else
+            env.dl 
+        end
+
+    @info "DL = $(dl_thickness_in_mm)mm"
 
     li_thickness =  to_SSD_units(T, dl_thickness_in_mm, u"mm")
 
@@ -379,11 +391,12 @@ function LEGEND_SolidStateDetector(::Type{T}, meta::PropDict, env::Environment, 
             if recV == nothing
                 error("Metadata does not provide recommended voltage (null). Please provide operating voltage in settings")
             end
-            @info "Simulating at $(recV)V"
             T(recV)
         else
             T(env.operating_voltage)
         end
+
+    @info "Simulating at $(operation_voltage)V"
 
 
     point_contact = SolidStateDetectors.Contact( zero(T), material, 1, "Point Contact", pp_contact_geometry )
