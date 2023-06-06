@@ -36,6 +36,17 @@ Currently SSDSimulator does not have any parameters
 """
 # function SSDSimulator(sim_conf::LegendGeSimConfig)
 function SSDSimulator(simulation_settings::PropDict)
+    if(!haskey(simulation_settings, :crystal_metadata_path))
+        simulation_settings[:crystal_metadata_path] = ""
+        # simulation_settings.crystal_metadata_path = crystal_metadata_path
+        # ToDo: move somewhere else - irrelevant if only geometry is constructed, or when simulation read from cache
+        @warn "No crystal metadata path given. Simulation with dummy constant impurity density."
+    elseif !ispath(simulation_settings.crystal_metadata_path)
+        @error "The path to crystal metadata you provided is not valid! ($(simulation_settings.crystal_metadata_path))"
+    else
+        @info "Impurity profile information based on $(simulation_settings.crystal_metadata_path)"
+    end
+
     coord = haskey(simulation_settings, :coordinates) ? simulation_settings.coordinates : "cylindrical"
     if !(coord in ["cartesian", "cylindrical"])
         error("$coord coordinates not implemented!\n Available: cartesian, cylindrical")
@@ -60,6 +71,12 @@ Simulation method: siggen
     "Drift velocity correction (?)"
     drift_vel::AbstractString
 
+    ".dat/spe file with impurity profile"
+    impurity_profile::AbstractString=""
+
+    "offset of detector Z=0 in crystal from seed start"
+    offset_in_mm::Real=-1
+
     "Name for cached simulation. Not caching if empty string"
     cached_name::AbstractString = ""    
 end
@@ -74,22 +91,41 @@ Construct SiggeSimulator instance based on simulation
     configuration given in <sim_conf>.
 """
 function SiggenSimulator(simulation_settings::PropDict)
-    # check if provided paths exist
-    inputs = Dict(
+    # ToDo: use Symbol and loop, that's possible right?
+    inputs = Dict{AbstractString,Any}(
         "fieldgen_config" => haskey(simulation_settings, :fieldgen_config) ? simulation_settings.fieldgen_config : "",
-        "drift_vel" => haskey(simulation_settings, :drift_vel) ? simulation_settings.drift_vel : ""
+        "drift_vel" => haskey(simulation_settings, :drift_vel) ? simulation_settings.drift_vel : "",
+        "impurity_profile" => haskey(simulation_settings, :impurity_profile) ? simulation_settings.impurity_profile : "",
     )
+
+    # check if provided paths exist
     for (param, path) in inputs
         if (path != "") && !isfile(path)
         @error "The file for $(param) that you provided does not exist: $(path)"
         end
     end
 
+    inputs["offset_in_mm"] = haskey(simulation_settings, :offset_in_mm) ? simulation_settings.offset_in_mm : -1
+
+    # check that offset is provided if impurity file is
+    if inputs["impurity_profile"] != "" && inputs["offset_in_mm"] == -1
+        @error "Please provide offset in mm of this detector corresponding to impurity file $(inputs["impurity_profile"])!"
+    end
+
+    if(inputs["impurity_profile"] == "")
+        @warn "No .spe/.dat file path given. Simulation with dummy constant impurity density."
+    elseif !ispath(inputs["impurity_profile"])
+        @error "The path to .spe/.dat file you provided is not valid! ($(inputs["impurity_profile"]))"
+    else
+        @info "Impurity profile information based on $(inputs["impurity_profile"])"
+    end
+
+
     SiggenSimulator( 
-        # haskey(simulation_settings, "fieldgen_config") ? simulation_settings.fieldgen_config : "fieldgen_settings.txt",
-        # haskey(simulation_settings, "drift_vel") ? simulation_settings.drift_vel : "drift_vel_tcorr.tab"
         inputs["fieldgen_config"],
         inputs["drift_vel"],
+        inputs["impurity_profile"],
+        inputs["offset_in_mm"],
         simulation_settings.cached_name
     )
 end
@@ -109,17 +145,6 @@ function PSSimulator(simulation_settings::PropDict)
     @info "Simulation method: $(simulation_settings.method)"
 
     # defaults
-    if(!haskey(simulation_settings, :crystal_metadata_path))
-        simulation_settings[:crystal_metadata_path] = ""
-        # simulation_settings.crystal_metadata_path = crystal_metadata_path
-        # ToDo: move somewhere else - irrelevant if only geometry is constructed, or when simulation read from cache
-        @warn "No crystal metadata path given. Simulation with dummy constant impurity density."
-    elseif !ispath(simulation_settings.crystal_metadata_path)
-        @error "The path to crystal metadata you provided is not valid! ($(simulation_settings.crystal_metadata_path))"
-    else
-        @info "Impurity profile information based on $(simulation_settings.crystal_metadata_path)"
-    end
-
     if(!haskey(simulation_settings, :cached_name))
         simulation_settings[:cached_name] = ""
         @warn "No cached name was given. Not caching the simulation."

@@ -52,7 +52,7 @@ function simulate_detector(det_meta::PropDict, env::Environment, simulator::Sigg
     if !isfile(fieldgen_wp_name) || overwrite
         #...call fieldgen -> will write the wp file
         @info "_|~|_|~|_|~|_ Fieldgen simulation"
-        fieldgen(siggen_config_name)
+        fieldgen(siggen_config_name; impurity_profile=simulator.impurity_profile, offset_mm=simulator.offset_in_mm)
         @info "_|~|_|~|_|~|_ Fieldgen simulation complete"
     else
         #...do nothing, siggen will later read the files based on the generated conifg
