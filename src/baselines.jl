@@ -131,22 +131,18 @@ end
 
 function tail_slope(wf::RDWaveform, n)
     #slope of the tail, n = 500, n= 1500, n=2000
-    peak = findmax(wf.signal)[2]
-    charge = wf.signal[peak:peak+n]
-    time = wf.time[peak:peak+n]
-    _, slope = linear_fit(ustrip(time), ustrip(charge))
-    slope
+    utime, ucharge = _fast_ustrip(wf.time), _fast_ustrip(wf.signal)
+    peak = findmax(ucharge)[2]
+    signalstats(RDWaveform(utime, ucharge), utime[peak], utime[peak+n]).slope
 end
 
 
 
 function base_slope(wf::RDWaveform, n)
     #slope of the tail  n = 1800
-    peak = findmax(wf.signal)[2]
-    charge = wf.signal[begin:peak-n]
-    time = wf.time[begin:peak-n]
-    _, slope = linear_fit(ustrip(time), ustrip(charge))
-    slope
+    utime, ucharge = _fast_ustrip(wf.time), _fast_ustrip(wf.signal)
+    peak = findmax(ucharge)[2]
+    signalstats(RDWaveform(utime, ucharge), first(utime), utime[peak-n]).slope
 end
 
 
