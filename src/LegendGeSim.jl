@@ -54,6 +54,8 @@ const μs_unit = u"μs"
 
 const germanium_ionization_energy = SolidStateDetectors.material_properties[:HPGe].E_ionisation # in eV
 
+include("units.jl")
+
 include("sim_config.jl")
 include("pss.jl")
 include("detector.jl")
