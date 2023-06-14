@@ -25,7 +25,6 @@ using LegendDataTypes
 using LegendHDF5IO
 using LegendTextIO
 using LinearAlgebra
-using LsqFit
 using MJDSigGen
 using Parameters
 using Polynomials
