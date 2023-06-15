@@ -21,6 +21,14 @@ Simulation method: SolidStateDetectors
 
     "Name for cached simulation. Not caching if empty string"
     cached_name::AbstractString = ""
+
+    time_step::typeof(1.0*ns_unit) = 1u"ns"
+
+    diffusion::Bool = false
+
+    self_repulsion::Bool = false
+
+    number_of_carriers::Int = 1
 end
 
 
@@ -57,7 +65,13 @@ function SSDSimulator(simulation_settings::PropDict)
         error("$comp computation not implemented!\n Available: 2D, 3D")
     end
 
-    SSDSimulator(coord, comp, simulation_settings.crystal_metadata_path, simulation_settings.cached_name)
+    time_step = haskey(simulation_settings, :time_step) ? simulation_settings.time_step*u"ns" : 1u"ns"
+    diff = haskey(simulation_settings, :diffusion) ? simulation_settings.diffusion : false
+    selfrep = haskey(simulation_settings, :self_repulsion) ? simulation_settings.self_repulsion : false
+    num_carriers = haskey(simulation_settings, :number_of_carriers) ? simulation_settings.number_of_carriers : 1
+
+    SSDSimulator(coord, comp, simulation_settings.crystal_metadata_path, simulation_settings.cached_name,
+        time_step, diff, selfrep, num_carriers)
 end
 
 
@@ -173,13 +187,17 @@ Simulate pulses based on events given in <stp_events>
 Constructs and returns a table with resulting pulses and a pss truth table
     (may be abolished in the future as unnecessary)    
 """
-function simulate_waveforms(stp_events::Table, detector::SolidStateDetectors.Simulation)
+function simulate_waveforms(stp_events::Table, detector::SolidStateDetectors.Simulation, simulator::SSDSimulator)
     @info("~.~.~ SolidStateDetectors")
     contact_charge_signals = SolidStateDetectors.simulate_waveforms(
             stp_events,
             detector,
             max_nsteps = 20000,
-            Δt = 1u"ns",
+            # Δt = 1u"ns",
+            Δt = simulator.time_step,
+            diffusion = simulator.diffusion,
+            self_repulsion = simulator.self_repulsion,
+            number_of_carriers = simulator.number_of_carriers,
             verbose = false);
 
     # SSD returns in units of "e" -> convert to eV
@@ -226,7 +244,7 @@ Simulate pulses based on events given in <stp_events>
 Constructs and returns a table with resulting pulses and a pss truth table
     (may be abolished in the future as unnecessary)    
 """
-function simulate_waveforms(stp_events::Table, detector::SigGenSetup)
+function simulate_waveforms(stp_events::Table, detector::SigGenSetup, ::SiggenSimulator)
     T = Float32 # This should be somehow defined and be passed properly
     @info("~.~.~ Siggen")
 

@@ -22,7 +22,7 @@ function stp_to_pss(stp_table::Table, det_meta::PropDict, env::Environment, simu
     sim = simulate_detector(det_meta, env, simulator; overwrite = false)
 
     @info "~.~.~.~.~ Simulate charge pulses"
-    simulate_waveforms(stp_table, sim)
+    simulate_waveforms(stp_table, sim, simulator)
 end
 
 

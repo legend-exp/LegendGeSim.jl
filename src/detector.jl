@@ -172,6 +172,9 @@ function construct_ssd_simulation(det_meta::PropDict, env::Environment, simulato
     # later will be read from legend-metadata similar to pylegendmeta
     # note: currently does nothing with crystal path
     sim.detector = LEGEND_SolidStateDetector(T, det_meta, env, simulator.crystal_metadata_path)
+
+    
+
     if simulator.comp != "2D"
         error("Only 2D is supported up to now.")
     end
