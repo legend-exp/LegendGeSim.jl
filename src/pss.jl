@@ -105,12 +105,11 @@ Construct SiggeSimulator instance based on simulation
     configuration given in <sim_conf>.
 """
 function SiggenSimulator(simulation_settings::PropDict)
-    # ToDo: use Symbol and loop, that's possible right?
-    inputs = Dict{AbstractString,Any}(
-        "fieldgen_config" => haskey(simulation_settings, :fieldgen_config) ? simulation_settings.fieldgen_config : "",
-        "drift_vel" => haskey(simulation_settings, :drift_vel) ? simulation_settings.drift_vel : "",
-        "impurity_profile" => haskey(simulation_settings, :impurity_profile) ? simulation_settings.impurity_profile : "",
-    )
+    # set defaults
+    inputs = Dict{String, Any}()
+    for k in (:fieldgen_config, :drift_vel, :impurity_profile)
+        inputs[string(k)] = haskey(simulation_settings, k) ? simulation_settings[k] : ""
+    end    
 
     # check if provided paths exist
     for (param, path) in inputs

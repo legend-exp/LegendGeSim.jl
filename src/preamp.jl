@@ -41,10 +41,9 @@ end
 
 
 """
-CC2 circuit model (ToDo)
-what. it's CC4. what is this
+CC4 circuit model (ToDo)
 """
-struct CC2 <: PreAmp end
+struct CC4 <: PreAmp end
 
 
 """

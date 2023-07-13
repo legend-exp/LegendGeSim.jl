@@ -4,7 +4,11 @@ to_SSD_units(::Type{T}, x, unit) where {T} = T(SolidStateDetectors.to_internal_u
 
 # if just want geometry
 function LEGEND_SolidStateDetector(metapath::AbstractString)
-    SolidStateDetector{Float32}(LegendData, propdict(metapath))
+    LEGEND_SolidStateDetector(propdict(metapath))
+end
+
+function LEGEND_SolidStateDetector(meta::PropDict)
+    SolidStateDetector{Float32}(LegendData, meta)
 end
 
 function LEGEND_SolidStateDetector(::Type{T}, meta::PropDict, env::Environment, impurity_path::AbstractString = "") where {T}
@@ -14,7 +18,7 @@ function LEGEND_SolidStateDetector(::Type{T}, meta::PropDict, env::Environment, 
     dl_thickness_in_mm =
         if env.dl == "vendor"
             dl_vendor = meta.characterization.manufacturer.dl_thickness_in_mm
-            if dl_vendor == nothing
+            if isnothing(dl_vendor)
                 @error "No DL provided by vendor!"
             end
             dl_vendor
@@ -40,7 +44,7 @@ function LEGEND_SolidStateDetector(::Type{T}, meta::PropDict, env::Environment, 
     if env.operating_voltage == 0
         @warn "You did not provide operating voltage in environment settings -> taking recommended voltage from metadata"
         recV = meta.characterization.l200_site.recommended_voltage_in_V
-        if recV == nothing
+        if isnothing(recV)
             error("Metadata does not provide recommended voltage (null). Please provide operating voltage in settings")
         end
         T(recV)

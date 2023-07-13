@@ -68,12 +68,6 @@ end
 ### SSD
 ####################################
 
-# to_SSD_units(::Type{T}, x, unit) where {T} = T(SolidStateDetectors.to_internal_units(x*unit)) 
-
-# function LEGEND_SolidStateDetector(::Type{T}, meta::PropDict) where {T}
-#     SolidStateDetector{T}(LegendData, meta)
-# end
-
 
 function simulate_detector(det_meta::PropDict, env::Environment, simulator::SSDSimulator;
     overwrite::Bool = false)
@@ -106,7 +100,6 @@ function simulate_detector(det_meta::PropDict, env::Environment, simulator::SSDS
                     LegendHDF5IO.writedata(h5f, "SSD_weighting_potential_$(i)", NamedTuple(sim.weighting_potentials[i]))
                 end
             end
-            # SolidStateDetectors.ssd_write(h5fn, sim) -> why commented out? and doing how is above?
             @info("-> Saved cached simulation to $h5fn")
         end
         sim

@@ -150,7 +150,46 @@ Construct siggen type config in a form of Dict based on
     and environment settings given in <env>.
 """
 function meta2siggen(meta::PropDict, env::Environment)
+    # !!!! this is copy paste from legend_detector_to_SSD !!
+    # ToDo: rewrite to avoid copy-paste 
+
+    # -----------------------------------------------------------
+    # DL thickness (quickfix)
+        
+    dl_thickness_in_mm =
+        if env.dl == "vendor"
+            dl_vendor = meta.characterization.manufacturer.dl_thickness_in_mm
+            if isnothing(dl_vendor)
+                @error "No DL provided by vendor!"
+            end
+            dl_vendor
+        else
+            env.dl 
+        end
+
+    @info "DL = $(dl_thickness_in_mm)mm"
+
+    # -----------------------------------------------------------
+    # operating voltage
+
+    # sometimes recV is null -> in this case, complain and ask to provide (default env.opV is 0 if none given)
+    operation_voltage = 
+    if env.operating_voltage == 0
+        @warn "You did not provide operating voltage in environment settings -> taking recommended voltage from metadata"
+        recV = meta.characterization.l200_site.recommended_voltage_in_V
+        if isnothing(recV)
+            error("Metadata does not provide recommended voltage (null). Please provide operating voltage in settings")
+        end
+        recV
+    else
+        env.operating_voltage
+    end
+
+    @info "Simulating at $(operation_voltage)V"    
+
+    # -----------------------------------------------------------
     # parameters common for all geometries
+
     siggen_geometry = Dict(
         # -- crystal
         "xtal_length" => meta.geometry.height_in_mm,
@@ -182,24 +221,21 @@ function meta2siggen(meta::PropDict, env::Environment)
         # "taper_angle" => meta.geometry.taper.top.inner.angle_in_deg,
         # with this setting, it somehow takes taper angle: 45.000038 anyway -> force to zero?
         # "taper_angle" => 0,
-        # depth of full-charge-collection boundary for Li contact -> was removed from geometry because is not 
-        # use manufacturer DL? in the future when our FCCD is in metadata, use that?
-        # "Li_thickness" => 0,
-        # QUICKFIX
-        # dl = vendor => take vendor; dl = number => take that; no dl => take 0
-        "Li_thickness" => env.dl == "vendor" ? meta.characterization.manufacturer.dl_thickness_in_mm : env.dl,
+        # depth of full-charge-collection boundary for Li contact
+        "Li_thickness" => dl_thickness_in_mm,
 
         # configuration for mjd_fieldgen (calculates electric fields & weighing potentials)
         # detector bias for fieldgen, in Volts
-        # ToDo: sometime there is null in metadata -> throw error and ask for opV input
-        "xtal_HV" => env.operating_voltage > 0 ? env.operating_voltage : meta.characterization.l200_site.recommended_voltage_in_V,
+        "xtal_HV" => operation_voltage,
 
         # configuration for signal calculation 
         # crystal temperature in Kelvin
         "xtal_temp" => env.crystal_temperature
     )
 
+    # -----------------------------------------------------------
     # non common parameters
+
     # -- groove (for non PPCs)
     if haskey(meta.geometry, :groove)
         siggen_geometry["wrap_around_radius"] = meta.geometry.groove.radius_in_mm.outer

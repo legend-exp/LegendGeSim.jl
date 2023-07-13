@@ -82,7 +82,8 @@ function pet_to_stp(detector_metadata::PropDict, pet_filename::AbstractString)
     @info "---------------------- pet -> stp (stepping info)"
 
     # SSD detector for geometry purposes (not simulation)
-    detector_SSD = LEGEND_SolidStateDetector(Float32, detector_metadata, Environment())
+    # detector_SSD = LEGEND_SolidStateDetector(Float32, detector_metadata, Environment())
+    detector_SSD = LEGEND_SolidStateDetector(detector_metadata)
 
     pet_table = read_pet(pet_filename)
 
