@@ -25,9 +25,9 @@ Construct electronics components based on simulation
     configuration <sim_conf> and create a GenericChain instance
     based on these components.
 """
-function GenericElecChain(sim_conf::LegendGeSimConfig)
-    preamp = PreAmp(sim_conf)
-    fadc = FADC(sim_conf)
+function GenericElecChain(setup_settings::PropDict)
+    preamp = PreAmp(setup_settings.preamp)
+    fadc = FADC(setup_settings.fadc)
 
     GenericElecChain(preamp, fadc)
 end
@@ -43,8 +43,8 @@ Type of returned instance depends on settings in <sim_conf>
 Currently only one type of ElecChain available (GenericElecChain),
     rendering this function temporarily redundant.
 """
-function ElecChain(sim_conf::LegendGeSimConfig)
-    GenericElecChain(sim_conf)
+function ElecChain(setup_settings::PropDict)
+    GenericElecChain(setup_settings)
 end
 
 
@@ -59,9 +59,11 @@ Simulate effects of the electronics chain on the waveform
     modelling noise based on each component.
 
 """
-function simulate(wf::RDWaveform, elec_chain::ElecChain, ::NoiseFromSim)
-    # simply simulate elec chain the way it is
-    # noise simulation of components is included in the simulation of components
+function simulate(wf::RDWaveform, elec_chain::ElecChain, ::Union{NoiseFromSim, NoiseNone})
+    # simply simulate elec chain the way it is is 
+    # no noise is asked
+    # noise is simulated from scratch -> noise simulation of components is included in the simulation of components
+    # so no need to do anything here
     simulate(wf, elec_chain)
 end
 

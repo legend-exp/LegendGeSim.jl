@@ -27,6 +27,8 @@ function propdict(json_file::AbstractString)
     PropDicts.read(PropDict, json_file)
 end
 
+    
+
 
 """
     remove_negative(value)
@@ -72,7 +74,7 @@ Do nothing and return original value of gain parameter in <preamp>,
     since when NoiseFromSim model is used, gain is provided by the user
     (or calculated based on user given max energy)    
 """
-function preamp_gain(preamp::GenericPreAmp, ::NoiseFromSim)
+function preamp_gain(preamp::GenericPreAmp, ::Union{NoiseFromSim,NoiseNone})
     preamp.gain
 end
 
@@ -101,7 +103,7 @@ In NoiseFromSim setting, non-zero trigger threshold in keV MUST be given by the 
 Calculate final threshold based the value contained in <trigger>, and <preamp> gain.
 
 """
-function trigger_threshold(trigger::Trigger, preamp::GenericPreAmp, ::NoiseFromSim)
+function trigger_threshold(trigger::Trigger, preamp::GenericPreAmp, ::Union{NoiseFromSim, NoiseNone})
     uconvert(u"eV", trigger.threshold_keV) / germanium_ionization_energy * preamp.gain
     # threshold = trigger.threshold_keV == 0u"keV" ? noise_model.noise_σ * 3 : trigger.threshold_keV
     # uconvert(u"eV", threshold) / germanium_ionization_energy * preamp.gain

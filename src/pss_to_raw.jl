@@ -1,15 +1,3 @@
-function pss_to_raw(pss_table::Table, pss_truth::Table, config::LegendGeSimConfig)
-    @info "---------------------- pss -> raw (DAQ simulation)"
-
-    ps_simulator = PSSimulator(config)
-    elec_chain = ElecChain(config)
-    trigger = Trigger(config)
-    daq = DAQ(config)
-    noise_model = NoiseModel(config)
-
-    pss_to_raw(pss_table, pss_truth, ps_simulator, elec_chain, trigger, daq, noise_model)
-end
-
 """
     pss_to_raw(pss_table, pss_truth, simulation_settings, elec_chain, trigger, daq, noise_model)
 
@@ -22,9 +10,11 @@ Construct a table with the format identical to data raw tier.
 Currently timing information in <pss_truth> is used for dummy timestamps in the output
     raw tier table.
 """
-function pss_to_raw(pss_table::Table, pss_truth::Table, simulation_settings::PSSimulator, elec_chain::ElecChain, trigger::Trigger, daq::DAQ, noise_model::NoiseModel)
+function pss_to_raw(pss_table::Table, pss_truth::Table, elec_chain::ElecChain, trigger::Trigger, daq::DAQ, noise_model::NoiseModel)
 
-    result = process_waveforms(pss_table, simulation_settings, elec_chain, trigger, daq, noise_model)
+    @info "---------------------- pss -> raw (realistic waveforms)"
+
+    result = process_waveforms(pss_table, elec_chain, trigger, daq, noise_model)
    
     ## construct array of waveforms for hdf5
     wf_final = ArrayOfRDWaveforms(result.wf_array)
@@ -56,17 +46,28 @@ function pss_to_raw(pss_table::Table, pss_truth::Table, simulation_settings::PSS
     raw_table
 end
 
-# function pss_to_raw(pss_file::AbstractString, det_meta_fullpath::AbstractString, sim_config_file::AbstractString)
-#     pss_h5 = h5open(pss_file, "r")
-#     pss_table = LegendHDF5IO.readdata(pss_h5, "pss/pss")
-#     pss_truth = LegendHDF5IO.readdata(pss_h5, "pss/truth")
-#     close(pss_h5)
+# wrapper for user reading from pre-saved pss file
+function pss_to_raw(pss_file::AbstractString, setup_settings::Dict, noise_settings::Dict=Dict("type"=>"none"))
+    pss_h5 = h5open(pss_file, "r")
+    pss_table = LegendHDF5IO.readdata(pss_h5, "pss/pss")
+    pss_truth = LegendHDF5IO.readdata(pss_h5, "pss/truth")
+    close(pss_h5)
 
-#     pss_to_raw(pss_table, pss_truth, det_meta_fullpath, sim_config_file)
-# end
+    setup = PropDict(setup_settings)
+    elec_chain = ElecChain(setup) # needs preamp and fadc
+    trigger = Trigger(setup.trigger)
+    daq = DAQ(setup.daq)
+    noise_model = NoiseModel(PropDict(noise_settings))
+    # TEMP ! !
+    # noise_model = NoiseFromSim(0u"keV")
+
+    pss_to_raw(pss_table, pss_truth, elec_chain, trigger, daq, noise_model)
+end
 
 
 # ------------------------------
+
+
 
 
 
@@ -81,7 +82,7 @@ Noise is simulated based on the given <noise_model>.
 The output table contains the resulting DAQ waveforms, simulated online energy after tigger,
     baselines and their RMS, needed for the raw tier table.
 """
-function process_waveforms(pss_table::Table, sim::PSSimulator, elec_chain::GenericElecChain, trigger::Trigger, daq::DAQ, noise_model::NoiseModel)
+function process_waveforms(pss_table::Table, elec_chain::GenericElecChain, trigger::Trigger, daq::DAQ, noise_model::NoiseModel)
     T = Float32 # This should be somehow defined and be passed properly
     # Create arrays to be filled with results, and online energy
     n_waveforms = size(pss_table.waveform, 1)
@@ -103,10 +104,6 @@ function process_waveforms(pss_table::Table, sim::PSSimulator, elec_chain::Gener
     elec_chain.preamp.gain = preamp_gain(elec_chain.preamp, noise_model)
     trigger.threshold = trigger_threshold(trigger, elec_chain.preamp, noise_model)
 
-
-    ## ---- temporary
-    # SSD v0.7 returns the waveform in units of charge. For now, convert it back to energy (in keV).
-
     @info "Processing waveforms..."
     for i = 1:n_waveforms
         # for some reason ProgressMeter doesn't work here
@@ -115,12 +112,11 @@ function process_waveforms(pss_table::Table, sim::PSSimulator, elec_chain::Gener
         end
 
         wf = pss_table.waveform[i]
-        wf = if sim isa SSDSimulator
-            RDWaveform(wf.time, ustrip.(wf.signal) .* ustrip(germanium_ionization_energy)) # SSD v0.7 returns the waveform in units of charge. 
-        else
-            # RDWaveform(wf.time, ustrip.(wf.signal) .* ustrip(germanium_ionization_energy)) # SSD v0.7 returns the waveform in units of charge. 
-            RDWaveform(wf.time, wf.signal)
-        end
+
+        # all the operations below assume unitless wf
+        # currently stp->pss for siggen returns unitless (?), SSD in eV
+        # strip, ToDo: figure out what to do here
+        wf = RDWaveform(wf.time, ustrip.(wf.signal))
 
         ## invert the pulse if it came from the n+ contact
         sign = wf.signal[end] < 0 ? -1 : 1

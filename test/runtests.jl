@@ -17,11 +17,10 @@ test_dict = Dict{String, typeof(1.0u"pF")}(
 @testset "Package LegendGeSim" begin
     for (filename, capacitance) in test_dict
         detector_metadata_filename = joinpath(testdata_path, filename)
-        sim_settings_ssd_filename = joinpath(dirname(dirname(pathof(LegendGeSim))), "examples/configs/SSD_NoiseSim.json")
+        sim_settings_ssd_filename = joinpath(dirname(dirname(pathof(LegendGeSim))), "examples/configs/detector_study_ssd.json")
         
         @testset "Field Simulation of $filename (SSD)" begin
-            config = LegendGeSim.load_config(detector_metadata_filename, sim_settings_ssd_filename);
-            sim = LegendGeSim.simulate_fields(config)
+            sim = LegendGeSim.simulate_fields(detector_metadata_filename, sim_settings_ssd_filename)
             C = LegendGeSim.capacitance_matrix(sim)
 
             @testset "Capacitances" begin   

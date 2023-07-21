@@ -17,6 +17,7 @@ This struct is currently mutable because in the case of noise modelling based on
     gain / max_e the data was produced with and give it as simulation input.
 """
 @with_kw mutable struct GenericPreAmp <: PreAmp
+    # Note: these default T() expressions don't work cause T not defined
     "PreAmp exp decay time"
     τ_decay::typeof(1.0*μs_unit) = T(5)*u"μs"
     
@@ -40,9 +41,9 @@ end
 
 
 """
-CC2 circuit model (ToDo)
+CC4 circuit model (ToDo)
 """
-struct CC2 <: PreAmp end
+struct CC4 <: PreAmp end
 
 
 """
@@ -52,14 +53,14 @@ LegendGeSimConfig -> GenericPreAmp
 
 Construct a GenericPreAmp instance based on given simulation configuration <sim_conf>
 """
-function GenericPreAmp(sim_conf::LegendGeSimConfig)
+function GenericPreAmp(preamp_config::PropDict)
     T = Float32 # This should be somehow defined and be passed properly
     GenericPreAmp(
-        τ_decay=T(sim_conf.dict.setup.preamp.t_decay)*u"μs",
-        τ_rise=T(sim_conf.dict.setup.preamp.t_rise)*u"ns",
-        offset = T(sim_conf.dict.setup.preamp.offset)u"keV",
-        max_e = T(sim_conf.dict.setup.preamp.max_e)u"keV",
-        noise_σ = haskey(sim_conf.dict.setup.preamp, :noise_sigma) ? T(sim_conf.dict.setup.preamp.noise_sigma)u"keV" : 0u"keV"
+        τ_decay=T(preamp_config.t_decay)*u"μs",
+        τ_rise=T(preamp_config.t_rise)*u"ns",
+        offset = T(preamp_config.offset)u"keV",
+        max_e = T(preamp_config.max_e)u"keV",
+        noise_σ = haskey(preamp_config, :noise_sigma) ? T(preamp_config.noise_sigma)u"keV" : 0u"keV"
     )
 end
 
@@ -73,9 +74,18 @@ Construct a PreAmp supertype instance based on given simulation configuration <s
 Returned type depends on the settings in <sim_conf>.
 Currently only GenericPreAmp is available.
 """
-function PreAmp(sim_conf::LegendGeSimConfig)
-    GenericPreAmp(sim_conf)
+function PreAmp(preamp_settings::PropDict)
+    if preamp_settings.type == "generic"
+        GenericPreAmp(preamp_settings)
+    else
+        error("Preamp type $(preamp_settings.type) not implemented!\n
+        Available type: generic")
+    end
 end
+
+# function PreAmp(sim_conf::LegendGeSimConfig)
+#     GenericPreAmp(sim_conf)
+# end
 
 # ------------------------------------------------------------------------------------------
 

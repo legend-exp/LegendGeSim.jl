@@ -15,6 +15,20 @@ Simulation method: SolidStateDetectors
 
     "Computation: 3D or 2D (phi symmetry)"
     comp::AbstractString = "2D"
+
+    "Path to crystal jsons"
+    crystal_metadata_path::AbstractString = ""
+
+    "Name for cached simulation. Not caching if empty string"
+    cached_name::AbstractString = ""
+
+    time_step::typeof(1.0*ns_unit) = 1u"ns"
+
+    diffusion::Bool = false
+
+    self_repulsion::Bool = false
+
+    number_of_carriers::Int = 1
 end
 
 
@@ -28,30 +42,57 @@ Construct SSDSimulator instance based on simulation
 
 Currently SSDSimulator does not have any parameters
 """
-function SSDSimulator(sim_conf::LegendGeSimConfig)
-    coord = haskey(sim_conf.dict.simulation, :coordinates) ? sim_conf.dict.simulation.coordinates : "cylindrical"
+# function SSDSimulator(sim_conf::LegendGeSimConfig)
+function SSDSimulator(simulation_settings::PropDict)
+    if(!haskey(simulation_settings, :crystal_metadata_path))
+        simulation_settings[:crystal_metadata_path] = ""
+        # simulation_settings.crystal_metadata_path = crystal_metadata_path
+        # ToDo: move somewhere else - irrelevant if only geometry is constructed, or when simulation read from cache
+        @warn "No crystal metadata path given. Simulation with dummy constant impurity density."
+    elseif !ispath(simulation_settings.crystal_metadata_path)
+        @error "The path to crystal metadata you provided is not valid! ($(simulation_settings.crystal_metadata_path))"
+    else
+        @info "Impurity profile information based on $(simulation_settings.crystal_metadata_path)"
+    end
+
+    coord = haskey(simulation_settings, :coordinates) ? simulation_settings.coordinates : "cylindrical"
     if !(coord in ["cartesian", "cylindrical"])
         error("$coord coordinates not implemented!\n Available: cartesian, cylindrical")
     end
 
-    comp = haskey(sim_conf.dict.simulation, :computation) ? sim_conf.dict.simulation.computation : "2D"
+    comp = haskey(simulation_settings, :computation) ? simulation_settings.computation : "2D"
     if !(comp in ["2D", "3D"])
         error("$comp computation not implemented!\n Available: 2D, 3D")
     end
 
-    SSDSimulator(coord, comp)
+    time_step = haskey(simulation_settings, :time_step) ? simulation_settings.time_step*u"ns" : 1u"ns"
+    diff = haskey(simulation_settings, :diffusion) ? simulation_settings.diffusion : false
+    selfrep = haskey(simulation_settings, :self_repulsion) ? simulation_settings.self_repulsion : false
+    num_carriers = haskey(simulation_settings, :number_of_carriers) ? simulation_settings.number_of_carriers : 1
+
+    SSDSimulator(coord, comp, simulation_settings.crystal_metadata_path, simulation_settings.cached_name,
+        time_step, diff, selfrep, num_carriers)
 end
 
 
 """
 Simulation method: siggen
 """
-struct SiggenSimulator <: PSSimulator
+@with_kw struct SiggenSimulator <: PSSimulator
     "Path to fieldgen settings"
     fieldgen_config::AbstractString
 
     "Drift velocity correction (?)"
     drift_vel::AbstractString
+
+    ".dat/spe file with impurity profile"
+    impurity_profile::AbstractString=""
+
+    "offset of detector Z=0 in crystal from seed start"
+    offset_in_mm::Real=-1
+
+    "Name for cached simulation. Not caching if empty string"
+    cached_name::AbstractString = ""    
 end
 
 
@@ -63,11 +104,42 @@ end
 Construct SiggeSimulator instance based on simulation
     configuration given in <sim_conf>.
 """
-function SiggenSimulator(sim_conf::LegendGeSimConfig)
-    # @info "Taking fieldgen input from $(sim_conf.simulation.fieldgen_config)"
+function SiggenSimulator(simulation_settings::PropDict)
+    # set defaults
+    inputs = Dict{String, Any}()
+    for k in (:fieldgen_config, :drift_vel, :impurity_profile)
+        inputs[string(k)] = haskey(simulation_settings, k) ? simulation_settings[k] : ""
+    end    
+
+    # check if provided paths exist
+    for (param, path) in inputs
+        if (path != "") && !isfile(path)
+        @error "The file for $(param) that you provided does not exist: $(path)"
+        end
+    end
+
+    inputs["offset_in_mm"] = haskey(simulation_settings, :offset_in_mm) ? simulation_settings.offset_in_mm : -1
+
+    # check that offset is provided if impurity file is
+    if inputs["impurity_profile"] != "" && inputs["offset_in_mm"] == -1
+        @error "Please provide offset in mm of this detector corresponding to impurity file $(inputs["impurity_profile"])!"
+    end
+
+    if(inputs["impurity_profile"] == "")
+        @warn "No .spe/.dat file path given. Simulation with dummy constant impurity density."
+    elseif !ispath(inputs["impurity_profile"])
+        @error "The path to .spe/.dat file you provided is not valid! ($(inputs["impurity_profile"]))"
+    else
+        @info "Impurity profile information based on $(inputs["impurity_profile"])"
+    end
+
+
     SiggenSimulator( 
-        haskey(sim_conf.dict.simulation, "fieldgen_config") ? sim_conf.dict.simulation.fieldgen_config : "fieldgen_settings.txt",
-        haskey(sim_conf.dict.simulation, "drift_vel") ? sim_conf.dict.simulation.drift_vel : "drift_vel_tcorr.tab"
+        inputs["fieldgen_config"],
+        inputs["drift_vel"],
+        inputs["impurity_profile"],
+        inputs["offset_in_mm"],
+        simulation_settings.cached_name
     )
 end
 
@@ -82,16 +154,24 @@ Construct a PSSSimulator supertype instance based on given simulation
 Returned type depends on the simulation
     method given in the config.
 """
-function PSSimulator(sim_config::LegendGeSimConfig)
-    @info "Simulation method: $(sim_config.dict.simulation.method)"
-    if sim_config.dict.simulation.method in ["SSD", "ssd"]
-        SSDSimulator(sim_config)
-    elseif sim_config.dict.simulation.method in ["siggen", "fieldgen"]
-        SiggenSimulator(sim_config)
+function PSSimulator(simulation_settings::PropDict)    
+    @info "Simulation method: $(simulation_settings.method)"
+
+    # defaults
+    if(!haskey(simulation_settings, :cached_name))
+        simulation_settings[:cached_name] = ""
+        @warn "No cached name was given. Not caching the simulation."
+    end
+
+    if simulation_settings.method in ["SSD", "ssd"]
+        SSDSimulator(simulation_settings)
+    elseif simulation_settings.method in ["siggen", "fieldgen"]
+        SiggenSimulator(simulation_settings)
     else
         error("This simulation method is not implemented!")
     end
 end
+   
 
 # -------------------------------------------------------------------
 
@@ -106,19 +186,32 @@ Simulate pulses based on events given in <stp_events>
 Constructs and returns a table with resulting pulses and a pss truth table
     (may be abolished in the future as unnecessary)    
 """
-function simulate_waveforms(stp_events::Table, detector::SolidStateDetectors.Simulation)
+function simulate_waveforms(stp_events::Table, detector::SolidStateDetectors.Simulation, simulator::SSDSimulator)
     @info("~.~.~ SolidStateDetectors")
     contact_charge_signals = SolidStateDetectors.simulate_waveforms(
             stp_events,
             detector,
             max_nsteps = 20000,
-            Δt = 1u"ns",
+            # Δt = 1u"ns",
+            Δt = simulator.time_step,
+            diffusion = simulator.diffusion,
+            self_repulsion = simulator.self_repulsion,
+            number_of_carriers = simulator.number_of_carriers,
             verbose = false);
 
-    # waveforms = ArrayOfRDWaveforms(contact_charge_signals.waveform)
-    # !! conversion should be here, not in pss->raw
-    # RDWaveform(wf.time, ustrip.(wf.signal) .* ustrip(germanium_ionization_energy))
-    waveforms = ArrayOfRDWaveforms(contact_charge_signals.waveform)
+    # SSD returns in units of "e" -> convert to eV
+    n_waveforms = size(contact_charge_signals.waveform, 1)
+    wf_array = Array{RDWaveform}(undef, n_waveforms)
+    for i = 1:n_waveforms
+        wf = contact_charge_signals.waveform[i]
+        wf_array[i] = RDWaveform(wf.time, ustrip.(wf.signal) .* germanium_ionization_energy) # units eV
+    end
+
+    # ToDo: SSD returns double the number of wfs, because also inverse ones from n+ contact
+    # -> just take the first half corr. to n_events in stp?
+    # -> filter in a smarter way by contact?
+
+    waveforms = ArrayOfRDWaveforms(wf_array)
 
     # convert to Tier1 format
     pss_table = Table(
@@ -150,7 +243,7 @@ Simulate pulses based on events given in <stp_events>
 Constructs and returns a table with resulting pulses and a pss truth table
     (may be abolished in the future as unnecessary)    
 """
-function simulate_waveforms(stp_events::Table, detector::SigGenSetup)
+function simulate_waveforms(stp_events::Table, detector::SigGenSetup, ::SiggenSimulator)
     T = Float32 # This should be somehow defined and be passed properly
     @info("~.~.~ Siggen")
 

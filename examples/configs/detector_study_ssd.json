@@ -1,11 +1,9 @@
 {
     "environment":{
-        "crystal_t": 90.0,
-        "op_voltage": 4000,
+        "crystal_temperature_in_K": 77,
         "medium": "vacuum"
     },
     "simulation":{
-        "method": "SSD",
-        "cached_name": "vacuum_90K_4000V"
+        "method": "ssd"
     }
 }
