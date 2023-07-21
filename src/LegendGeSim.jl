@@ -45,6 +45,8 @@ using Tables
 using TypedTables
 using Unitful
 
+import LsqFit
+
 using SolidStateDetectors: ConstructiveSolidGeometry as CSG
 
 const energy_unit = u"keV"
