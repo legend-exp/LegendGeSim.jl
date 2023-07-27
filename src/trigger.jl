@@ -79,12 +79,12 @@ function simulate(wf::RDWaveform, trigger::TrapFilter)
     T = Float32 # This should be somehow defined and be passed properly
     trigger_window_length = sum(trigger.window_lengths)
     
-    fi = fltinstance(TrapezoidalChargeFilter{T}(reverse(trigger.window_lengths)...), smplinfo(wf)) 
-    online_filter_output = similar(wf.signal, length(wf.signal) - trigger_window_length + 1)
+    fi = fltinstance(TrapezoidalChargeFilter{T}(reverse(trigger.window_lengths)...), smplinfo(wf.signal)) 
+    online_filter_output = Vector{T}(undef, length(wf.signal) - trigger_window_length + 1)
     rdfilt!(online_filter_output, fi, wf.signal)
     
     t0idx = findfirst(online_filter_output .>= trigger.threshold) + fi.ngap + fi.navg2 - 1
-    t0idx, T(maximum(online_filter_output))
+    t0idx, maximum(online_filter_output)
 end
 
 
