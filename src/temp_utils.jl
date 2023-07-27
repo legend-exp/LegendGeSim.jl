@@ -40,8 +40,8 @@ Replace negative values by zeros.
 Used to remove a glitch in SSD pulses as a quick fix
     while the glitch is being debugged.
 """
-function remove_negative(value::Real)
-    value < 0 ? 0 : value
+function remove_negative(value::T)::T where {T <: Real}
+    max(zero(T), value)
 end
 
 

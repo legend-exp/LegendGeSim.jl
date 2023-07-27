@@ -67,35 +67,6 @@ end
 # -------------------------------------------------------------------
 
 """
-    trap_filter(wf_values, sample_idx, trap_filter)
-
-AbstractVector, Int, TrapFilter -> Real, Bool 
-
-Simulate the output of the trapezoidal filter algorithm
-    applied to <wf_values> when the first sliding window starts
-    at <sample_idx>.
-The trapezoidal algorithm parameters are contained in <trap_filter.
-The returned values are the online energy estimate corresponding to the
-    difference between the 1st and the 3rd sliding window, and a Bool
-    correspondong to whether there is a trigger issued or not.    
-"""
-function trap_filter(wf_values::AbstractVector, sample_idx::Int, trap_filter::TrapFilter)
-    # first window
-    r1 = sample_idx : sample_idx + trap_filter.window_lengths[1]
-    # third window
-    r2 = sample_idx + trap_filter.window_lengths[1] + trap_filter.window_lengths[2] : sample_idx + sum(trap_filter.window_lengths)
-    # difference between the third and first window
-    r = mean(wf_values[r2]) - mean(wf_values[r1])
-    r, r >= trap_filter.threshold
-end
-
-
-function trap_filter(wf::RDWaveform, sample_idx::Int, trigger::TrapFilter)
-    trap_filter(wf.signal, sample_idx, trigger)
-end
-
-
-"""
     simulate(wf, trap_filter)
 
 RDWaveform, TrapFilter -> Int, Real 
@@ -107,20 +78,13 @@ Returns the index on which <wf> triggered, and the estimated
 function simulate(wf::RDWaveform, trigger::TrapFilter)
     T = Float32 # This should be somehow defined and be passed properly
     trigger_window_length = sum(trigger.window_lengths)
-
-    online_filter_output = zeros(T, length(wf.signal) - trigger_window_length)
-    t0_idx::Int = 0
-    trig = false
     
-    # replace by a while loop?
-    for i in eachindex(online_filter_output)
-        online_filter_output[i], trig = trap_filter(wf, i, trigger)
-        if trig && t0_idx == 0
-            t0_idx = i + trigger.window_lengths[1] + trigger.window_lengths[2]
-        end
-    end
-
-    t0_idx, maximum(online_filter_output)
+    fi = fltinstance(TrapezoidalChargeFilter{T}(reverse(trigger.window_lengths)...), smplinfo(wf.signal)) 
+    online_filter_output = Vector{T}(undef, length(wf.signal) - trigger_window_length + 1)
+    rdfilt!(online_filter_output, fi, wf.signal)
+    
+    t0idx = findfirst(online_filter_output .>= trigger.threshold) + fi.ngap + fi.navg2 - 1
+    t0idx, maximum(online_filter_output)
 end
 
 
