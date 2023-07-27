@@ -18,13 +18,11 @@ filename(path) = splitext(basename(path))[1]
 AbstractString -> PropDict 
 
 Construct a PropDict based on given <json_file>.
-
-1) Why can't I name it function PropDict()?
-2) Why doesn't this already exist in PropDicts?
-I find the PropDicts.read(PropDict, String) format kinda cumbersome
+Alias for `readprops` from PropDicts.jl
+    
 """
 function propdict(json_file::AbstractString)
-    PropDicts.read(PropDict, json_file)
+    readprops(json_file)
 end
 
     
