@@ -107,20 +107,13 @@ Returns the index on which <wf> triggered, and the estimated
 function simulate(wf::RDWaveform, trigger::TrapFilter)
     T = Float32 # This should be somehow defined and be passed properly
     trigger_window_length = sum(trigger.window_lengths)
-
-    online_filter_output = zeros(T, length(wf.signal) - trigger_window_length)
-    t0_idx::Int = 0
-    trig = false
     
-    # replace by a while loop?
-    for i in eachindex(online_filter_output)
-        online_filter_output[i], trig = trap_filter(wf, i, trigger)
-        if trig && t0_idx == 0
-            t0_idx = i + trigger.window_lengths[1] + trigger.window_lengths[2]
-        end
-    end
-
-    t0_idx, maximum(online_filter_output)
+    fi = fltinstance(TrapezoidalChargeFilter{T}(reverse(trigger.window_lengths)...), smplinfo(wf)) 
+    online_filter_output = similar(wf.signal, length(wf.signal) - trigger_window_length + 1)
+    rdfilt!(online_filter_output, fi, wf.signal)
+    
+    t0idx = findfirst(online_filter_output .>= trigger.threshold) + fi.ngap + fi.navg2 - 1
+    t0idx, T(maximum(online_filter_output))
 end
 
 
