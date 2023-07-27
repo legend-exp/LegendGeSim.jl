@@ -83,7 +83,8 @@ function simulate(wf::RDWaveform, trigger::TrapFilter)
     online_filter_output = Vector{T}(undef, length(wf.signal) - trigger_window_length + 1)
     rdfilt!(online_filter_output, fi, wf.signal)
     
-    t0idx = findfirst(online_filter_output .>= trigger.threshold) + fi.ngap + fi.navg2 - 1
+    tmp = findfirst(online_filter_output .>= trigger.threshold)
+    t0idx = !isnothing(tmp) ? tmp + fi.ngap + fi.navg2 - 1 : 0
     t0idx, maximum(online_filter_output)
 end
 
