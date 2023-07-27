@@ -8,3 +8,4 @@
 Manifest.toml
 examples/cache
 examples/undepleted.txt
+test/cache
