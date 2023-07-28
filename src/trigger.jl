@@ -21,7 +21,7 @@ This struct is currently mutable because in case of NoiseFromData modelling,
     threshold_keV::typeof(1.0*energy_unit) = 0u"keV"
 
     "Trigger threshold after conversion"
-    threshold::Real = 0
+    threshold::Float64 = 0
 
 end
 
@@ -83,7 +83,8 @@ function simulate(wf::RDWaveform, trigger::TrapFilter)
     online_filter_output = Vector{T}(undef, length(wf.signal) - trigger_window_length + 1)
     rdfilt!(online_filter_output, fi, wf.signal)
     
-    t0idx = findfirst(online_filter_output .>= trigger.threshold) + fi.ngap + fi.navg2 - 1
+    intersect::NamedTuple{(:x, :multiplicity), Tuple{T, Int64}} = Intersect{T}(0)(online_filter_output, T(trigger.threshold))
+    t0idx::Int = intersect.multiplicity > 0 ? ceil(Int, intersect.x) + fi.ngap + fi.navg2 - 1 : 0
     t0idx, maximum(online_filter_output)
 end
 
