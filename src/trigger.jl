@@ -79,13 +79,15 @@ function simulate(wf::RDWaveform, trigger::TrapFilter)
     T = Float32 # This should be somehow defined and be passed properly
     trigger_window_length = sum(trigger.window_lengths)
     
-    fi = fltinstance(TrapezoidalChargeFilter{T}(reverse(trigger.window_lengths)...), smplinfo(wf.signal)) 
-    online_filter_output = Vector{T}(undef, length(wf.signal) - trigger_window_length + 1)
-    rdfilt!(online_filter_output, fi, wf.signal)
+    let signal = T.(wf.signal) # there seems to be some overflow when using unsigned integers
+    fi = fltinstance(TrapezoidalChargeFilter{T}(reverse(trigger.window_lengths)...), smplinfo(signal)) 
+    online_filter_output = Vector{T}(undef, length(signal) - trigger_window_length + 1)
+    rdfilt!(online_filter_output, fi, signal)
     
     intersect::NamedTuple{(:x, :multiplicity), Tuple{T, Int64}} = Intersect{T}(0)(online_filter_output, T(trigger.threshold))
     t0idx::Int = intersect.multiplicity > 0 ? ceil(Int, intersect.x) + fi.ngap + fi.navg2 - 1 : 0
     t0idx, maximum(online_filter_output)
+    end
 end
 
 
