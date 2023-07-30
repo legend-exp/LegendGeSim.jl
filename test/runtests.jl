@@ -7,11 +7,6 @@ using LegendHDF5IO, HDF5
 using LegendTestData
 using Unitful
 
-# Temporary quick fix to compare RDWaveforms
-using LegendGeSim: RDWaveform
-Base.:(==)(wf::RDWaveform, nwf::RDWaveform) = 
-    reduce((x,field) -> x && isequal(getfield(wf, field), getfield(nwf, field)), fieldnames(RDWaveform), init = typeof(wf) == typeof(nwf))
-
 
 @testset "LegendGeSim: Simulate capacitances of test detectors" begin
 
@@ -61,6 +56,20 @@ end
         @test pss_truth isa LegendGeSim.Table
     end
 
+    pss_name = "cache/" * LegendGeSim.filename(path_to_pet_file) * "_pss.hdf5"
+    h5open(pss_name, "w") do f
+        LegendHDF5IO.writedata(f, "pss/pss", pss_table)
+        LegendHDF5IO.writedata(f, "pss/truth", pss_truth)
+    end
+
+    @testset "pss I/O using LegendHDF5IO" begin
+        @test isfile(pss_name)
+        h = LHDataStore(pss_name)
+        @test haskey(h, "pss")
+        close(h)
+    end
+    
+    
     setup_settings = Dict(
         "preamp" => Dict(
             "type" => "generic",
@@ -85,25 +94,27 @@ end
         )
     )
 
-    pss_name = "cache/" * LegendGeSim.filename(path_to_pet_file) * "_pss.hdf5"
-    h5open(pss_name, "w") do f
-        LegendHDF5IO.writedata(f, "pss/pss", pss_table)
-        LegendHDF5IO.writedata(f, "pss/truth", pss_truth)
-    end
-
-    @testset "pss I/O using LegendHDF5IO" begin
-        @test isfile(pss_name)
-        h = LHDataStore(pss_name)
-        @test haskey(h, "pss")
-        close(h)
-    end
-
     raw_table = LegendGeSim.pss_to_raw(pss_name, setup_settings)
 
-    @testset "pss -> raw" begin
+    @testset "pss -> raw (without noise)" begin
         @test raw_table isa LegendGeSim.Table
         @test length(raw_table) == 240
+        @test sum(!iszero, raw_table.energy) == 238 # two do not trigger
     end
+    
+    
+    setup_settings_noise = deepcopy(setup_settings)
+    setup_settings_noise["preamp"]["noise_sigma"] = 3 # keV
+    noise_settings = Dict( "type" => "none" )
+    
+    raw_table_noise = LegendGeSim.pss_to_raw(pss_name, setup_settings_noise, noise_settings)
+    
+    @testset "pss -> raw (with noise)" begin
+        @test raw_table isa LegendGeSim.Table
+        @test length(raw_table) == 240
+        @test sum(!iszero, raw_table.energy) == 238 # two do not trigger
+    end
+
 
     # Skip writing the pss to disk and check that the result is still the same
     all_settings = Dict(
