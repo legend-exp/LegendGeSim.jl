@@ -13,7 +13,7 @@ Current steps include:
     - grouping by detector
     - removing events reconstructed to be outisde of the detector
 """
-function pet_to_stp(pet_table::Table, detector_SSD::SolidStateDetector)
+function pet_to_stp(pet_table::Table, detector_SSD::SolidStateDetector{T}) where {T}
     ## in case it's the Geant4 CSV file from LegendTestData, it's already grouped correctly
     hits_by_evtno = pet_table
 
@@ -68,7 +68,6 @@ function pet_to_stp(pet_table::Table, detector_SSD::SolidStateDetector)
 
     # We need to filter out the few events that, due to numerical effects, lie outside of the detector
     # (the proper solution is to shift them slightly, this feature will be added in the future)
-    T = Float32
     stp_events = events_per_det[findall(pts -> all(p -> CartesianPoint{T}(T.(ustrip.(uconvert.(u"m", p)))) in detector_SSD, pts), events_per_det.pos)]
     # stp_events = events_det1[findall(pts -> all(p -> T.(ustrip.(uconvert.(u"m", p))) in detector_SSD.detector, pts), events_det1.pos)]
     # stp_events = if S isa SolidStateDetectors.Simulation
