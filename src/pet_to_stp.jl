@@ -46,6 +46,9 @@ function pet_to_stp(pet_table::Table, detector_SSD::SolidStateDetector)
 
     hits = RadiationDetectorSignals.ungroup_by_evtno(events_clustered)
 
+    @info "...removing hits with no energy deposits"
+    hits = hits[findall(edep -> !iszero(edep), hits.edep)]
+
     # Waveform generation has to be per detector.
     # Let's reshuffle the detector hits, grouping by event number and detector
     # @info("...grouping by detector")
