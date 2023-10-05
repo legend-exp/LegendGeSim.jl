@@ -15,11 +15,14 @@ The output is a table with simulated pulses, and a table with simulation truth
 function stp_to_pss(stp_table::Table, det_meta::PropDict, env::Environment, simulator::PSSimulator, noise_model::NoiseModel)
     @info "---------------------- stp -> pss (ideal pulses)"
 
-    # @info "//\\//\\//\\ Fano noise"
-    stp_table = fano_noise(stp_table, det_meta, env, noise_model)
-
     @info "_||_||_||_ Simulate detector" 
     sim = simulate_detector(det_meta, env, simulator; overwrite = false)
+
+    # @info "//\\//\\//\\ Fano noise"
+    # is this way because fano noise added using SSD even if siggen is used as Simulator 
+    # -> give det meta and env and build SSD sim inside
+    # -> confusing logs, rewrite!
+    stp_table = fano_noise(stp_table, det_meta, env, noise_model)
 
     @info "~.~.~.~.~ Simulate charge pulses"
     simulate_waveforms(stp_table, sim, simulator)

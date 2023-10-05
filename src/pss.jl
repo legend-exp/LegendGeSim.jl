@@ -192,7 +192,6 @@ function simulate_waveforms(stp_events::Table, detector::SolidStateDetectors.Sim
             stp_events,
             detector,
             max_nsteps = 20000,
-            # Δt = 1u"ns",
             Δt = simulator.time_step,
             diffusion = simulator.diffusion,
             self_repulsion = simulator.self_repulsion,

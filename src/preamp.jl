@@ -19,24 +19,46 @@ This struct is currently mutable because in the case of noise modelling based on
 @with_kw mutable struct GenericPreAmp <: PreAmp
     # Note: these default T() expressions don't work cause T not defined
     "PreAmp exp decay time"
-    τ_decay::typeof(1.0*μs_unit) = T(5)*u"μs"
+    τ_decay::typeof(1.0*μs_unit) = T(50)*u"μs"
     
     "PreAmp rise time"
-    τ_rise::typeof(1.0*ns_unit) = T(15)*u"ns"
+    τ_rise::typeof(1.0*ns_unit) = T(100)*u"ns"
 
     "Preamp offset in keV"
-    offset::typeof(1.0*energy_unit) = 0u"keV";
+    offset_keV::typeof(1.0*energy_unit) = 0u"keV";
 
-    "Maximum DAQ energy"
-    max_e::typeof(1.0*energy_unit) = 10_000u"keV" # == typemax(UInt16)
+    "Preamp offset in ADC (alternative)"
+    offset_ADC = 0; # ADC units
+
+    # "Maximum DAQ energy"
+    # max_e::typeof(1.0*energy_unit) = 0u"keV" # == typemax(UInt16)
 
     "Preamp gain"
     # If offset = 0, it means gain has to be inferred (from the data baseline offset)
     # How does it end up being Float64?
-    gain = offset == 0u"keV" ? 0 : typemax(UInt16) / ((max_e+offset)/uconvert(u"keV", germanium_ionization_energy))
+    # gain =             
+    #     if offset_keV == 0u"keV"
+    #         if offset_ADC == 0
+    #             0
+    #         else
+    #             # ( typemax(UInt16) - offset_ADC ) * uconvert(u"keV", germanium_ionization_energy) / max_e # ADC/charge
+    #             ( typemax(UInt16) - offset_ADC ) / uconvert(u"eV", max_e) # ADC/eV
+    #         end
+    #     else
+    #         # typemax(UInt16) / ((max_e+offset_keV)/uconvert(u"keV", germanium_ionization_energy)) # ADC/charge
+    #         typemax(UInt16) / uconvert(u"eV", max_e + offset_keV) # ADC/eV
+    #     end            
+    gain::typeof(1.0/1u"eV") = 0.0138/u"eV"
+    # gain = offset == 0u"keV" ? 0 : typemax(UInt16) / ((max_e+offset)/uconvert(u"keV", germanium_ionization_energy))
+    # gain = offset_ADC == 0 ? : ( typemax(UInt16) - offset_ADC ) * uconvert(u"keV", germanium_ionization_energy) / max_e
 
-    "Preamp Gaussian noise"
-    noise_σ::typeof(1.0*energy_unit)= 0u"keV"
+    "Preamp Gaussian noise in ADC"
+    noise_σ_ADC = 0
+
+    "Preamp Gaussian noise in keV"
+    noise_σ_keV::typeof(1.0*energy_unit)= 0u"keV"
+    # noise_σ_keV::typeof(1.0*energy_unit) = noise_σ_ADC / gain
+
 end
 
 
@@ -55,13 +77,32 @@ Construct a GenericPreAmp instance based on given simulation configuration <sim_
 """
 function GenericPreAmp(preamp_config::PropDict)
     T = Float32 # This should be somehow defined and be passed properly
+    # check inputs 
+    if haskey(preamp_config, :noise_sigma_keV) && haskey(preamp_config, :noise_sigma_ADC) 
+        if preamp_config.noise_sigma_keV != 0 && preamp_config.noise_sigma_ADC != 0
+            error("You provided preamp noise σ value in both ADC and keV units! Provide only one or the other.")
+        end
+    end
+
+    if haskey(preamp_config, :offset_in_keV) && haskey(preamp_config, :offset_in_ADC)
+        if preamp_config.offset_in_keV != 0 && preamp_config.offset_in_ADC != 0
+            error("You provided preamp offset value in both ADC and keV units! Provide only one or the other.")
+        end
+    end
+
     GenericPreAmp(
-        τ_decay=T(preamp_config.t_decay)*u"μs",
-        τ_rise=T(preamp_config.t_rise)*u"ns",
-        offset = T(preamp_config.offset)u"keV",
-        max_e = T(preamp_config.max_e)u"keV",
-        noise_σ = haskey(preamp_config, :noise_sigma) ? T(preamp_config.noise_sigma)u"keV" : 0u"keV"
+        τ_decay     = haskey(preamp_config, :t_decay_in_us)     ? T(preamp_config.t_decay_in_us)*u"μs" : 50u"μs",
+        τ_rise      = haskey(preamp_config, :t_rise_in_ns)      ? T(preamp_config.t_rise_in_ns)*u"ns" : 100u"ns",
+        # optional, if not given usually means NoiseFromData is used -> make a better system for managing this!
+        offset_keV  = haskey(preamp_config, :offset_in_keV)     ? T(preamp_config.offset_in_keV)u"keV" : 0u"keV",
+        offset_ADC  = haskey(preamp_config, :offset_in_ADC)     ? T(preamp_config.offset_in_ADC) : 0,
+        # max_e = T(preamp_config.max_e)u"keV",
+        gain        = haskey(preamp_config, :gain_ADC_to_eV)    ? preamp_config.gain_ADC_to_eV/u"eV" : 0.138/u"eV",
+        # optional, if not given usually means NoiseFromData is used -> make a better system for managing this!
+        noise_σ_ADC = haskey(preamp_config, :noise_sigma_ADC)   ? T(preamp_config.noise_sigma_ADC) : 0,
+        noise_σ_keV = haskey(preamp_config, :noise_sigma_keV)   ? T(preamp_config.noise_sigma_keV)u"keV" : 0u"keV"
     )
+    # ToDo ! insert check if both offset in keV and ADC is provided is bad
 end
 
 
@@ -97,30 +138,38 @@ RDWaveform, GenericPreAmp -> RDWaveform
 Simulate the effecs of the preamp on the waveform.
 """
 function simulate(wf::RDWaveform, preamp::GenericPreAmp)
+
+    ## noise before preamp
+    # Alessandro Razeto said noise should be added before preamp
+    # if I simply move adding Gaus noise here, it gives weird cyclical vibrations in the waveform
+    # then after build_dsp there is no Amax at all, I guess DSP fails
+    # wf_noise = simulate_noise(wf, preamp)
+
     ## rise and decay time
     csa_filter = RadiationDetectorDSP.simple_csa_response_filter(
         preamp.τ_rise / step(wf.time),
         uconvert(u"ns", preamp.τ_decay) / step(wf.time))
 
-    wf_preamp = RDWaveform(wf.time, filt(csa_filter, wf.signal))
+    wf_preamp = RDWaveform(wf.time, filt(csa_filter, wf.signal)) 
 
-    ## noise
-    wf_preamp = simulate_noise(wf_preamp, preamp) 
+    wf_preamp = simulate_noise(wf_preamp, preamp)
 
     ## offset
     # wf values are in eV but without u"eV" attached
-    offset = ustrip(uconvert(u"eV", preamp.offset))
-    wf_preamp = RDWaveform(wf_preamp.time, wf_preamp.signal .+ offset)
+    offset_eV = ustrip(uconvert(u"eV", preamp.offset_keV))
+    # if ADC offset is used, offset_keV is zero
+    wf_preamp = RDWaveform(wf_preamp.time, wf_preamp.signal .+ offset_eV)
 
     ## gain 
-    wf_preamp = RDWaveform(wf_preamp.time, wf_preamp.signal * preamp.gain)
+    # gain is in eV^-1
+    gain = ustrip(preamp.gain)
+    wf_preamp = RDWaveform(wf_preamp.time, wf_preamp.signal * gain)
+
+    ## ADC offset: if keV offset is used, ADC offset is zero
+    wf_preamp = RDWaveform(wf_preamp.time, wf_preamp.signal .+ preamp.offset_ADC)
       
-    ## what is this step?
-    # normalizing by germanium ionization energy?
-    # basically converting to number of charge carriers?
-    # but after the gain?
-    # I guess it's like a dummy MeV -> ADC (calibration curve?)
-    wf_preamp = RDWaveform(wf_preamp.time, wf_preamp.signal ./ ustrip(germanium_ionization_energy))
+    ## what is this step? -> now gain is in ADC/eV, current was in eV, final result is in ADC
+    # wf_preamp = RDWaveform(wf_preamp.time, wf_preamp.signal ./ ustrip(germanium_ionization_energy))
 
     wf_preamp
 end

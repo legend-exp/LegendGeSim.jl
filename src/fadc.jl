@@ -81,7 +81,7 @@ function simulate(wf::RDWaveform, fadc::GenericFADC)
     wf_daq = RDWaveform(t_sampled, wf_sampled)
 
     # digitize
-    wf_daq = RDWaveform(wf_daq.time, UInt16.(round.(wf_daq.signal, digits = 0)))
-
+    # wf_daq = RDWaveform(wf_daq.time, UInt16.(round.(wf_daq.signal, digits = 0)))
+    wf_daq = RDWaveform( wf_daq.time, UInt16.(clamp.(round.(wf_daq.signal, digits = 0), 0, typemax(UInt16))) )
     wf_daq
 end

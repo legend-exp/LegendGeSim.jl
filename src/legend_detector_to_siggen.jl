@@ -19,14 +19,14 @@ function siggen_config(meta::PropDict, env::Environment, simulator::SiggenSimula
 
     # if no cached name was given by user, make a temporaty name - needed for fieldgen to read from file
     # also if no cached name was given means definitely doing from scratch
+    cached_name = simulator.cached_name
     if simulator.cached_name == ""
-        simulator.cached_name = "tmp"
+        cached_name = "tmp"
         overwrite = true
     end
 
-    # cached_name = simulator.cached_name == "" ? "tmp" : simulator.cached_name    
     # append detector name
-    cached_name = meta.name * "_" * simulator.cached_name  
+    cached_name = meta.name * "_" * cached_name  
     
     # filenames for fieldgen input/output 
     # ! no need to add cache/ folder because siggen does it by itself...

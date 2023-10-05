@@ -92,6 +92,7 @@ function NoiseModel(noise_settings::PropDict)
     else
         NoiseFromData(noise_settings)
     end
+    # ToDo add elseif and error if not none, sim or data
 end
 # function NoiseModel(sim_config::LegendGeSimConfig)
     # if haskey(sim_config.dict, :noise_data)
@@ -113,7 +114,7 @@ Calculate fano noise level based on the detector specification provided in
     and add it to given <events>
 """
 function fano_noise(events::Table, det_meta::PropDict, env::Environment, ::NoiseFromSim)
-    @info "//\\//\\//\\ Fano noise"
+    @info "//\\//\\//\\ Adding fano noise"
     # println("Adding fano noise")
     detector = LEGEND_SolidStateDetector(Float32, det_meta, env)
     # ssd_conf = ssd_config(det_meta, env)
@@ -137,7 +138,7 @@ function fano_noise(events::Table, ::PropDict, ::Environment, ::NoiseFromData)
 end
 
 function fano_noise(events::Table, ::PropDict, ::Environment, ::NoiseNone)
-    println("No fano noise (ideal simulation)")
+    println("No fano noise (no noise model given)")
     events
 end
 
@@ -153,7 +154,8 @@ function simulate_noise(wf::RDWaveform, preamp::PreAmp)
     # wf values are in eV (without u"eV" units attached), noise sigma is in keV
     # if we're not simulating noise from scratch, we'll do this anyway, but noise sigma will be 0
     # -> maybe there's a better way?
-    noise_σ = ustrip(uconvert(u"eV", preamp.noise_σ))
+    noise_σ = preamp.noise_σ_keV == 0u"keV" ? preamp.noise_σ_ADC / preamp.gain : uconvert(u"eV", preamp.noise_σ_keV)
+    noise_σ = ustrip(u"eV", noise_σ)
     gaussian_noise_dist = Normal(T(0), T(noise_σ))
     RDWaveform(wf.time, wf.signal .+ rand!(gaussian_noise_dist, similar(wf.signal)))
 end
