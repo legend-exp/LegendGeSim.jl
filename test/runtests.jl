@@ -73,10 +73,11 @@ end
     setup_settings = Dict(
         "preamp" => Dict(
             "type" => "generic",
-            "t_decay" => 50,
-            "t_rise" => 15,
-            "max_e" => 10000,
-            "offset" => 2000
+            "t_decay_in_us" => 50,
+            "t_rise_in_ns" => 100,
+            "gain_ADC_to_eV" => 0.138,
+            "offset_in_ADC" => 12000,
+            "noise_in_keV" => 2
         ),
         "fadc" => Dict(
             "type" => "generic",

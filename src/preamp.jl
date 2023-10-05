@@ -19,10 +19,10 @@ This struct is currently mutable because in the case of noise modelling based on
 @with_kw mutable struct GenericPreAmp <: PreAmp
     # Note: these default T() expressions don't work cause T not defined
     "PreAmp exp decay time"
-    τ_decay::typeof(1.0*μs_unit) = T(5)*u"μs"
+    τ_decay::typeof(1.0*μs_unit) = T(50)*u"μs"
     
     "PreAmp rise time"
-    τ_rise::typeof(1.0*ns_unit) = T(15)*u"ns"
+    τ_rise::typeof(1.0*ns_unit) = T(100)*u"ns"
 
     "Preamp offset in keV"
     offset_keV::typeof(1.0*energy_unit) = 0u"keV";
@@ -48,7 +48,7 @@ This struct is currently mutable because in the case of noise modelling based on
     #         # typemax(UInt16) / ((max_e+offset_keV)/uconvert(u"keV", germanium_ionization_energy)) # ADC/charge
     #         typemax(UInt16) / uconvert(u"eV", max_e + offset_keV) # ADC/eV
     #     end            
-    gain::typeof(1.0/1u"eV")
+    gain::typeof(1.0/1u"eV") = 0.0138/u"eV"
     # gain = offset == 0u"keV" ? 0 : typemax(UInt16) / ((max_e+offset)/uconvert(u"keV", germanium_ionization_energy))
     # gain = offset_ADC == 0 ? : ( typemax(UInt16) - offset_ADC ) * uconvert(u"keV", germanium_ionization_energy) / max_e
 
@@ -77,17 +77,30 @@ Construct a GenericPreAmp instance based on given simulation configuration <sim_
 """
 function GenericPreAmp(preamp_config::PropDict)
     T = Float32 # This should be somehow defined and be passed properly
+    # check inputs 
+    if haskey(preamp_config, :noise_sigma_keV) && haskey(preamp_config, :noise_sigma_ADC) 
+        if preamp_config.noise_sigma_keV != 0 && preamp_config.noise_sigma_ADC != 0
+            error("You provided preamp noise σ value in both ADC and keV units! Provide only one or the other.")
+        end
+    end
+
+    if haskey(preamp_config, :offset_in_keV) && haskey(preamp_config, :offset_in_ADC)
+        if preamp_config.offset_in_keV != 0 && preamp_config.offset_in_ADC != 0
+            error("You provided preamp offset value in both ADC and keV units! Provide only one or the other.")
+        end
+    end
+
     GenericPreAmp(
-        τ_decay=T(preamp_config.t_decay)*u"μs",
-        τ_rise=T(preamp_config.t_rise)*u"ns",
+        τ_decay     = haskey(preamp_config, :t_decay_in_us)     ? T(preamp_config.t_decay_in_us)*u"μs" : 50u"μs",
+        τ_rise      = haskey(preamp_config, :t_rise_in_ns)      ? T(preamp_config.t_rise_in_ns)*u"ns" : 100u"ns",
         # optional, if not given usually means NoiseFromData is used -> make a better system for managing this!
-        offset_keV = haskey(preamp_config, :offset_in_keV) ? T(preamp_config.offset_in_keV)u"keV" : 0u"keV",
-        offset_ADC = haskey(preamp_config, :offset_in_ADC) ? T(preamp_config.offset_in_ADC) : 0,
+        offset_keV  = haskey(preamp_config, :offset_in_keV)     ? T(preamp_config.offset_in_keV)u"keV" : 0u"keV",
+        offset_ADC  = haskey(preamp_config, :offset_in_ADC)     ? T(preamp_config.offset_in_ADC) : 0,
         # max_e = T(preamp_config.max_e)u"keV",
-        gain = preamp_config.gain/u"eV",
+        gain        = haskey(preamp_config, :gain_ADC_to_eV)    ? preamp_config.gain_ADC_to_eV/u"eV" : 0.138/u"eV",
         # optional, if not given usually means NoiseFromData is used -> make a better system for managing this!
-        noise_σ_ADC = haskey(preamp_config, :noise_sigma_ADC) ? T(preamp_config.noise_sigma_ADC) : 0,
-        noise_σ_keV = haskey(preamp_config, :noise_sigma_keV) ? T(preamp_config.noise_sigma_keV)u"keV" : 0u"keV"
+        noise_σ_ADC = haskey(preamp_config, :noise_sigma_ADC)   ? T(preamp_config.noise_sigma_ADC) : 0,
+        noise_σ_keV = haskey(preamp_config, :noise_sigma_keV)   ? T(preamp_config.noise_sigma_keV)u"keV" : 0u"keV"
     )
     # ToDo ! insert check if both offset in keV and ADC is provided is bad
 end
@@ -143,9 +156,9 @@ function simulate(wf::RDWaveform, preamp::GenericPreAmp)
 
     ## offset
     # wf values are in eV but without u"eV" attached
-    offset_keV = ustrip(uconvert(u"eV", preamp.offset_keV))
+    offset_eV = ustrip(uconvert(u"eV", preamp.offset_keV))
     # if ADC offset is used, offset_keV is zero
-    wf_preamp = RDWaveform(wf_preamp.time, wf_preamp.signal .+ offset_keV)
+    wf_preamp = RDWaveform(wf_preamp.time, wf_preamp.signal .+ offset_eV)
 
     ## gain 
     # gain is in eV^-1

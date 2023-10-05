@@ -154,8 +154,8 @@ function simulate_noise(wf::RDWaveform, preamp::PreAmp)
     # wf values are in eV (without u"eV" units attached), noise sigma is in keV
     # if we're not simulating noise from scratch, we'll do this anyway, but noise sigma will be 0
     # -> maybe there's a better way?
-    noise_σ = preamp.noise_σ_keV == 0 ? preamp.noise_σ_ADC / preamp.gain : uconvert(u"eV", preamp.noise_σ_keV)
-    noise_σ = ustrip(noise_σ)
+    noise_σ = preamp.noise_σ_keV == 0u"keV" ? preamp.noise_σ_ADC / preamp.gain : uconvert(u"eV", preamp.noise_σ_keV)
+    noise_σ = ustrip(u"eV", noise_σ)
     gaussian_noise_dist = Normal(T(0), T(noise_σ))
     RDWaveform(wf.time, wf.signal .+ rand!(gaussian_noise_dist, similar(wf.signal)))
 end
