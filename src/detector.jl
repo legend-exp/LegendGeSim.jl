@@ -42,6 +42,11 @@ Look up fieldgen generated electric field and weighting potential files
 function simulate_detector(det_meta::PropDict, env::Environment, simulator::SiggenSimulator;
         overwrite::Bool = false)
 
+    # if no cached name given, force simulation from scratch (or else might read past "tmp" file)
+    if simulator.cached_name == ""
+        overwrite = true
+    end
+
     # returns the name of the resulting siggen config file
     # and the name of (already or to be) generated weighting potential file
     # ToDo: don't create if already present already at this stage -> check in siggen_config() if name exists and just return name

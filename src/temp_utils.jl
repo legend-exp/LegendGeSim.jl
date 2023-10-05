@@ -102,7 +102,8 @@ Calculate final threshold based the value contained in <trigger>, and <preamp> g
 
 """
 function trigger_threshold(trigger::Trigger, preamp::GenericPreAmp, ::Union{NoiseFromSim, NoiseNone})
-    uconvert(u"eV", trigger.threshold_keV) / germanium_ionization_energy * preamp.gain
+    # uconvert(u"eV", trigger.threshold_keV) / germanium_ionization_energy * preamp.gain
+    uconvert(u"eV", trigger.threshold_keV) * preamp.gain # gain now in ADC/eV
     # threshold = trigger.threshold_keV == 0u"keV" ? noise_model.noise_σ * 3 : trigger.threshold_keV
     # uconvert(u"eV", threshold) / germanium_ionization_energy * preamp.gain
 end 

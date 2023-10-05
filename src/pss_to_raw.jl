@@ -46,13 +46,8 @@ function pss_to_raw(pss_table::Table, pss_truth::Table, elec_chain::ElecChain, t
     raw_table
 end
 
-# wrapper for user reading from pre-saved pss file
-function pss_to_raw(pss_file::AbstractString, setup_settings::Dict, noise_settings::Dict=Dict("type"=>"none"))
-    pss_h5 = h5open(pss_file, "r")
-    pss_table = LegendHDF5IO.readdata(pss_h5, "pss/pss")
-    pss_truth = LegendHDF5IO.readdata(pss_h5, "pss/truth")
-    close(pss_h5)
-
+# wrapper for user reading from pre-generated pss tables
+function pss_to_raw(pss_table::Table, pss_truth::Table, setup_settings::Dict, noise_settings::Dict=Dict("type"=>"none"); n_waveforms::Int=0)
     setup = PropDict(setup_settings)
     elec_chain = ElecChain(setup) # needs preamp and fadc
     trigger = Trigger(setup.trigger)
@@ -61,7 +56,22 @@ function pss_to_raw(pss_file::AbstractString, setup_settings::Dict, noise_settin
     # TEMP ! !
     # noise_model = NoiseFromSim(0u"keV")
 
+    if n_waveforms > 0
+        pss_table = pss_table[1:n_waveforms]
+        pss_truth = pss_truth[1:n_waveforms]
+    end
+
     pss_to_raw(pss_table, pss_truth, elec_chain, trigger, daq, noise_model)
+end
+
+# wrapper for user reading from pre-saved pss file
+function pss_to_raw(pss_file::AbstractString, setup_settings::Dict, noise_settings::Dict=Dict("type"=>"none"); n_waveforms::Int=0)
+    pss_h5 = h5open(pss_file, "r")
+    pss_table = LegendHDF5IO.readdata(pss_h5, "pss/pss")
+    pss_truth = LegendHDF5IO.readdata(pss_h5, "pss/truth")
+    close(pss_h5)
+
+    pss_to_raw(pss_table, pss_truth,  setup_settings, noise_settings; n_waveforms)
 end
 
 
@@ -107,7 +117,7 @@ function process_waveforms(pss_table::Table, elec_chain::GenericElecChain, trigg
     @info "Processing waveforms..."
     for i = 1:n_waveforms
         # for some reason ProgressMeter doesn't work here
-        if (i % 100 == 0)
+        if (i % 1000 == 0)
             println("$i / $n_waveforms")
         end
 
@@ -146,7 +156,9 @@ function process_waveforms(pss_table::Table, elec_chain::GenericElecChain, trigg
 
         # if online energy is zero, means didn't trigger
         # convert online energy to keV
-        result.online_energy[i] = trigger_index == 0 ? 0u"keV" : uconvert(u"keV", online_energy / elec_chain.preamp.gain * germanium_ionization_energy)
+        # ToDo: do NOT convert to keV, is in ADC
+        # result.online_energy[i] = trigger_index == 0 ? 0u"keV" : uconvert(u"keV", online_energy / elec_chain.preamp.gain * germanium_ionization_energy)
+        result.online_energy[i] = trigger_index == 0 ? 0u"keV" : uconvert(u"keV", online_energy / elec_chain.preamp.gain)
         result.baseline[i], result.baseline_rms[i] = mean_and_std(result.wf_array[i].signal[1:daq.baseline_length])
     end
 
