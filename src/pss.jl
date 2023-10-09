@@ -91,6 +91,9 @@ Simulation method: siggen
     "offset of detector Z=0 in crystal from seed start"
     offset_in_mm::Real=-1
 
+    "Path to crystal jsons: alternative to .dat file"
+    crystal_metadata_path::AbstractString = ""
+
     "Name for cached simulation. Not caching if empty string"
     cached_name::AbstractString = ""    
 end
@@ -107,30 +110,34 @@ Construct SiggeSimulator instance based on simulation
 function SiggenSimulator(simulation_settings::PropDict)
     # set defaults
     inputs = Dict{String, Any}()
-    for k in (:fieldgen_config, :drift_vel, :impurity_profile)
+    for k in (:fieldgen_config, :drift_vel, :impurity_profile, :crystal_metadata_path)
         inputs[string(k)] = haskey(simulation_settings, k) ? simulation_settings[k] : ""
     end    
 
     # check if provided paths exist
     for (param, path) in inputs
-        if (path != "") && !isfile(path)
+        if (path != "") && !(isfile(path) || isdir(path))
         @error "The file for $(param) that you provided does not exist: $(path)"
         end
     end
 
     inputs["offset_in_mm"] = haskey(simulation_settings, :offset_in_mm) ? simulation_settings.offset_in_mm : -1
 
-    # check that offset is provided if impurity file is
+    # check that offset is provided if .spe/.dat file is
     if inputs["impurity_profile"] != "" && inputs["offset_in_mm"] == -1
         @error "Please provide offset in mm of this detector corresponding to impurity file $(inputs["impurity_profile"])!"
     end
 
-    if(inputs["impurity_profile"] == "")
+    # throw error if both files are provided
+    if inputs["crystal_metadata_path"] != "" && inputs["impurity_profile"] != ""
+        @error("You provided both an .spe/.dat file and path to crystal metadata! Provide one or the other as impurity input for siggen.")
+    # warn if none are provided - will use constant impurity density
+    elseif inputs["crystal_metadata_path"] == "" && inputs["impurity_profile"] == ""
         @warn "No .spe/.dat file path given. Simulation with dummy constant impurity density."
-    elseif !ispath(inputs["impurity_profile"])
-        @error "The path to .spe/.dat file you provided is not valid! ($(inputs["impurity_profile"]))"
+    # if we get here, one is provided
     else
-        @info "Impurity profile information based on $(inputs["impurity_profile"])"
+        impinput = inputs["impurity_profile"] * inputs["crystal_metadata_path"]
+        @info "Impurity profile information based on $(impinput)"
     end
 
 
@@ -139,6 +146,7 @@ function SiggenSimulator(simulation_settings::PropDict)
         inputs["drift_vel"],
         inputs["impurity_profile"],
         inputs["offset_in_mm"],
+        inputs["crystal_metadata_path"],
         simulation_settings.cached_name
     )
 end
