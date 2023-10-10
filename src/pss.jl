@@ -49,8 +49,8 @@ function SSDSimulator(simulation_settings::PropDict)
         # simulation_settings.crystal_metadata_path = crystal_metadata_path
         # ToDo: move somewhere else - irrelevant if only geometry is constructed, or when simulation read from cache
         @warn "No crystal metadata path given. Simulation with dummy constant impurity density."
-    elseif !ispath(simulation_settings.crystal_metadata_path)
-        @error "The path to crystal metadata you provided is not valid! ($(simulation_settings.crystal_metadata_path))"
+    # elseif !ispath(simulation_settings.crystal_metadata_path)
+    #     @error "The path to crystal metadata you provided is not valid! ($(simulation_settings.crystal_metadata_path))"
     else
         @info "Impurity profile information based on $(simulation_settings.crystal_metadata_path)"
     end
@@ -117,27 +117,27 @@ function SiggenSimulator(simulation_settings::PropDict)
     # check if provided paths exist
     for (param, path) in inputs
         if (path != "") && !(isfile(path) || isdir(path))
-        @error "The file for $(param) that you provided does not exist: $(path)"
+        @error "The input for $(param) that you provided does not exist: $(path)"
         end
     end
 
     inputs["offset_in_mm"] = haskey(simulation_settings, :offset_in_mm) ? simulation_settings.offset_in_mm : -1
-
-    # check that offset is provided if .spe/.dat file is
-    if inputs["impurity_profile"] != "" && inputs["offset_in_mm"] == -1
-        @error "Please provide offset in mm of this detector corresponding to impurity file $(inputs["impurity_profile"])!"
-    end
 
     # throw error if both files are provided
     if inputs["crystal_metadata_path"] != "" && inputs["impurity_profile"] != ""
         @error("You provided both an .spe/.dat file and path to crystal metadata! Provide one or the other as impurity input for siggen.")
     # warn if none are provided - will use constant impurity density
     elseif inputs["crystal_metadata_path"] == "" && inputs["impurity_profile"] == ""
-        @warn "No .spe/.dat file path given. Simulation with dummy constant impurity density."
+        @warn "No impurity inputs given. Simulation with dummy constant impurity density."
     # if we get here, one is provided
     else
         impinput = inputs["impurity_profile"] * inputs["crystal_metadata_path"]
         @info "Impurity profile information based on $(impinput)"
+    end
+
+    # check that offset is provided if .spe/.dat file is
+    if inputs["impurity_profile"] != "" && inputs["offset_in_mm"] == -1
+        @error "Please provide offset in mm of this detector corresponding to impurity file $(inputs["impurity_profile"])!"
     end
 
 

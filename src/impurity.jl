@@ -68,12 +68,14 @@ function impurity_density_model(crystal_metadata::PropDict)
 
     # Radford fit -> in the future need to make settings to choose?
     # fit in crystal metadata coordinates
-    L = dist[end] - dist[1] # in mm
+    # sometimes might not have measurements at seed end? but last measurement can be taken as crystal length
+    L = dist[end] # in mm
 
     @. radford(z, p) = p[1] + p[2] * z + p[3] * exp.((z-L)/p[4])
 
     ## starting values for fit
     # f(z = 0) = a
+    # ToDo: what to do in the case no measurement at 0? should not happen in principle
     a = imp_values[1]
     # 0.04 good starting value in mm and 1e9e/cm^3
     b = 0.04 # * 1e3 * (1e6 * 1e9)
@@ -96,8 +98,11 @@ function impurity_density_model(meta::PropDict, crystal_metadata_path::AbstractS
     crystal_name = first(meta.name, length(meta.name)-1)
     crystal_path = joinpath(crystal_metadata_path, crystal_name*".json")
 
+    if !isdir(crystal_metadata_path) 
+        @error "Crystal metadata path $crystal_metadata_path does not exist"
+    end
     if !ispath(crystal_path)
-        @error "Crystal $(meta.production.crystal) does not exist in path $crystal_path"
+        @error "Crystal $(meta.production.crystal) does not exist in path $crystal_metadata_path"
     end
 
     crystal_dict = propdict(crystal_path)
@@ -126,7 +131,8 @@ function impurity_density_model(meta::PropDict, crystal_metadata::PropDict, fit_
     # crystal length
     T = Float32
     dist = T.(crystal_metadata.impurity_measurements.distance_from_seed_end_mm)
-    L = ( dist[end] - dist[1] ) / 1e3 # m
+    # sometimes might not have measurements at seed end? but last measurement can be taken as crystal length
+    L = dist[end] / 1e3 # m
 
     # position of detector axis Z=0 (p+ contact) of this detector (slice) in the crystal from seed end
     det_z0 = crystal_metadata.slices[Symbol(meta.production.slice)].detector_offset_in_mm / 1e3 # m   
@@ -149,18 +155,24 @@ function impurity_density_model(meta::PropDict, crystal_metadata::PropDict, fit_
 
     T = Float32
     dist = T.(crystal_metadata.impurity_measurements.distance_from_seed_end_mm)
-    L = dist[end] - dist[1] #mm
+    # sometimes might not have measurements at seed end? but last measurement can be taken as crystal length
+    L = dist[end] #mm
 
     # points in crystal axis from 0 to L with step of 1 mm
-    Npoints = Int(ceil(L))
-    zpoints = LinRange(0, L, Npoints)
-	imp = Array{Float32}(undef, Npoints, 1) # impurities in 10^10 cm^-3
+    # always put 200 points to make all .dat files same length
+	imp = Array{Float32}(undef, 200, 1) # impurities in 10^10 cm^-3
 
+    # length is L+1 including both ends
+    Npoints = Int(ceil(L))+1 # step of 1 mm
+    zpoints = LinRange(0, L, Npoints) 
     for i in 1:Npoints
         # divide by 10 to convert from 1e9 e/cm^3 to 1e10 e/cm^3
         # invert the order of the values because with siggen z=0 is tail (dirtiest part)
         # i.e. z = L in our system (Mirion measurements)
         imp[Npoints-i+1] = -(a + b * zpoints[i] + c * exp((zpoints[i] - L)/tau)) / 10.
+    end
+    for i in Npoints+1 : 200
+        imp[i] = 0
     end
 
     crystal_name = first(meta.name, length(meta.name)-1)

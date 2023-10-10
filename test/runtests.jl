@@ -9,34 +9,14 @@ using Unitful
 
 
 @testset "LegendGeSim: Simulate capacitances of test detectors" begin
-
-    testdata_path = joinpath(legend_test_data_path(), "data", "legend", "metadata", "hardware", "detectors", "germanium", "diodes")
+    # note: this part also tests dict settings input as opposed to json file
+    # as well as impurity input
+    # ToDo: test siggen
+    germanium_testdata_path = joinpath(legend_test_data_path(), "data", "legend", "metadata", "hardware", "detectors", "germanium")
     test_dict = Dict{String, typeof(1.0u"pF")}(
         "B99000A.json" => -7.13u"pF",
         "V99000A.json" => -3.55u"pF"
     )
-
-    for (filename, capacitance) in test_dict
-        detector_metadata_filename = joinpath(testdata_path, filename)
-        sim_settings_ssd_filename = joinpath(dirname(dirname(pathof(LegendGeSim))), "examples/configs/detector_study_ssd.json")
-        
-        @testset "Field Simulation of $filename (SSD)" begin
-            sim = LegendGeSim.simulate_fields(detector_metadata_filename, sim_settings_ssd_filename)
-            C = LegendGeSim.capacitance_matrix(sim)
-
-            @testset "Capacitances" begin   
-                @test isapprox(C[1,2], capacitance, atol = 0.2u"pF")
-            end
-        end
-    end 
-end
-
-
-@testset "LegendGeSim: sim -> raw simulation chain" begin
-
-    ldsim_path = joinpath(legend_test_data_path(), "data", "ldsim")
-    det_metadata = joinpath(ldsim_path, "invcoax-metadata.json")
-    path_to_pet_file = joinpath(ldsim_path, "single-invcoax-th228-geant4.csv")
 
     environment_settings = Dict(
         "crystal_temperature_in_K" => 77,
@@ -44,12 +24,39 @@ end
     )
 
     simulation_settings = Dict(
-        "method" => "ssd",
         "cached_name" => "test",
+        "crystal_metadata_path" => joinpath(germanium_testdata_path, "crystals")
     )
-    
 
-    pss_table, pss_truth = LegendGeSim.simulate_pulses(det_metadata, path_to_pet_file, environment_settings, simulation_settings) #; n_waveforms=10
+
+    for (filename, capacitance) in test_dict
+        detector_metadata_filename = joinpath(germanium_testdata_path, "diodes", filename)
+
+        for method in ["ssd", "siggen"]
+            simulation_settings["method"] = method
+
+            @testset "Field Simulation of $filename ($method)" begin
+                sim = LegendGeSim.simulate_fields(detector_metadata_filename, environment_settings, simulation_settings)
+                C = LegendGeSim.capacitance_matrix(sim)
+
+                @testset "Capacitances" begin   
+                    @test isapprox(C[1,2], capacitance, atol = 0.3u"pF")
+                end
+            end
+        end
+    end 
+end
+
+
+@testset "LegendGeSim: sim -> raw simulation chain" begin
+    # note: this part also tests json settings input as opposed to dict
+    # as well as simulation with no impurity input i.e. dummy constant impurity
+    ldsim_path = joinpath(legend_test_data_path(), "data", "ldsim")
+    det_metadata = joinpath(ldsim_path, "invcoax-metadata.json")
+    path_to_pet_file = joinpath(ldsim_path, "single-invcoax-th228-geant4.csv")
+    sim_settings_ssd_filename = joinpath(dirname(dirname(pathof(LegendGeSim))), "examples/configs/detector_study_ssd.json")
+
+    pss_table, pss_truth = LegendGeSim.simulate_pulses(det_metadata, path_to_pet_file, sim_settings_ssd_filename) #; n_waveforms=10
 
     @testset "pet -> pss" begin 
         @test pss_table isa LegendGeSim.Table
