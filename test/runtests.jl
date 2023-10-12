@@ -11,7 +11,6 @@ using Unitful
 @testset "LegendGeSim: Simulate capacitances of test detectors" begin
     # note: this part also tests dict settings input as opposed to json file
     # as well as impurity input
-    # ToDo: test siggen
     germanium_testdata_path = joinpath(legend_test_data_path(), "data", "legend", "metadata", "hardware", "detectors", "germanium")
     test_dict = Dict{String, typeof(1.0u"pF")}(
         "B99000A.json" => -7.13u"pF",
@@ -24,7 +23,6 @@ using Unitful
     )
 
     simulation_settings = Dict(
-        "cached_name" => "test",
         "crystal_metadata_path" => joinpath(germanium_testdata_path, "crystals")
     )
 
@@ -76,15 +74,15 @@ end
         close(h)
     end
     
-    
+    # ToDo: check eV vs ADC parameters: 1) either should work, 2) error when both provided
+    # ToDo: if noise model is "none" but preamp sigma is given, will simulate noise anyway! need to fix
     setup_settings = Dict(
         "preamp" => Dict(
             "type" => "generic",
             "t_decay_in_us" => 50,
             "t_rise_in_ns" => 100,
-            "gain_ADC_to_eV" => 0.138,
-            "offset_in_ADC" => 12000,
-            "noise_in_keV" => 2
+            "gain_ADC_eV" => 0.138,
+            "offset_in_ADC" => 12000
         ),
         "fadc" => Dict(
             "type" => "generic",
@@ -110,10 +108,14 @@ end
         @test sum(!iszero, raw_table.energy) == 238 # two do not trigger
     end
     
-    
+    # note: this is a dummy test of electronics noise
+    # since no noise model was provided for pet -> pss, there is no fano noise at that stage
+    # so this is not truly the NoiseFromSim simulation 
+    # Note: there is no way to check on user level whether the previous pre-simulated pet->pss had fano noise -> baseline std?
+    # ToDo: noise from data [still very WIP so too early to test]
     setup_settings_noise = deepcopy(setup_settings)
-    setup_settings_noise["preamp"]["noise_sigma"] = 3 # keV
-    noise_settings = Dict( "type" => "none" )
+    setup_settings_noise["preamp"]["noise_sigma_in_keV"] = 2
+    noise_settings = Dict( "type" => "sim" )
     
     raw_table_noise = LegendGeSim.pss_to_raw(pss_name, setup_settings_noise, noise_settings)
     
@@ -126,8 +128,15 @@ end
 
     # Skip writing the pss to disk and check that the result is still the same
     all_settings = Dict(
-        "environment" => environment_settings,
-        "simulation" => simulation_settings,
+        "environment" => Dict(
+            "crystal_temperature_in_K" => 77,
+            "medium" => "vacuum" 
+        ),
+        "simulation" =>  Dict(
+            "method" => "SSD"
+            # note: there shouldn't be crystal metadata here, as the json used in pet->pss doesn't have it 
+            # note: to not have bugs because two different sources of settings, maybe avoid this
+        ),
         "setup" => setup_settings
     )
 

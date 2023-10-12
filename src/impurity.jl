@@ -102,7 +102,7 @@ function impurity_density_model(meta::PropDict, crystal_metadata_path::AbstractS
         @error "Crystal metadata path $crystal_metadata_path does not exist"
     end
     if !ispath(crystal_path)
-        @error "Crystal $(meta.production.crystal) does not exist in path $crystal_metadata_path"
+        @error "Crystal $(crystal_name) does not exist in path $crystal_metadata_path"
     end
 
     crystal_dict = propdict(crystal_path)
