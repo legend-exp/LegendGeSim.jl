@@ -160,7 +160,7 @@ function impurity_density_model(meta::PropDict, crystal_metadata::PropDict, fit_
 
     # points in crystal axis from 0 to L with step of 1 mm
     # always put 200 points to make all .dat files same length
-	imp = Array{Float32}(undef, 200, 1) # impurities in 10^10 cm^-3
+    imp = zeros(Float32, 200) # impurities in 10^10 cm^-3
 
     # length is L+1 including both ends
     Npoints = Int(ceil(L))+1 # step of 1 mm
@@ -170,9 +170,6 @@ function impurity_density_model(meta::PropDict, crystal_metadata::PropDict, fit_
         # invert the order of the values because with siggen z=0 is tail (dirtiest part)
         # i.e. z = L in our system (Mirion measurements)
         imp[Npoints-i+1] = -(a + b * zpoints[i] + c * exp((zpoints[i] - L)/tau)) / 10.
-    end
-    for i in Npoints+1 : 200
-        imp[i] = 0
     end
 
     crystal_name = first(meta.name, length(meta.name)-1)
