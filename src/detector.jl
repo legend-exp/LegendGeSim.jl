@@ -55,9 +55,18 @@ function simulate_detector(det_meta::PropDict, env::Environment, simulator::Sigg
 
     # if the WP file with such a name does not exist yet or want to overwrite it...
     if !isfile(fieldgen_wp_name) || overwrite
+        imp_filename, offset =
+            if simulator.crystal_metadata_path != ""
+                # create impurity input on the fly
+                impurity_density_model(det_meta, simulator.crystal_metadata_path, simulator)
+            else
+                # user provided .dat file and corresponding offset
+                # (or if nothing is provided this will be "" and -1)
+                simulator.impurity_profile, simulator.offset_in_mm
+            end
         #...call fieldgen -> will write the wp file
         @info "_|~|_|~|_|~|_ Fieldgen simulation"
-        fieldgen(siggen_config_name; impurity_profile=simulator.impurity_profile, offset_mm=simulator.offset_in_mm)
+        fieldgen(siggen_config_name; impurity_profile=imp_filename, offset_mm=offset)
         @info "_|~|_|~|_|~|_ Fieldgen simulation complete"
     else
         #...do nothing, siggen will later read the files based on the generated conifg

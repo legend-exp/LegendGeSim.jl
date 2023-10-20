@@ -97,10 +97,10 @@ function GenericPreAmp(preamp_config::PropDict)
         offset_keV  = haskey(preamp_config, :offset_in_keV)     ? T(preamp_config.offset_in_keV)u"keV" : 0u"keV",
         offset_ADC  = haskey(preamp_config, :offset_in_ADC)     ? T(preamp_config.offset_in_ADC) : 0,
         # max_e = T(preamp_config.max_e)u"keV",
-        gain        = haskey(preamp_config, :gain_ADC_to_eV)    ? preamp_config.gain_ADC_to_eV/u"eV" : 0.138/u"eV",
+        gain        = haskey(preamp_config, :gain_ADC_eV)    ? preamp_config.gain_ADC_eV/u"eV" : 0.138/u"eV",
         # optional, if not given usually means NoiseFromData is used -> make a better system for managing this!
-        noise_σ_ADC = haskey(preamp_config, :noise_sigma_ADC)   ? T(preamp_config.noise_sigma_ADC) : 0,
-        noise_σ_keV = haskey(preamp_config, :noise_sigma_keV)   ? T(preamp_config.noise_sigma_keV)u"keV" : 0u"keV"
+        noise_σ_ADC = haskey(preamp_config, :noise_sigma_in_ADC)   ? T(preamp_config.noise_sigma_in_ADC) : 0,
+        noise_σ_keV = haskey(preamp_config, :noise_sigma_in_keV)   ? T(preamp_config.noise_sigma_in_keV)u"keV" : 0u"keV"
     )
     # ToDo ! insert check if both offset in keV and ADC is provided is bad
 end

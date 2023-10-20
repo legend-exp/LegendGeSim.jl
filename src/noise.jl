@@ -115,10 +115,7 @@ Calculate fano noise level based on the detector specification provided in
 """
 function fano_noise(events::Table, det_meta::PropDict, env::Environment, ::NoiseFromSim)
     @info "//\\//\\//\\ Adding fano noise"
-    # println("Adding fano noise")
     detector = LEGEND_SolidStateDetector(Float32, det_meta, env)
-    # ssd_conf = ssd_config(det_meta, env)
-    # simulation = Simulation(SolidStateDetector{T}(ssd_conf))
     det_material = detector.semiconductor.material
     add_fano_noise(events, det_material.E_ionisation, det_material.f_fano)
 end
