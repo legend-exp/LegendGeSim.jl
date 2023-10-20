@@ -125,7 +125,7 @@ function SiggenSimulator(simulation_settings::PropDict)
 
     # throw error if both files are provided
     if inputs["crystal_metadata_path"] != "" && inputs["impurity_profile"] != ""
-        @error("You provided both an .spe/.dat file and path to crystal metadata! Provide one or the other as impurity input for siggen.")
+        throw(ArgumentError("You provided both an .spe/.dat file and path to crystal metadata! Provide one or the other as impurity input for siggen."))
     # warn if none are provided - will use constant impurity density
     elseif inputs["crystal_metadata_path"] == "" && inputs["impurity_profile"] == ""
         @warn "No impurity inputs given. Simulation with dummy constant impurity density."
@@ -137,7 +137,7 @@ function SiggenSimulator(simulation_settings::PropDict)
 
     # check that offset is provided if .spe/.dat file is
     if inputs["impurity_profile"] != "" && inputs["offset_in_mm"] == -1
-        @error "Please provide offset in mm of this detector corresponding to impurity file $(inputs["impurity_profile"])!"
+        throw(ArgumentError("Provide offset_in_mm of this detector corresponding to impurity file $(inputs["impurity_profile"])!"))
     end
 
 
