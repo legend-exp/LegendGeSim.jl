@@ -1,25 +1,29 @@
-function simulate_fields(detector_metadata_path::AbstractString, environment_settings::PropDict, simulation_settings::PropDict; overwrite::Bool = false)    
-    meta_dict = propdict(detector_metadata_path)
+function simulate_fields(detector_metadata::PropDict, environment_settings::PropDict, simulation_settings::PropDict; overwrite::Bool = false)    
     env = Environment(environment_settings)
     simulator = PSSimulator(simulation_settings)
 
-    simulate_detector(meta_dict, env, simulator; overwrite)
+    simulate_detector(detector_metadata, env, simulator; overwrite)
+end
+
+# user generates detector metadata in code
+function simulate_fields(detector_metadata::AbstractString, environment_settings::PropDict, simulation_settings::PropDict; overwrite::Bool = false)    
+    simulate_fields(propdict(detector_metadata), environment_settings, simulation_settings; overwrite)
 end
 
 # user launches directly inputting separate dicts
-function simulate_fields(detector_metadata_path::AbstractString, environment_settings::Dict,
+function simulate_fields(detector_metadata::Union{AbstractString, PropDict}, environment_settings::Dict,
     simulation_settings::Dict; overwrite::Bool = false)    
-    simulate_fields(detector_metadata_path, PropDict(environment_settings), PropDict(simulation_settings); overwrite)
+    simulate_fields(detector_metadata, PropDict(environment_settings), PropDict(simulation_settings); overwrite)
 end
 
 # user launches with all settings in one dict
-function simulate_fields(detector_metadata_path::AbstractString, all_settings::Union{Dict,PropDict}; overwrite::Bool = false)
-    simulate_fields(detector_metadata_path, PropDict(all_settings).environment, PropDict(all_settings).simulation; overwrite)
+function simulate_fields(detector_metadata::Union{AbstractString, PropDict}, all_settings::Union{Dict,PropDict}; overwrite::Bool = false)
+    simulate_fields(detector_metadata, PropDict(all_settings).environment, PropDict(all_settings).simulation; overwrite)
 end
 
 # user launches with all settings in json
-function simulate_fields(detector_metadata_path::AbstractString, all_settings::AbstractString; overwrite::Bool = false)
-    simulate_fields(detector_metadata_path, propdict(all_settings); overwrite)
+function simulate_fields(detector_metadata::Union{AbstractString, PropDict}, all_settings::AbstractString; overwrite::Bool = false)
+    simulate_fields(detector_metadata, propdict(all_settings); overwrite)
 end
 
 
