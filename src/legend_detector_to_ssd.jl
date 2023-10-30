@@ -18,8 +18,8 @@ function LEGEND_SolidStateDetector(::Type{T}, meta::PropDict, env::Environment, 
     dl_thickness_in_mm =
         if env.dl == "vendor"
             dl_vendor = meta.characterization.manufacturer.dl_thickness_in_mm
-            if isnothing(dl_vendor)
-                @error "No DL provided by vendor!"
+            if dl_vendor isa PropDicts.MissingProperty
+                throw(ArgumentError("No dead layer measurement provided by vendor! Please provide value or skip (default 0)."))
             end
             dl_vendor
         else
