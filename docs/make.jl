@@ -61,7 +61,7 @@ makedocs(
 
 deploydocs(
     repo = "github.com/legend-exp/LegendGeSim.jl.git",
-    devbranch = "dev",
+    devbranch = "main",
     devurl = "dev",
     forcepush = true,
     push_preview = true,
