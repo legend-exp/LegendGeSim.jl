@@ -59,6 +59,8 @@ makedocs(
     warnonly = ("nonstrict" in ARGS),
 )
 
+rm("tutorials/cache", recursive = true, force = true)
+
 deploydocs(
     repo = "github.com/legend-exp/LegendGeSim.jl.git",
     devbranch = "main",
