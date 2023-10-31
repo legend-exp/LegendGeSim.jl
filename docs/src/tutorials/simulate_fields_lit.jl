@@ -40,7 +40,7 @@ environment_settings = Dict(
 
 simulation_settings = Dict(
     "method" => "SSD",
-    "cached_name" => "test",
+    "cached_name" => "", # a non-empty string will cache the simulation results
     "crystal_metadata_path" => joinpath(germanium_testdata_path, "crystals")
 );
 
@@ -110,7 +110,7 @@ LegendGeSim.capacitance_matrix(sim_fieldgen)
 
 simulation_settings_siggen1 = Dict(
     "method" => "fieldgen",
-    "cached_name" => "test",
+    "cached_name" => "", # a non-empty string will cache the simulation result
     "impurity_profile" => "cache/V99000.dat",
     "offset_in_mm" => 0
 );

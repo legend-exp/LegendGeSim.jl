@@ -42,7 +42,7 @@ environment_settings = Dict(
 # simple settings for point charge simulation with dummy constant impurity
 simulation_settings = Dict(
     "method" => "SSD",
-    "cached_name" => "test",
+    "cached_name" => "", # a non-empty string will cache the simulation results
 );
 
 # 
