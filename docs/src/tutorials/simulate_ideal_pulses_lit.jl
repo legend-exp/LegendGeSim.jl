@@ -43,7 +43,7 @@ environment_settings = Dict(
 
 simulation_settings = Dict(
     "method" => "SSD",
-    "cached_name" => "test",
+    "cached_name" => "", # a non-empty string will cache the simulation results
 );
 
 #
