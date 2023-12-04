@@ -85,7 +85,7 @@ function simulate(wf::RDWaveform, trigger::TrapFilter)
     rdfilt!(online_filter_output, fi, signal)
     
     intersect::NamedTuple{(:x, :multiplicity), Tuple{T, Int64}} = Intersect{T}(0)(online_filter_output, T(trigger.threshold))
-    t0idx::Int = intersect.multiplicity > 0 ? ceil(Int, intersect.x) + fi.ngap + fi.navg2 - 1 : 0
+    t0idx::Int = intersect.multiplicity > 0 ? ceil(Int, intersect.x) + trigger_window_length - 1 : 0
     t0idx, maximum(online_filter_output)
     end
 end
