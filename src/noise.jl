@@ -25,21 +25,6 @@ struct NoiseFromSim <: NoiseModel end
 # end
 
 
-"""
-    NoiseFromSim(sim_conf)
-
-LegendGeSimConfig -> NoiseFromSim 
-
-Construct a NoiseFromSim struct based on given simulation configuration <sim_conf>
-""" 
-# function NoiseFromSim(sim_conf::LegendGeSimConfig)
-#     T = Float32 # This should be somehow defined and be passed properly
-#     @info "//\\//\\// Noise simulated from scratch (fano, preamp noise)"
-#     noise_σ = haskey(sim_conf.dict.setup, :preamp) ? T(sim_conf.dict.setup.preamp.noise_sigma)u"keV" : 0u"keV"
-
-#     NoiseFromSim(noise_σ)
-# end
-
 
 """
 The NoiseFromData model means instead of simulating given 
@@ -66,12 +51,6 @@ function NoiseFromData(noise_settings::PropDict)
     baseline_table = baseline_catalog(noise_settings.path_to_data_file)
     NoiseFromData(baseline_table) 
 end
-# function NoiseFromData(sim_conf::LegendGeSimConfig)
-#     @info "//\\//\\// Noise levels and offset added via slapping the baseline from data on top of the waveform"
-#     # construct table of baselines based on given raw data hdf5 file
-#     baseline_table = baseline_catalog(sim_conf.dict.noise_data)
-#     NoiseFromData(baseline_table) 
-# end
 
 
 """
@@ -94,13 +73,6 @@ function NoiseModel(noise_settings::PropDict)
     end
     # ToDo add elseif and error if not none, sim or data
 end
-# function NoiseModel(sim_config::LegendGeSimConfig)
-    # if haskey(sim_config.dict, :noise_data)
-        # NoiseFromData(sim_config)
-    # else
-        # NoiseFromSim(sim_config)
-    # end
-# end
 
 # -------------------------------------------------------------------
 
@@ -148,13 +120,20 @@ Simulate effects of the preamplifier <preamp> on the given waveform <wf>.
 """
 function simulate_noise(wf::RDWaveform, preamp::PreAmp)
     T = Float32 # This should be somehow defined and be passed properly
-    # wf values are in eV (without u"eV" units attached), noise sigma is in keV
     # if we're not simulating noise from scratch, we'll do this anyway, but noise sigma will be 0
     # -> maybe there's a better way?
+    # -> also will double count if user puts NoiseNone or NoiseFromData but forgets a non-zero sigma
+
+    # wf values are in eV (without u"eV" units attached), noise sigma is in keV
     noise_σ = preamp.noise_σ_keV == 0u"keV" ? preamp.noise_σ_ADC / preamp.gain : uconvert(u"eV", preamp.noise_σ_keV)
     noise_σ = ustrip(u"eV", noise_σ)
-    gaussian_noise_dist = Normal(T(0), T(noise_σ))
-    RDWaveform(wf.time, wf.signal .+ rand!(gaussian_noise_dist, similar(wf.signal)))
+    
+    # --- white Gaus
+    # gaussian_noise_dist = Normal(T(0), T(noise_σ))
+    # RDWaveform(wf.time, wf.signal .+ rand!(gaussian_noise_dist, similar(wf.signal)))
+    # --- pink Gaus
+    gaus_pink = PinkGaussian(length(wf.signal), T(noise_σ))
+    RDWaveform(wf.time, wf.signal .+ rand(gaus_pink))
 end
 
 

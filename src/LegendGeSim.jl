@@ -36,6 +36,7 @@ using Random
 using Random123
 using RecipesBase
 using Requires
+using SignalAnalysis
 using SolidStateDetectors
 using StaticArrays
 using Statistics

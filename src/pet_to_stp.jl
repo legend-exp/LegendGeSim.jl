@@ -41,7 +41,7 @@ function pet_to_stp(pet_table::Table, detector_SSD::SolidStateDetector{T}) where
     # cluster hits based on distance
     @info "...clustering"
     println("$(sum(length.(hits_by_evtno.edep))) hits before clustering")
-    events_clustered = @time SolidStateDetectors.cluster_detector_hits(hits_by_evtno, 0.2u"mm")
+    events_clustered = @time SolidStateDetectors.cluster_detector_hits(hits_by_evtno, 0.1u"mm")
     println("$(sum(length.(events_clustered.edep))) hits after clustering")
 
     hits = RadiationDetectorSignals.ungroup_by_evtno(events_clustered)
