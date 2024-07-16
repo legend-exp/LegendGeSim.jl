@@ -57,7 +57,7 @@ const germanium_ionization_energy = SolidStateDetectors.material_properties[:HPG
 
 include("units.jl")
 
-include("sim_config.jl")
+include("environment.jl")
 include("pss.jl")
 include("impurity.jl")
 include("legend_detector_to_ssd.jl")
