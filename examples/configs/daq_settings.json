@@ -1,0 +1,28 @@
+{
+    "preamp": {
+        "type": "generic",
+        "gain_ADC_eV": 0.006586,
+        "offset_in_ADC": 15136,
+        "noise_sigma_in_ADC": 19,
+        "t_decay_in_us": 455
+    },
+    "fadc": {
+        "type": "generic",
+        "sampling_interval": 16
+    },
+    "trigger": {
+        "type": "trapezoidal",
+        "threshold": 9,
+        "window_lengths": [
+            250,
+            250,
+            250
+        ]
+    },
+    "daq": {
+        "type": "generic",
+        "baseline_length": 2953,
+        "nsamples": 8192
+    }
+}
+

@@ -1,9 +1,0 @@
-{
-    "environment":{
-        "crystal_temperature_in_K": 77,
-        "medium": "vacuum"
-    },
-    "simulation":{
-        "method": "ssd"
-    }
-}
