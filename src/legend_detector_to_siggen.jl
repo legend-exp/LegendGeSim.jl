@@ -87,13 +87,14 @@ function siggen_config(meta::PropDict, env::Environment, simulator::SiggenSimula
     # add to field fieldgen_names
     fieldgen_names["drift_name"] = cache_drift_file
 
-    # why is this needed? 
-    for name in ["field_name", "wp_name"]
-        path = joinpath("cache", fieldgen_names[name])
-        if !isfile(path)
-            touch(path)
-        end
-    end
+    ## commenting this out: produced a bug
+    ## (empty file created, next time running empty file read and no field at point error)
+    # for name in ["field_name", "wp_name"]
+    #     path = joinpath("cache", fieldgen_names[name])
+    #     if !isfile(path)
+    #         touch(path)
+    #     end
+    # end
 
     # add corresponding lines to existing detector geometry lines
     push!(detector_lines, "")

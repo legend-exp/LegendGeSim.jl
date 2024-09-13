@@ -75,8 +75,21 @@ Simulate effects of FADC module <fadc> on the waveform <wf>
 """
 function simulate(wf::RDWaveform, fadc::GenericFADC)   
     T = Float32 # This should be somehow defined and be passed properly
-    # resample -> currently simply pick every Nth sample, more elaborate simulation later
+    ## resample
+    
+    # v0: simply pick every Nth sample of given sampling interval
     wf_sampled = wf.signal[begin : Int(fadc.Δt/step(wf.time)) : end]
+    
+    # v1: take mean of bins (sampling intervals) to smooth out noise
+    # -> actually much worse, results in too smooth and sharp FWHM etc.
+    # probably not how actual FADC works either
+    # wf_sampled = Vector{T}([])
+    # stp = Int(fadc.Δt/step(wf.time))
+    # for idx in 1:stp:length(wf.time)
+    #     last = idx+stp > length(wf.time) ? length(wf.time) : idx+stp
+    #     push!(wf_sampled, mean(wf.signal[idx:last]))
+    # end
+
     t_sampled = range(T(0)u"ns", step = fadc.Δt, length = length(wf_sampled))
     wf_daq = RDWaveform(t_sampled, wf_sampled)
 

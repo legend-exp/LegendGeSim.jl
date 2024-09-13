@@ -117,7 +117,7 @@ function SiggenSimulator(simulation_settings::PropDict)
     # check if provided paths exist
     for (param, path) in inputs
         if (path != "") && !(isfile(path) || isdir(path))
-        @error "The input for $(param) that you provided does not exist: $(path)"
+        throw(ArgumentError("The input for $(param) that you provided does not exist: $(path)"))
         end
     end
 
@@ -257,6 +257,7 @@ function simulate_waveforms(stp_events::Table, detector::SigGenSetup, ::SiggenSi
     nevents = length(stp_events)
     wf_array = Array{RDWaveform}(undef, nevents)
     for i in 1:nevents
+        # println("$i/$nevents")
         if(i % 100  == 0) println("$i/$nevents") end
         signal::Vector{Float32} = simulate_signal(stp_events[i].pos, stp_events[i].edep, detector)
         time = range(T(0)u"ns", step = detector.step_time_out*u"ns", length = length(signal))
@@ -309,9 +310,15 @@ function simulate_signal(pos::AbstractVector, edep::AbstractVector, siggen_setup
     # this is not so nice, think about it
     signal = zeros(Float32, siggen_setup.ntsteps_out)
 
+    # round to siggen crystal grid precision
+    # a = string(siggen_setup.xtal_grid) # crystal grid precision e.g. 0.1 (mm)
+    # ndig = length(a[findfirst('.', a)+1:end]) # number of digits after .
+
     for i in 1:length(pos)
+        # pos_rounded = round.(ustrip.(pos[i]), digits=ndig) # strip of units and round to siggen precision
         # in SSD the output is always in eV -> convert to eV
         signal = signal .+ MJDSigGen.get_signal!(siggen_setup, Tuple(ustrip.(pos[i]))) * ustrip(uconvert(u"eV", edep[i]))
+        # signal = signal .+ MJDSigGen.get_signal!(siggen_setup, Tuple(pos_rounded)) * ustrip(uconvert(u"eV", edep[i]))
 
         # somehow this doesn't work
         # MJDSigGen.get_signal!(signal, siggen_setup, Tuple(ustrip.(pos[i]))) * ustrip(uconvert(u"eV", edep[i]))
