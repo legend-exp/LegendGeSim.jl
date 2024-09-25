@@ -1,6 +1,6 @@
 name = "LegendGeSim"
 uuid = "e592b54b-af3c-468f-bcc7-10a913e293a7"
-version = "0.1.2"
+version = "0.1.3"
 
 [deps]
 ArgCheck = "dce04be8-c92d-5529-be00-80e4d2c0e197"
@@ -75,4 +75,4 @@ StructArrays = "0.5, 0.6"
 Tables = "1"
 TypedTables = "1.2"
 Unitful = "1"
-julia = "1.6"
+julia = "1.10"
