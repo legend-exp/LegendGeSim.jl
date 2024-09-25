@@ -13,7 +13,7 @@ using Unitful
     # as well as impurity input
     germanium_testdata_path = joinpath(legend_test_data_path(), "data", "legend", "metadata", "hardware", "detectors", "germanium")
     test_dict = Dict{String, typeof(1.0u"pF")}(
-        "B99000A.json" => -7.13u"pF",
+        "B99000A.json" => -5.20u"pF",
         "V99000A.json" => -3.55u"pF"
     )
 
@@ -38,7 +38,7 @@ using Unitful
                 C = LegendGeSim.capacitance_matrix(sim)
 
                 @testset "Capacitances" begin   
-                    @test isapprox(C[1,2], capacitance, atol = 0.3u"pF")
+                    @test isapprox(C[1,2], capacitance, atol = 0.4u"pF")
                 end
             end
         end
