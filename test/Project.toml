@@ -4,6 +4,8 @@ LegendHDF5IO = "c9265ca6-b027-5446-b1a4-febfa8dd10b0"
 LegendTestData = "33d6da08-6349-5f7c-b5a4-6ff4d8795aaf"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
+MJDSigGen= "0b925020-e659-485c-98dd-189633cb4be4"
 
 [compat]
 LegendTestData = "0.2.8"
+MJDSigGen = "0.2"
