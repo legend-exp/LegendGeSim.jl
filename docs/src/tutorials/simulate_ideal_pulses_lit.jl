@@ -78,14 +78,13 @@ plot(pss_table.waveform[1:5], legend=false, title="only p+ contact pulses")
 
 # You can save simulated pulses in a file that can be used later.
 
-using HDF5
 using LegendHDF5IO
 
 #
 
 pss_name = "cache/test_100wfs_pss.hdf5"
-h5open(pss_name, "w") do f
-    LegendHDF5IO.writedata(f, "pss/pss", pss_table[1:5])
-    LegendHDF5IO.writedata(f, "pss/truth", pss_truth[1:5])
+lh5open(pss_name, "w") do f
+    LegendHDF5IO.writedata(f.data_store, "pss/pss", pss_table[1:5])
+    LegendHDF5IO.writedata(f.data_store, "pss/truth", pss_truth[1:5])
 end
 

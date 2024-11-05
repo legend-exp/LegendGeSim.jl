@@ -3,7 +3,7 @@
 using Test
 
 using LegendGeSim
-using LegendHDF5IO, HDF5
+using LegendHDF5IO
 using LegendTestData
 using Unitful
 
@@ -62,9 +62,9 @@ end
     end
 
     pss_name = "cache/" * LegendGeSim.filename(path_to_pet_file) * "_pss.hdf5"
-    h5open(pss_name, "w") do f
-        LegendHDF5IO.writedata(f, "pss/pss", pss_table)
-        LegendHDF5IO.writedata(f, "pss/truth", pss_truth)
+    LegendHDF5IO.lh5open(pss_name, "w") do f
+        LegendHDF5IO.writedata(f.data_store, "pss/pss", pss_table)
+        LegendHDF5IO.writedata(f.data_store, "pss/truth", pss_truth)
     end
 
     @testset "pss I/O using LegendHDF5IO" begin

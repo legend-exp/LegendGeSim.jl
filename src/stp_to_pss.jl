@@ -30,8 +30,8 @@ end
 
 
 # function stp_to_pss(stp_filepath::AbstractString, det_meta_fullpath::AbstractString, sim_config_filename::AbstractString)
-#     stp_table = h5open(stp_filepath, "r") do input
-#         LegendHDF5IO.readdata(input, "stp")
+#     stp_table = LegendHDF5IO.lh5open(stp_filepath, "r") do input
+#         LegendHDF5IO.readdata(input.data_store, "stp")
 #     end
     
 #     stp_to_pss(stp_table, det_meta_fullpath, sim_config_filename)

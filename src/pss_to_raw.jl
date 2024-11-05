@@ -66,9 +66,9 @@ end
 
 # wrapper for user reading from pre-saved pss file
 function pss_to_raw(pss_file::AbstractString, setup_settings::Dict, noise_settings::Dict=Dict("type"=>"none"); n_waveforms::Int=0)
-    pss_h5 = h5open(pss_file, "r")
-    pss_table = LegendHDF5IO.readdata(pss_h5, "pss/pss")
-    pss_truth = LegendHDF5IO.readdata(pss_h5, "pss/truth")
+    pss_h5 = LegendHDF5IO.lh5open(pss_file, "r")
+    pss_table = LegendHDF5IO.readdata(pss_h5.data_store, "pss/pss")
+    pss_truth = LegendHDF5IO.readdata(pss_h5.data_store, "pss/truth")
     close(pss_h5)
 
     pss_to_raw(pss_table, pss_truth,  setup_settings, noise_settings; n_waveforms)
