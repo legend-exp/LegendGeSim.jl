@@ -96,14 +96,13 @@ plot(raw_table.waveform[1:10], legend=false, title="only p+ contact waveforms")
 
 # You can save simulated waveforms in a file that can be used later
 
-using HDF5
 using LegendHDF5IO
 
 #
 
 raw_name = "cache/test_100wfs_raw.hdf5"
-h5open(raw_name, "w") do f
-    LegendHDF5IO.writedata(f, "raw", raw_table[1:10])
+lh5open(raw_name, "w") do f
+    LegendHDF5IO.writedata(f.data_store, "raw", raw_table[1:10])
 end
 
 # ## Simulate from `pss` table in code
@@ -131,14 +130,13 @@ plot(
 # Save the pss file for the next section
 
 using LegendHDF5IO
-using HDF5
 
 #
 
 pss_name = "cache/test_100wfs_pss.hdf5"
-h5open(pss_name, "w") do f
-    LegendHDF5IO.writedata(f, "pss/pss", pss_table[1:10])
-    LegendHDF5IO.writedata(f, "pss/truth", pss_truth[1:10])
+lh5open(pss_name, "w") do f
+    LegendHDF5IO.writedata(f.data_store, "pss/pss", pss_table[1:10])
+    LegendHDF5IO.writedata(f.data_store, "pss/truth", pss_truth[1:10])
 end
 
 # ## Simulate from pre-saved `pss` hdf5 file

@@ -37,16 +37,18 @@ function baseline_catalog(raw_filename::AbstractString)
 
     if isfile(base_filename)
         @info "Selecting baseline samples from $base_filename"
-        baseline_table = h5open(base_filename) do input Table(waveform = LegendDataTypes.readdata(input, "raw/waveform")) end
+        baseline_table = LegendHDF5IO.lh5open(base_filename) do input 
+            Table(waveform = LegendHDF5IO.readdata(input.data_store, "raw/waveform")) 
+        end
     else
         @info "Extracting baseline samples from $raw_filename"  
-        raw_table = HDF5.h5open(raw_filename, "r") do input
-            LegendHDF5IO.readdata(input, "raw")
+        raw_table = LegendHDF5IO.lh5open(raw_filename, "r") do input
+            LegendHDF5IO.readdata(input.data_store, "raw")
         end  
         baseline_table = baseline_catalog(raw_table)
         # cache for later
         if !ispath(dirname(base_filename)) mkpath(dirname(base_filename)) end
-        h5open(base_filename, "w") do f LegendHDF5IO.writedata(f, "raw", baseline_table) end
+        LegendHDF5IO.lh5open(base_filename, "w") do f LegendHDF5IO.writedata(f.data_store, "raw", baseline_table) end
         @info "Baselines saved to $base_filename"
     end
 
