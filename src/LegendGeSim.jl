@@ -9,6 +9,7 @@ Template for Julia packages.
 """
 module LegendGeSim
 
+# Registered packages
 using ArgCheck
 using ArraysOfArrays
 using CurveFit
@@ -19,12 +20,7 @@ using ElasticArrays
 using HDF5
 using IntervalSets
 using JSON
-using LegendDataManagement
-using LegendDataTypes
-using LegendHDF5IO
-using LegendTextIO
 using LinearAlgebra
-using MJDSigGen
 using Parameters
 using Polynomials
 using PropDicts
@@ -44,6 +40,14 @@ using StructArrays
 using Tables
 using TypedTables
 using Unitful
+
+# Unregistered packages
+using LegendDataManagement
+using LegendDataTypes
+using LegendHDF5IO
+using LegendTextIO
+using MJDSigGen
+
 
 import LsqFit
 
