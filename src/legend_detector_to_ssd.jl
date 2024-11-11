@@ -63,7 +63,7 @@ function LEGEND_SolidStateDetector(::Type{T}, meta::PropDict, env::Environment, 
     # "old" semiconductor 
     sc = detector.semiconductor
     # new semiconductor with our temperature
-    semiconductor = SolidStateDetectors.Semiconductor(temperature, sc.material, sc.impurity_density_model, sc.charge_drift_model, sc.geometry)
+    semiconductor = SolidStateDetectors.Semiconductor(temperature, sc.material, sc.impurity_density_model, sc.charge_drift_model, sc.charge_trapping_model, sc.geometry)
     # new detector with new semiconductor
     detector = SolidStateDetector{T}(detector.name, semiconductor, detector.contacts, detector.passives, detector.virtual_drift_volumes)
 
