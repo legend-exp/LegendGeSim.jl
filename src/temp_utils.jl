@@ -11,23 +11,6 @@ E.g. filename("/some/path/to/file_name.ext") -> "file_name"
 filename(path) = splitext(basename(path))[1]
 
 
-# this should be in PropDicts?
-"""
-    propdict(json_file)
-
-AbstractString -> PropDict 
-
-Construct a PropDict based on given <json_file>.
-Alias for `readprops` from PropDicts.jl
-    
-"""
-function propdict(json_file::AbstractString)
-    readprops(json_file)
-end
-
-    
-
-
 """
     remove_negative(value)
 

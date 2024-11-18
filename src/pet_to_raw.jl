@@ -38,7 +38,7 @@ end
 # user launches directly inputting separate dicts
 function simulate_raw(detector_metadata::AbstractString, pet_filename::AbstractString, environment_settings::Union{Dict,PropDict},
     simulation_settings::Union{Dict,PropDict}, setup_settings::Union{Dict,PropDict}, noise_settings::Union{Dict,PropDict}=Dict("type"=>"none"); n_waveforms::Int = 0)
-    pet_to_raw(propdict(detector_metadata), pet_filename,
+    pet_to_raw(readlprops(detector_metadata), pet_filename,
         PropDict(environment_settings), PropDict(simulation_settings), PropDict(setup_settings), PropDict(noise_settings); n_waveforms)    
 end
 
@@ -51,5 +51,5 @@ end
 
 # user launches with all settings in json
 function simulate_raw(detector_metadata::AbstractString, pet_filename::AbstractString, all_settings::AbstractString; n_waveforms::Int = 0)
-    simulate_raw(detector_metadata, pet_filename, propdict(all_settings); n_waveforms)
+    simulate_raw(detector_metadata, pet_filename, readlprops(all_settings); n_waveforms)
 end

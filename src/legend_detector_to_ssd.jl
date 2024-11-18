@@ -4,7 +4,7 @@ to_SSD_units(::Type{T}, x, unit) where {T} = T(SolidStateDetectors.to_internal_u
 
 # if just want geometry
 function LEGEND_SolidStateDetector(metapath::AbstractString)
-    LEGEND_SolidStateDetector(propdict(metapath))
+    LEGEND_SolidStateDetector(readlprops(metapath))
 end
 
 function LEGEND_SolidStateDetector(meta::PropDict)
