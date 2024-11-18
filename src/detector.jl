@@ -7,7 +7,7 @@ end
 
 # user generates detector metadata in code
 function simulate_fields(detector_metadata::AbstractString, environment_settings::PropDict, simulation_settings::PropDict; overwrite::Bool = false)    
-    simulate_fields(propdict(detector_metadata), environment_settings, simulation_settings; overwrite)
+    simulate_fields(readlprops(detector_metadata), environment_settings, simulation_settings; overwrite)
 end
 
 # user launches directly inputting separate dicts
@@ -23,7 +23,7 @@ end
 
 # user launches with all settings in json
 function simulate_fields(detector_metadata::Union{AbstractString, PropDict}, all_settings::AbstractString; overwrite::Bool = false)
-    simulate_fields(detector_metadata, propdict(all_settings); overwrite)
+    simulate_fields(detector_metadata, readlprops(all_settings); overwrite)
 end
 
 

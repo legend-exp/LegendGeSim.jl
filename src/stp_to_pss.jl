@@ -49,7 +49,7 @@ end
 function simulate_pulses(detector_metadata::AbstractString, pet_filename::AbstractString, environment_settings::Union{Dict,PropDict},
     simulation_settings::Union{Dict,PropDict}, noise_settings::Union{Dict,PropDict} = Dict("type" => "none"); n_waveforms::Int = 0)
     ## step 1: stepping information
-    det_meta = propdict(detector_metadata)
+    det_meta = readlprops(detector_metadata)
 
     stp_table = pet_to_stp(det_meta, pet_filename)
     # truncate if asked by user
@@ -74,7 +74,7 @@ end
 
 # user launches with all settings in json
 function simulate_pulses(detector_metadata::AbstractString, pet_filename::AbstractString, all_settings::AbstractString; n_waveforms::Int = 0)
-    simulate_pulses(detector_metadata, pet_filename, propdict(all_settings); n_waveforms)
+    simulate_pulses(detector_metadata, pet_filename, readlprops(all_settings); n_waveforms)
 end
 
 

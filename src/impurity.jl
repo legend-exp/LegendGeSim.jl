@@ -105,7 +105,7 @@ function impurity_density_model(meta::PropDict, crystal_metadata_path::AbstractS
         @error "Crystal $(crystal_name) does not exist in path $crystal_metadata_path"
     end
 
-    crystal_dict = propdict(crystal_path)
+    crystal_dict = readlprops(crystal_path)
     
     # get fit parameters in crystal metadata coordinates i.e. e/cm^3 VS mm
     fit_param = impurity_density_model(crystal_dict)
