@@ -17,7 +17,6 @@ using DelimitedFiles
 using Distributions
 using DSP 
 using ElasticArrays
-using HDF5
 using IntervalSets
 using JSON
 using LinearAlgebra

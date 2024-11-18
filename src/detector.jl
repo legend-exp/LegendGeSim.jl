@@ -53,15 +53,15 @@ function simulate_detector(det_meta::PropDict, env::Environment, simulator::SSDS
             if !ispath(dirname(h5fn))
                 mkpath(dirname(h5fn))
             end
-            HDF5.h5open(h5fn, "w") do h5f
-                LegendHDF5IO.writedata(h5f, "SSD_electric_potential", NamedTuple(sim.electric_potential))
-                LegendHDF5IO.writedata(h5f, "SSD_point_types", NamedTuple(sim.point_types))
-                LegendHDF5IO.writedata(h5f, "SSD_q_eff_fix", NamedTuple(sim.q_eff_fix))
-                LegendHDF5IO.writedata(h5f, "SSD_q_eff_imp", NamedTuple(sim.q_eff_imp))
-                LegendHDF5IO.writedata(h5f, "SSD_dielectric_distribution", NamedTuple(sim.ϵ_r))
-                LegendHDF5IO.writedata(h5f, "SSD_electric_field", NamedTuple(sim.electric_field))
+            LegendHDF5IO.lh5open(h5fn, "w") do h5f
+                LegendHDF5IO.writedata(h5f.data_store, "SSD_electric_potential", NamedTuple(sim.electric_potential))
+                LegendHDF5IO.writedata(h5f.data_store, "SSD_point_types", NamedTuple(sim.point_types))
+                LegendHDF5IO.writedata(h5f.data_store, "SSD_q_eff_fix", NamedTuple(sim.q_eff_fix))
+                LegendHDF5IO.writedata(h5f.data_store, "SSD_q_eff_imp", NamedTuple(sim.q_eff_imp))
+                LegendHDF5IO.writedata(h5f.data_store, "SSD_dielectric_distribution", NamedTuple(sim.ϵ_r))
+                LegendHDF5IO.writedata(h5f.data_store, "SSD_electric_field", NamedTuple(sim.electric_field))
                 for i in eachindex(sim.weighting_potentials)
-                    LegendHDF5IO.writedata(h5f, "SSD_weighting_potential_$(i)", NamedTuple(sim.weighting_potentials[i]))
+                    LegendHDF5IO.writedata(h5f.data_store, "SSD_weighting_potential_$(i)", NamedTuple(sim.weighting_potentials[i]))
                 end
             end
             @info("-> Saved cached simulation to $h5fn")
@@ -71,7 +71,7 @@ function simulate_detector(det_meta::PropDict, env::Environment, simulator::SSDS
         # read from previously cached
         sim = construct_ssd_simulation(det_meta, env, simulator)
         @info("Reading SSD simulation from cached file $h5fn")
-        HDF5.h5open(h5fn, "r") do h5f
+        LegendHDF5IO.lh5open(h5fn, "r") do h5f
             sim.electric_potential = ElectricPotential(LegendHDF5IO.readdata(h5f, "SSD_electric_potential"))
             sim.point_types = PointTypes(LegendHDF5IO.readdata(h5f, "SSD_point_types"))
             sim.q_eff_fix = EffectiveChargeDensity(LegendHDF5IO.readdata(h5f, "SSD_q_eff_fix"))
