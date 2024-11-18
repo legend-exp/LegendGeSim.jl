@@ -29,60 +29,6 @@ end
 
 
 ####################################
-### FieldGen
-####################################
-
-"""
-    simulate_detector(det_meta, env, config_name, ps_simulator)
-    
-PropDict, Environment, AbstractString, Siggen -> SigGenSetup       
-
-Construct a fieldgen/siggen configuration file
-    according to geometry as given in LEGEND metadata <det_meta>
-    and environment settings given in <env>.
-Look up fieldgen generated electric field and weighting potential files
-    based on given <config_name>, and if not found, call fieldgen.
-"""
-function simulate_detector(det_meta::PropDict, env::Environment, simulator::SiggenSimulator;
-        overwrite::Bool = false)
-
-    # if no cached name given, force simulation from scratch (or else might read past "tmp" file)
-    if simulator.cached_name == ""
-        overwrite = true
-    end
-
-    # returns the name of the resulting siggen config file
-    # and the name of (already or to be) generated weighting potential file
-    # ToDo: don't create if already present already at this stage -> check in siggen_config() if name exists and just return name
-    siggen_config_name, fieldgen_wp_name = siggen_config(det_meta, env, simulator; overwrite)
-    fieldgen_wp_name = joinpath("cache", fieldgen_wp_name)
-
-    # if the WP file with such a name does not exist yet or want to overwrite it...
-    if !isfile(fieldgen_wp_name) || overwrite
-        imp_filename, offset =
-            if simulator.crystal_metadata_path != ""
-                # create impurity input on the fly
-                impurity_density_model(det_meta, simulator.crystal_metadata_path, simulator)
-            else
-                # user provided .dat file and corresponding offset
-                # (or if nothing is provided this will be "" and -1)
-                simulator.impurity_profile, simulator.offset_in_mm
-            end
-        #...call fieldgen -> will write the wp file
-        @info "_|~|_|~|_|~|_ Fieldgen simulation"
-        fieldgen(siggen_config_name; impurity_profile=imp_filename, offset_mm=offset)
-        @info "_|~|_|~|_|~|_ Fieldgen simulation complete"
-    else
-        #...do nothing, siggen will later read the files based on the generated conifg
-        @info "Cached simulation found. Reading cached fields from $fieldgen_wp_name"
-    end
-
-    # a SigGenSetup object
-    SigGenSetup(siggen_config_name)
-end
-
-
-####################################
 ### SSD
 ####################################
 

@@ -46,8 +46,6 @@ using LegendDataManagement
 using LegendDataTypes
 using LegendHDF5IO
 using LegendTextIO
-using MJDSigGen
-
 
 import LsqFit
 
@@ -65,7 +63,6 @@ include("environment.jl")
 include("pss.jl")
 include("impurity.jl")
 include("legend_detector_to_ssd.jl")
-include("legend_detector_to_siggen.jl")
 include("detector.jl")
 
 include("preamp.jl")
@@ -86,7 +83,6 @@ include("pet_to_raw.jl")
 
 include("waveform_utils.jl")
 include("temp_utils.jl")
-include("mjdsiggen_utils.jl")
 
 
 

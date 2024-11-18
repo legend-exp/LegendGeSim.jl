@@ -1,19 +1,10 @@
 module LegendGeSimExt
-#using MJDSigGen: SiggenSimulator
-#@info "Error here"
 using LegendGeSim
-#@info "Error"
 using PropDicts
-#@info "Error_prop"
 using LegendGeSim
-#@info "Error_Lgsim"
 using LegendGeSim: Environment
-#@info "le_env"
-#using MJDSigGen: SiggenSimulator
 using MJDSigGen
 using MJDSigGen: SigGenSetup
-#@info "Error_mjd"
-#using LegendGeSim: PSSimulator
 using LegendGeSim: SiggenSimulator
 using ArgCheck
 using ArraysOfArrays
@@ -54,20 +45,10 @@ import LsqFit
 
 using SolidStateDetectors: ConstructiveSolidGeometry as CSG
 
-#abstract type PSSimulator end
-
-
-#include("legend_detector_to_siggen.jl")
-#@info "Here_then"
-#include("mjdsiggen_utils.jl")
-#@info "Error_after_files"
-
-
 
 ####################################
 ### FieldGen
 ####################################
-@info "27"
 """
     SiggeSimulator(sim_conf::PropDict)
 
@@ -166,7 +147,6 @@ else
     #...do nothing, siggen will later read the files based on the generated conifg
     @info "Cached simulation found. Reading cached fields from $fieldgen_wp_name"
 end
-@info  "73"
 # a SigGenSetup object
 SigGenSetup(siggen_config_name)
 end
@@ -215,7 +195,6 @@ function LegendGeSim.impurity_density_model(meta::PropDict, crystal_metadata::Pr
     imp_filename, L - det_z0
 end
 
-@info "123"
 """
 Simulation method: siggen
 """
@@ -224,9 +203,7 @@ Simulation method: siggen
 
 function LegendGeSim.simulate_waveforms(stp_events::Table, detector::SigGenSetup, ::SiggenSimulator)
     T = Float32 # This should be somehow defined and be passed properly
-    println("127")
     @info("~.~.~ Siggen")
-    @info "129"
 
     nevents = length(stp_events)
     wf_array = Array{RDWaveform}(undef, nevents)
@@ -272,7 +249,6 @@ function LegendGeSim.simulate_waveforms(stp_events::Table, detector::SigGenSetup
 end
 
 
-#@info "252"
 
 """
     simulate_wf(pos, edep, siggen_setup)
@@ -310,7 +286,6 @@ function LegendGeSim.capacitance_matrix(sim::SigGenSetup)
     [c -c; -c c]
 end
 #export capacitance_matrix
-#@info "288"
 #legend_detector_to_siggen
 function siggen_config(meta::PropDict, env::Environment, simulator::SiggenSimulator; overwrite::Bool=false)
     # ----------------------------------------------------------------------------
@@ -439,7 +414,6 @@ function siggen_config(meta::PropDict, env::Environment, simulator::SiggenSimula
     # (currently kinda redundant but that's because we have no idea what's gonna happen later)
     sig_conf_name, fieldgen_names["wp_name"]
 end
-#@info "417"
 
 """
     meta2siggen(meta, env)
@@ -559,7 +533,6 @@ function meta2siggen(meta::PropDict, env::Environment)
 end
 
 #mjdsiggen_utils.jl
-#@info "537"
 
 function SolidStateDetectors.ElectricPotential(sim::SigGenSetup)
     E_pot, W_pot, E_abs, E_r, E_z = LegendGeSim.MJDSigGen.read_fields(sim);
