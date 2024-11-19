@@ -58,7 +58,7 @@ Construct SiggeSimulator instance based on simulation
     configuration given in <sim_conf>.
 """
 
-function SiggenSimulator(simulation_settings::PropDict)
+function LegendGeSim.SiggenSimulator(simulation_settings::PropDict)
     # set defaults
     inputs = Dict{String, Any}()
     for k in (:fieldgen_config, :drift_vel, :impurity_profile, :crystal_metadata_path)
@@ -79,7 +79,7 @@ function SiggenSimulator(simulation_settings::PropDict)
         throw(ArgumentError("You provided both an .spe/.dat file and path to crystal metadata! Provide one or the other as impurity input for siggen."))
     # warn if none are provided - will use constant impurity density
     elseif inputs["crystal_metadata_path"] == "" && inputs["impurity_profile"] == ""
-        @warn "No impurity inputs given. Simulation with dummy constant impurity density of -0.9*10e10 e/cm3. See examples/fieldgen_settings.txt for more details."
+        @warn "No impurity inputs given. Simulation with dummy constant impurity density of -0.9e10 e/cm3. See examples/fieldgen_settings.txt for more details."
     # if we get here, one is provided
     else
         impinput = inputs["impurity_profile"] * inputs["crystal_metadata_path"]
@@ -251,7 +251,7 @@ end
 
 
 """
-    simulate_wf(pos, edep, siggen_setup)
+    simulate_signal(pos, edep, siggen_setup)
 
 AbstractVector, AbstractVector, SigGenSetup -> Vector{Float32}
 
