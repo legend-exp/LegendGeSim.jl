@@ -89,8 +89,9 @@ plot(
 
 # ## Simulation with `Fieldgen`
 
-# The same simulation settings can be used for siggen, changing only the `"method"` settings to `"siggen"` (or `"fieldgen"`)
+# The same simulation settings can be used for siggen, changing only the `"method"` settings to `"siggen"` (or `"fieldgen"`) and loading the `MJDSigGen` package.
 
+using MJDSigGen
 simulation_settings_siggen = deepcopy(simulation_settings)
 simulation_settings_siggen["method"] = "fieldgen"
 
