@@ -1,49 +1,19 @@
 module LegendGeSimExt
+
 using LegendGeSim
+
+using ArraysOfArrays: VectorOfSimilarVectors
+using DelimitedFiles: writedlm
+using IntervalSets: ClosedInterval, (..)
 using PropDicts
-using LegendGeSim
-using LegendGeSim: Environment
-using MJDSigGen
-using MJDSigGen: SigGenSetup
-using LegendGeSim: SiggenSimulator
-using ArgCheck
-using ArraysOfArrays
-using CurveFit
-using DelimitedFiles
-using Distributions
-using DSP 
-using ElasticArrays
-#using HDF5
-using IntervalSets
-using JSON
-using LegendDataManagement
-using LegendDataTypes
-using LegendHDF5IO
-using LegendTextIO
-using LinearAlgebra
-using Parameters
-using Polynomials
-using PropDicts
-using RadiationDetectorDSP 
-using RadiationDetectorSignals
-using RadiationSpectra
-using Random
-using Random123
-using RecipesBase
-using Requires
-using SignalAnalysis
-using SolidStateDetectors
-using StaticArrays
-using Statistics
-using StatsBase
-using StructArrays
-using Tables
-using TypedTables
+using RadiationDetectorSignals: RDWaveform, ArrayOfRDWaveforms
+using TypedTables: Table
 using Unitful
 
-import LsqFit
+import MJDSigGen
+import SolidStateDetectors
 
-using SolidStateDetectors: ConstructiveSolidGeometry as CSG
+
 
 
 ####################################
@@ -92,7 +62,7 @@ function LegendGeSim.SiggenSimulator(simulation_settings::PropDict)
     end
 
 
-    SiggenSimulator( 
+    LegendGeSim.SiggenSimulator( 
         inputs["fieldgen_config"],
         inputs["drift_vel"],
         inputs["impurity_profile"],
@@ -114,7 +84,7 @@ Look up fieldgen generated electric field and weighting potential files
     based on given <config_name>, and if not found, call fieldgen.
 """
 
-function LegendGeSim.simulate_detector(det_meta::PropDict, env::Environment, simulator::SiggenSimulator;
+function LegendGeSim.simulate_detector(det_meta::PropDict, env::LegendGeSim.Environment, simulator::LegendGeSim.SiggenSimulator;
     overwrite::Bool = false)
 
     # if no cached name given, force simulation from scratch (or else might read past "tmp" file)
@@ -141,23 +111,23 @@ function LegendGeSim.simulate_detector(det_meta::PropDict, env::Environment, sim
             end
         #...call fieldgen -> will write the wp file
         @info "_|~|_|~|_|~|_ Fieldgen simulation"
-        fieldgen(siggen_config_name; impurity_profile=imp_filename, offset_mm=offset)
+        MJDSigGen.fieldgen(siggen_config_name; impurity_profile=imp_filename, offset_mm=offset)
         @info "_|~|_|~|_|~|_ Fieldgen simulation complete"
     else
         #...do nothing, siggen will later read the files based on the generated conifg
         @info "Cached simulation found. Reading cached fields from $fieldgen_wp_name"
     end
     # a SigGenSetup object
-    SigGenSetup(siggen_config_name)
+    MJDSigGen.SigGenSetup(siggen_config_name)
 end
 
 ## ---------- fieldgen
 
 """
 Convert fit parameters from crystal metadata units (1e9 e/cm^3 VS mm) into Siggen units (1e10 e/cm^3 VS mm)
-and create a .dat file (unformatted stream of Float32) to be later used when calling fieldgen().
+and create a .dat file (unformatted stream of Float32) to be later used when calling `MJDSigGen.fieldgen()`.
 """
-function LegendGeSim.impurity_density_model(meta::PropDict, crystal_metadata::PropDict, fit_param::Vector{Float64}, ::SiggenSimulator)   
+function LegendGeSim.impurity_density_model(meta::PropDict, crystal_metadata::PropDict, fit_param::Vector{Float64}, ::LegendGeSim.SiggenSimulator)   
 
     a,b,c,tau = fit_param 
 
@@ -201,7 +171,7 @@ Simulation method: siggen
 
 
 
-function LegendGeSim.simulate_waveforms(stp_events::Table, detector::SigGenSetup, ::SiggenSimulator)
+function LegendGeSim.simulate_waveforms(stp_events::Table, detector::MJDSigGen.SigGenSetup, ::LegendGeSim.SiggenSimulator)
     T = Float32 # This should be somehow defined and be passed properly
     @info("~.~.~ Siggen")
 
@@ -259,7 +229,7 @@ Simulate a signal from energy depositions <edep> with corresponding positions <p
     based on a given <siggen_setup>    
 """
 
-function simulate_signal(pos::AbstractVector, edep::AbstractVector, siggen_setup::SigGenSetup)
+function simulate_signal(pos::AbstractVector, edep::AbstractVector, siggen_setup::MJDSigGen.SigGenSetup)
     # this is not so nice, think about it
     signal = zeros(Float32, siggen_setup.ntsteps_out)
 
@@ -270,24 +240,25 @@ function simulate_signal(pos::AbstractVector, edep::AbstractVector, siggen_setup
     for i in 1:length(pos)
         # pos_rounded = round.(ustrip.(pos[i]), digits=ndig) # strip of units and round to siggen precision
         # in SSD the output is always in eV -> convert to eV
-        signal = signal .+ MJDSigGen.get_signal!(siggen_setup, Tuple(ustrip.(pos[i]))) * ustrip(uconvert(u"eV", edep[i]))
-        # signal = signal .+ MJDSigGen.get_signal!(siggen_setup, Tuple(pos_rounded)) * ustrip(uconvert(u"eV", edep[i]))
+        signal = signal .+ MJDSigGen.get_signal!(siggen_setup, Tuple(ustrip.(pos[i]))) * ustrip(u"eV", edep[i])
+        # signal = signal .+ MJDSigGen.get_signal!(siggen_setup, Tuple(pos_rounded)) * ustrip(u"eV", edep[i])
 
         # somehow this doesn't work
-        # MJDSigGen.get_signal!(signal, siggen_setup, Tuple(ustrip.(pos[i]))) * ustrip(uconvert(u"eV", edep[i]))
+        # MJDSigGen.get_signal!(signal, siggen_setup, Tuple(ustrip.(pos[i]))) * ustrip(u"eV", edep[i])
     end
 
     signal
 end
 
 #Calculating capacitance matrix using Siggen 
-function LegendGeSim.capacitance_matrix(sim::SigGenSetup) 
+function LegendGeSim.capacitance_matrix(sim::MJDSigGen.SigGenSetup) 
     c = sim.capacitance * u"pF"
     [c -c; -c c]
 end
-#export capacitance_matrix
+
+
 #legend_detector_to_siggen
-function siggen_config(meta::PropDict, env::Environment, simulator::SiggenSimulator; overwrite::Bool=false)
+function siggen_config(meta::PropDict, env::LegendGeSim.Environment, simulator::LegendGeSim.SiggenSimulator; overwrite::Bool=false)
     # ----------------------------------------------------------------------------
     # set up & check if already present in cache
     # ----------------------------------------------------------------------------
@@ -424,7 +395,7 @@ Construct siggen type config in a form of Dict based on
     geometry as given in LEGEND metadata <meta>
     and environment settings given in <env>.
 """
-function meta2siggen(meta::PropDict, env::Environment)
+function meta2siggen(meta::PropDict, env::LegendGeSim.Environment)
     # !!!! this is copy paste from legend_detector_to_SSD !!
     # ToDo: rewrite to avoid copy-paste 
 
@@ -487,10 +458,10 @@ function meta2siggen(meta::PropDict, env::Environment)
         # few that have proper non-45 taper - not possible. ToDo: put some warning
         "bottom_taper_length" => meta.geometry.taper.bottom.angle_in_deg == 45 ? meta.geometry.taper.bottom.height_in_mm : 0,
         # current metadata format: always angle
-        "bottom_taper_width" => meta.geometry.taper.bottom.angle_in_deg == 45 ? meta.geometry.taper.bottom.height_in_mm * tan(deg2rad(meta.geometry.taper.bottom.angle_in_deg)) : 0,
+        "bottom_taper_width" => meta.geometry.taper.bottom.angle_in_deg == 45 ? meta.geometry.taper.bottom.height_in_mm * tand(meta.geometry.taper.bottom.angle_in_deg) : 0,
         # z-length of outside taper for inverted-coax style -> Mariia: you mean top taper here?
         "outer_taper_length" => meta.geometry.taper.top.height_in_mm,
-        "outer_taper_width" => meta.geometry.taper.top.height_in_mm * tan(deg2rad(meta.geometry.taper.top.angle_in_deg)),
+        "outer_taper_width" => meta.geometry.taper.top.height_in_mm * tand(meta.geometry.taper.top.angle_in_deg),
         # taper angle in degrees, for inner or outer taper -> how? why are they the same? how about borehole? not using this parameter...
         # "taper_angle" => meta.geometry.taper.top.outer.angle_in_deg,
         # "taper_angle" => meta.geometry.taper.top.inner.angle_in_deg,
@@ -526,7 +497,7 @@ function meta2siggen(meta::PropDict, env::Environment)
         siggen_geometry["hole_radius"] = meta.geometry.borehole.radius_in_mm
         # z-length of inside (hole) taper for inverted-coax style
         siggen_geometry["inner_taper_length"] = meta.geometry.taper.borehole.height_in_mm
-        siggen_geometry["inner_taper_width"] = meta.geometry.taper.borehole.height_in_mm * tan(deg2rad(meta.geometry.taper.borehole.angle_in_deg))
+        siggen_geometry["inner_taper_width"] = meta.geometry.taper.borehole.height_in_mm * tand(meta.geometry.taper.borehole.angle_in_deg)
     end
 
     siggen_geometry
@@ -534,7 +505,7 @@ end
 
 #mjdsiggen_utils.jl
 
-function SolidStateDetectors.ElectricPotential(sim::SigGenSetup)
+function SolidStateDetectors.ElectricPotential(sim::MJDSigGen.SigGenSetup)
     E_pot, W_pot, E_abs, E_r, E_z = MJDSigGen.read_fields(sim);
     T = eltype(E_pot)
     r_axis = (0:(sim.rlen - 1)) * sim.xtal_grid
@@ -543,13 +514,13 @@ function SolidStateDetectors.ElectricPotential(sim::SigGenSetup)
     ax2 = SolidStateDetectors.DiscreteAxis{T, :reflecting, :reflecting, ClosedInterval{T}}(zero(T)..zero(T), zeros(T, 1))
     ax3 = SolidStateDetectors.DiscreteAxis{T, :reflecting, :reflecting, ClosedInterval{T}}(z_axis[1]..z_axis[end], z_axis)
     axs = (ax1, ax2, ax3)
-    grid = Grid{T, 3, SolidStateDetectors.Cylindrical, typeof(axs)}( axs )
+    grid = SolidStateDetectors.Grid{T, 3, SolidStateDetectors.Cylindrical, typeof(axs)}( axs )
     data = Array{T, 3}(undef, length(ax1), length(ax2), length(ax3));
     data[:] = E_pot'[:];
-    ElectricPotential(data, grid)
+    SolidStateDetectors.ElectricPotential(data, grid)
 end
 
-function SolidStateDetectors.WeightingPotential(sim::SigGenSetup)
+function SolidStateDetectors.WeightingPotential(sim::MJDSigGen.SigGenSetup)
     E_pot, W_pot, E_abs, E_r, E_z = MJDSigGen.read_fields(sim);
     T = eltype(W_pot)
     r_axis = (0:(sim.rlen - 1)) * sim.xtal_grid
@@ -558,10 +529,10 @@ function SolidStateDetectors.WeightingPotential(sim::SigGenSetup)
     ax2 = SolidStateDetectors.DiscreteAxis{T, :reflecting, :reflecting, ClosedInterval{T}}(zero(T)..zero(T), zeros(T, 1))
     ax3 = SolidStateDetectors.DiscreteAxis{T, :reflecting, :reflecting, ClosedInterval{T}}(z_axis[1]..z_axis[end], z_axis)
     axs = (ax1, ax2, ax3)
-    grid = Grid{T, 3, SolidStateDetectors.Cylindrical, typeof(axs)}( axs )
+    grid = SolidStateDetectors.Grid{T, 3, SolidStateDetectors.Cylindrical, typeof(axs)}( axs )
     data = Array{T, 3}(undef, length(ax1), length(ax2), length(ax3));
     data[:] = W_pot'[:];
-    WeightingPotential(data, grid)
+    SolidStateDetectors.WeightingPotential(data, grid)
 end
 
 end #module LegendGeSimExt
