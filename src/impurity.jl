@@ -142,52 +142,6 @@ function impurity_density_model(meta::PropDict, crystal_metadata::PropDict, fit_
 end
 
 
-## ---------- fieldgen
-
-
-"""
-Convert fit parameters from crystal metadata units (1e9 e/cm^3 VS mm) into Siggen units (1e10 e/cm^3 VS mm)
-and create a .dat file (unformatted stream of Float32) to be later used when calling fieldgen().
-"""
-function impurity_density_model(meta::PropDict, crystal_metadata::PropDict, fit_param::Vector{Float64}, ::SiggenSimulator)   
-
-    a,b,c,tau = fit_param 
-
-    T = Float32
-    dist = T.(crystal_metadata.impurity_measurements.distance_from_seed_end_mm)
-    # sometimes might not have measurements at seed end? but last measurement can be taken as crystal length
-    L = dist[end] #mm
-
-    # points in crystal axis from 0 to L with step of 1 mm
-    # always put 200 points to make all .dat files same length
-    imp = zeros(Float32, 200) # impurities in 10^10 cm^-3
-
-    # length is L+1 including both ends
-    Npoints = Int(ceil(L))+1 # step of 1 mm
-    zpoints = LinRange(0, L, Npoints) 
-    for i in 1:Npoints
-        # divide by 10 to convert from 1e9 e/cm^3 to 1e10 e/cm^3
-        # invert the order of the values because with siggen z=0 is tail (dirtiest part)
-        # i.e. z = L in our system (Mirion measurements)
-        imp[Npoints-i+1] = -(a + b * zpoints[i] + c * exp((zpoints[i] - L)/tau)) / 10.
-    end
-
-    crystal_name = first(meta.name, length(meta.name)-1)
-    imp_filename = joinpath("cache", crystal_name*".dat")
-	open(imp_filename, "w") do io
-		write(io, imp)
-	end    
-    @info "Impurity profile for siggen saved in $(imp_filename)"
-
-    # return name of impurity profile file and offset
-    # offset from seed end
-    det_z0 = crystal_metadata.slices[Symbol(meta.production.slice)].detector_offset_in_mm    
-
-    # siggen offset is from tail i.e. at L offset = 0
-    imp_filename, L - det_z0
-end
-
-
 #### OUTDATED, providing linear impurity profile with quadratic correction inside of siggen config
 # """
 #     fieldgen_impurity(meta)

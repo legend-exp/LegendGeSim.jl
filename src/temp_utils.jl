@@ -123,9 +123,4 @@ function trigger_threshold(trigger::Trigger, preamp::GenericPreAmp, noise_model:
     trigger.threshold_keV == 0u"keV" ? std(noise_model.baseline_catalog.waveform[1].signal) * 3 : uconvert(u"eV", trigger.threshold_keV) / germanium_ionization_energy * preamp.gain
 end
 
-
 capacitance_matrix(sim::Simulation) = calculate_capacitance_matrix(sim)
-function capacitance_matrix(sim::SigGenSetup) 
-    c = sim.capacitance * u"pF"
-    [c -c; -c c]
-end

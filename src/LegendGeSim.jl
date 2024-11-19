@@ -9,6 +9,7 @@ Template for Julia packages.
 """
 module LegendGeSim
 
+# Registered packages
 using ArgCheck
 using ArraysOfArrays
 using CurveFit
@@ -18,12 +19,7 @@ using DSP
 using ElasticArrays
 using IntervalSets
 using JSON
-using LegendDataManagement
-using LegendDataTypes
-using LegendHDF5IO
-using LegendTextIO
 using LinearAlgebra
-using MJDSigGen
 using Parameters
 using Polynomials
 using PropDicts
@@ -44,6 +40,12 @@ using Tables
 using TypedTables
 using Unitful
 
+# Unregistered packages
+using LegendDataManagement
+using LegendDataTypes
+using LegendHDF5IO
+using LegendTextIO
+
 import LsqFit
 
 using SolidStateDetectors: ConstructiveSolidGeometry as CSG
@@ -60,7 +62,6 @@ include("environment.jl")
 include("pss.jl")
 include("impurity.jl")
 include("legend_detector_to_ssd.jl")
-include("legend_detector_to_siggen.jl")
 include("detector.jl")
 
 include("preamp.jl")
@@ -81,7 +82,6 @@ include("pet_to_raw.jl")
 
 include("waveform_utils.jl")
 include("temp_utils.jl")
-include("mjdsiggen_utils.jl")
 
 
 

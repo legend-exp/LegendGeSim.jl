@@ -3,11 +3,12 @@
 using Test
 
 using LegendGeSim
+using MJDSigGen
 using LegendHDF5IO
 using LegendTestData
 using Unitful
 
-
+isdir("cache") && rm("cache", force=true, recursive=true)
 @testset "LegendGeSim: Simulate capacitances of test detectors" begin
     # note: this part also tests dict settings input as opposed to json file
     # as well as impurity input
@@ -147,5 +148,6 @@ end
     end
 
     # Delete the cached files
-    rm("cache", force=true, recursive=true)
+    #rm("cache", force=true, recursive=true)
+    
 end

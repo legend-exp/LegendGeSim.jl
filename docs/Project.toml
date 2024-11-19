@@ -3,8 +3,10 @@ Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
 LegendHDF5IO = "c9265ca6-b027-5446-b1a4-febfa8dd10b0"
 LegendTestData = "33d6da08-6349-5f7c-b5a4-6ff4d8795aaf"
 Literate = "98b081ad-f1c9-55d3-8b20-4c87d4299306"
+MJDSigGen = "0b925020-e659-485c-98dd-189633cb4be4"
 Markdown = "d6f4376e-aef5-505a-96c1-9c027394607a"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
 
 [compat]
 Documenter = "1"
+MJDSigGen = "0.2"
