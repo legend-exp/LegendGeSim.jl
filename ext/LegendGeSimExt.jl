@@ -13,7 +13,7 @@ using DelimitedFiles
 using Distributions
 using DSP 
 using ElasticArrays
-using HDF5
+#using HDF5
 using IntervalSets
 using JSON
 using LegendDataManagement
@@ -50,7 +50,7 @@ using SolidStateDetectors: ConstructiveSolidGeometry as CSG
 ### FieldGen
 ####################################
 """
-    SiggeSimulator(sim_conf::PropDict)
+    SiggenSimulator(sim_conf::PropDict)
 
     LegendGeSimConfig -> SiggenSimulator
 
@@ -79,7 +79,7 @@ function SiggenSimulator(simulation_settings::PropDict)
         throw(ArgumentError("You provided both an .spe/.dat file and path to crystal metadata! Provide one or the other as impurity input for siggen."))
     # warn if none are provided - will use constant impurity density
     elseif inputs["crystal_metadata_path"] == "" && inputs["impurity_profile"] == ""
-        @warn "No impurity inputs given. Simulation with dummy constant impurity density."
+        @warn "No impurity inputs given. Simulation with dummy constant impurity density of -0.9*10e10 e/cm3. See examples/fieldgen_settings.txt for more details."
     # if we get here, one is provided
     else
         impinput = inputs["impurity_profile"] * inputs["crystal_metadata_path"]
@@ -117,38 +117,38 @@ Look up fieldgen generated electric field and weighting potential files
 function LegendGeSim.simulate_detector(det_meta::PropDict, env::Environment, simulator::SiggenSimulator;
     overwrite::Bool = false)
 
-# if no cached name given, force simulation from scratch (or else might read past "tmp" file)
-if simulator.cached_name == ""
-    overwrite = true
-end
+    # if no cached name given, force simulation from scratch (or else might read past "tmp" file)
+    if simulator.cached_name == ""
+        overwrite = true
+    end
 
-# returns the name of the resulting siggen config file
-# and the name of (already or to be) generated weighting potential file
-# ToDo: don't create if already present already at this stage -> check in siggen_config() if name exists and just return name
-siggen_config_name, fieldgen_wp_name = siggen_config(det_meta, env, simulator; overwrite)
-fieldgen_wp_name = joinpath("cache", fieldgen_wp_name)
+    # returns the name of the resulting siggen config file
+    # and the name of (already or to be) generated weighting potential file
+    # ToDo: don't create if already present already at this stage -> check in siggen_config() if name exists and just return name
+    siggen_config_name, fieldgen_wp_name = siggen_config(det_meta, env, simulator; overwrite)
+    fieldgen_wp_name = joinpath("cache", fieldgen_wp_name)
 
-# if the WP file with such a name does not exist yet or want to overwrite it...
-if !isfile(fieldgen_wp_name) || overwrite
-    imp_filename, offset =
-        if simulator.crystal_metadata_path != ""
-            # create impurity input on the fly
-            LegendGeSim.impurity_density_model(det_meta, simulator.crystal_metadata_path, simulator)
-        else
-            # user provided .dat file and corresponding offset
-            # (or if nothing is provided this will be "" and -1)
-            simulator.impurity_profile, simulator.offset_in_mm
-        end
-    #...call fieldgen -> will write the wp file
-    @info "_|~|_|~|_|~|_ Fieldgen simulation"
-    fieldgen(siggen_config_name; impurity_profile=imp_filename, offset_mm=offset)
-    @info "_|~|_|~|_|~|_ Fieldgen simulation complete"
-else
-    #...do nothing, siggen will later read the files based on the generated conifg
-    @info "Cached simulation found. Reading cached fields from $fieldgen_wp_name"
-end
-# a SigGenSetup object
-SigGenSetup(siggen_config_name)
+    # if the WP file with such a name does not exist yet or want to overwrite it...
+    if !isfile(fieldgen_wp_name) || overwrite
+        imp_filename, offset =
+            if simulator.crystal_metadata_path != ""
+                # create impurity input on the fly
+                LegendGeSim.impurity_density_model(det_meta, simulator.crystal_metadata_path, simulator)
+            else
+                # user provided .dat file and corresponding offset
+                # (or if nothing is provided this will be "" and -1)
+                simulator.impurity_profile, simulator.offset_in_mm
+            end
+        #...call fieldgen -> will write the wp file
+        @info "_|~|_|~|_|~|_ Fieldgen simulation"
+        fieldgen(siggen_config_name; impurity_profile=imp_filename, offset_mm=offset)
+        @info "_|~|_|~|_|~|_ Fieldgen simulation complete"
+    else
+        #...do nothing, siggen will later read the files based on the generated conifg
+        @info "Cached simulation found. Reading cached fields from $fieldgen_wp_name"
+    end
+    # a SigGenSetup object
+    SigGenSetup(siggen_config_name)
 end
 
 ## ---------- fieldgen
@@ -535,7 +535,7 @@ end
 #mjdsiggen_utils.jl
 
 function SolidStateDetectors.ElectricPotential(sim::SigGenSetup)
-    E_pot, W_pot, E_abs, E_r, E_z = LegendGeSim.MJDSigGen.read_fields(sim);
+    E_pot, W_pot, E_abs, E_r, E_z = MJDSigGen.read_fields(sim);
     T = eltype(E_pot)
     r_axis = (0:(sim.rlen - 1)) * sim.xtal_grid
     z_axis = (0:(sim.zlen - 1)) * sim.xtal_grid
@@ -550,7 +550,7 @@ function SolidStateDetectors.ElectricPotential(sim::SigGenSetup)
 end
 
 function SolidStateDetectors.WeightingPotential(sim::SigGenSetup)
-    E_pot, W_pot, E_abs, E_r, E_z = LegendGeSim.MJDSigGen.read_fields(sim);
+    E_pot, W_pot, E_abs, E_r, E_z = MJDSigGen.read_fields(sim);
     T = eltype(W_pot)
     r_axis = (0:(sim.rlen - 1)) * sim.xtal_grid
     z_axis = (0:(sim.zlen - 1)) * sim.xtal_grid

@@ -143,7 +143,6 @@ Constructs and returns a table with resulting pulses and a pss truth table
     (may be abolished in the future as unnecessary)    
 """
 function simulate_waveforms(stp_events::Table, detector::SolidStateDetectors.Simulation, simulator::SSDSimulator)
-    @info "here"
     @info("~.~.~ SolidStateDetectors")
     contact_charge_signals = SolidStateDetectors.simulate_waveforms(
             stp_events,
