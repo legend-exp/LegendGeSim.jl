@@ -125,14 +125,13 @@ function simulate_noise(wf::RDWaveform, preamp::PreAmp)
     # -> also will double count if user puts NoiseNone or NoiseFromData but forgets a non-zero sigma
 
     # wf values are in eV (without u"eV" units attached), noise sigma is in keV
-    noise_σ = preamp.noise_σ_keV == 0u"keV" ? preamp.noise_σ_ADC / preamp.gain : uconvert(u"eV", preamp.noise_σ_keV)
-    noise_σ = ustrip(u"eV", noise_σ)
+    noise_σ::T = T(ustrip(u"eV", iszero(preamp.noise_σ_keV) ? preamp.noise_σ_ADC / preamp.gain : uconvert(u"eV", preamp.noise_σ_keV)))
     
     # --- white Gaus
     # gaussian_noise_dist = Normal(T(0), T(noise_σ))
     # RDWaveform(wf.time, wf.signal .+ rand!(gaussian_noise_dist, similar(wf.signal)))
     # --- pink Gaus
-    gaus_pink = PinkGaussian(length(wf.signal), T(noise_σ))
+    gaus_pink = SignalAnalysis.PinkGaussian(length(wf.signal), noise_σ)
     RDWaveform(wf.time, wf.signal .+ rand(gaus_pink))
 end
 
