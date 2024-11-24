@@ -30,7 +30,6 @@ using Random
 using Random123
 using RecipesBase
 using Requires
-using SignalAnalysis
 using SolidStateDetectors
 using StaticArrays
 using Statistics
@@ -47,6 +46,7 @@ using LegendHDF5IO
 using LegendTextIO
 
 import LsqFit
+import SignalAnalysis
 
 using SolidStateDetectors: ConstructiveSolidGeometry as CSG
 
