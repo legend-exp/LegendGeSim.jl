@@ -91,10 +91,10 @@ function SSDSimulator(simulation_settings::PropDict)
     time_step = haskey(simulation_settings, :time_step) ? simulation_settings.time_step*u"ns" : 1u"ns"
     diff = haskey(simulation_settings, :diffusion) ? simulation_settings.diffusion : false
     selfrep = haskey(simulation_settings, :self_repulsion) ? simulation_settings.self_repulsion : false
-    num_carriers = haskey(simulation_settings, :number_of_carriers) ? simulation_settings.number_of_carriers : 1
+    number_of_carriers = haskey(simulation_settings, :number_of_carriers) ? simulation_settings.number_of_carriers : 1
 
     SSDSimulator(coord, comp, simulation_settings.crystal_metadata_path, simulation_settings.cached_name,
-        time_step, diff, selfrep, num_carriers)
+        time_step, diff, selfrep, number_of_carriers)
 end
 
 

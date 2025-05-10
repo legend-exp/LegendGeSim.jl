@@ -35,7 +35,7 @@ simulation_settings = Dict(
     "time_step" => 2, #ns
     "diffusion" => true,
     "self-repulsion" => true,
-    "num_carriers" => 10
+    "number_of_carriers" => 10
 )
 
 daq_settings = Dict(
