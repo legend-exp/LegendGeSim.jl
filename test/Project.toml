@@ -7,5 +7,5 @@ Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
 MJDSigGen= "0b925020-e659-485c-98dd-189633cb4be4"
 
 [compat]
-LegendTestData = "0.2.8"
+LegendTestData = "0.2.10"
 MJDSigGen = "0.2"

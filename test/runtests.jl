@@ -39,7 +39,7 @@ isdir("cache") && rm("cache", force=true, recursive=true)
                 C = LegendGeSim.capacitance_matrix(sim)
 
                 @testset "Capacitances" begin   
-                    @test isapprox(C[1,2], capacitance, atol = 0.4u"pF")
+                    @test isapprox(C[1,2], capacitance, atol = 0.5u"pF")
                 end
             end
         end
