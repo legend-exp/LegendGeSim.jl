@@ -48,7 +48,7 @@ LegendGeSimExt = "MJDSigGen"
 [compat]
 ArgCheck = "1, 2"
 ArraysOfArrays = "0.5, 0.6"
-CurveFit = "0.3, 0.5, 0.6"
+CurveFit = "0.3, 0.5, 0.6, 1"
 DSP = "0.7, 0.8"
 DelimitedFiles = "1"
 Distributions = "0.23, 0.24, 0.25"
