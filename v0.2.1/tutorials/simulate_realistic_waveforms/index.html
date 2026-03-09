@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Simulate Realistic Waveforms · LegendGeSim</title><meta name="title" content="Simulate Realistic Waveforms · LegendGeSim"/><meta property="og:title" content="Simulate Realistic Waveforms · LegendGeSim"/><meta property="twitter:title" content="Simulate Realistic Waveforms · LegendGeSim"/><meta name="description" content="Documentation for LegendGeSim."/><meta property="og:description" content="Documentation for LegendGeSim."/><meta property="twitter:description" content="Documentation for LegendGeSim."/><meta property="og:url" content="https://legend-exp.github.io/LegendGeSim.jl/stable/tutorials/simulate_realistic_waveforms/"/><meta property="twitter:url" content="https://legend-exp.github.io/LegendGeSim.jl/stable/tutorials/simulate_realistic_waveforms/"/><link rel="canonical" href="https://legend-exp.github.io/LegendGeSim.jl/stable/tutorials/simulate_realistic_waveforms/"/><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../search_index.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../../">LegendGeSim</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../../">Home</a></li><li><span class="tocitem">Manual</span><ul><li><a class="tocitem" href="../../man/LegendGeSim/">The LEGEND Germanium Simulation Chain</a></li><li><a class="tocitem" href="../../man/field_simulation/">Field Simulation</a></li><li><a class="tocitem" href="../../man/ideal_pulse_simulation/">Ideal Pulse Simulation</a></li><li><a class="tocitem" href="../../man/realistic_waveform_simulation/">Realistic Waveform Simulation</a></li></ul></li><li><span class="tocitem">Tutorials</span><ul><li><a class="tocitem" href="../detector_geometry/">Detector Geometry</a></li><li><a class="tocitem" href="../simulate_fields/">Simulate Fields</a></li><li><a class="tocitem" href="../simulate_ideal_pulses/">Simulate Ideal Pulses</a></li><li class="is-active"><a class="tocitem" href>Simulate Realistic Waveforms</a><ul class="internal"><li><a class="tocitem" href="#Get-inputs-from-legend-test-data"><span>Get inputs from <code>legend-test-data</code></span></a></li><li><a class="tocitem" href="#Settings"><span>Settings</span></a></li><li><a class="tocitem" href="#Simulate-from-scratch-(pet-raw)"><span>Simulate from scratch (<code>pet</code> -&gt; <code>raw</code>)</span></a></li><li><a class="tocitem" href="#Simulate-from-pss-table-in-code"><span>Simulate from <code>pss</code> table in code</span></a></li><li><a class="tocitem" href="#Simulate-from-pre-saved-pss-hdf5-file"><span>Simulate from pre-saved <code>pss</code> hdf5 file</span></a></li></ul></li></ul></li><li><a class="tocitem" href="../../api/">API</a></li><li><a class="tocitem" href="../../LICENSE/">LICENSE</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Tutorials</a></li><li class="is-active"><a href>Simulate Realistic Waveforms</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Simulate Realistic Waveforms</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/legend-exp/LegendGeSim.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/legend-exp/LegendGeSim.jl/blob/main/docs/src/tutorials/simulate_realistic_waveforms_lit.jl" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Simulate-realistic-waveforms"><a class="docs-heading-anchor" href="#Simulate-realistic-waveforms">Simulate realistic waveforms</a><a id="Simulate-realistic-waveforms-1"></a><a class="docs-heading-anchor-permalink" href="#Simulate-realistic-waveforms" title="Permalink"></a></h1><p>You can also download this tutorial as a <a href="../simulate_realistic_waveforms.ipynb">Jupyter notebook</a> and a plain <a href="../simulate_realistic_waveforms.jl">Julia source file</a>.</p><p>Here we will use an example <code>pet</code> file <code>csv</code> format from <code>LegendTestData</code> corresponding to the Public Inverted Coax.</p><pre><code class="language-julia hljs">using LegendGeSim
+using Plots</code></pre><h2 id="Get-inputs-from-legend-test-data"><a class="docs-heading-anchor" href="#Get-inputs-from-legend-test-data">Get inputs from <code>legend-test-data</code></a><a id="Get-inputs-from-legend-test-data-1"></a><a class="docs-heading-anchor-permalink" href="#Get-inputs-from-legend-test-data" title="Permalink"></a></h2><pre><code class="language-julia hljs">using LegendTestData</code></pre><h3 id="Detector-metadata"><a class="docs-heading-anchor" href="#Detector-metadata">Detector metadata</a><a id="Detector-metadata-1"></a><a class="docs-heading-anchor-permalink" href="#Detector-metadata" title="Permalink"></a></h3><pre><code class="language-julia hljs">ldsim_path = joinpath(legend_test_data_path(), &quot;data&quot;, &quot;ldsim&quot;)
+
+detector_name = &quot;invcoax-metadata&quot;
+detector_metadata_filename = joinpath(ldsim_path, detector_name*&quot;.json&quot;);</code></pre><p>Alternatively, enter your own path to a real LEGEND detector JSON</p><pre><code class="language-julia hljs">detector_metadata_filename = &quot;path/to/V04545A.json&quot;</code></pre><h3 id="PET-input-file"><a class="docs-heading-anchor" href="#PET-input-file">PET input file</a><a id="PET-input-file-1"></a><a class="docs-heading-anchor-permalink" href="#PET-input-file" title="Permalink"></a></h3><pre><code class="language-julia hljs">path_to_pet_file = joinpath(ldsim_path, &quot;single-invcoax-th228-geant4.csv&quot;);</code></pre><h2 id="Settings"><a class="docs-heading-anchor" href="#Settings">Settings</a><a id="Settings-1"></a><a class="docs-heading-anchor-permalink" href="#Settings" title="Permalink"></a></h2><p>See manual on <a href="../../man/field_simulation/#Field-Simulation">Field Simulation</a> and <a href="../../man/ideal_pulse_simulation/#Ideal-Pulse-Simulation">Ideal Pulse Simulation</a> for a detailed explanation of environment and simulation settings, as well as the noise model settings</p><pre><code class="language-julia hljs">environment_settings = Dict(
+    &quot;crystal_temperature_in_K&quot; =&gt; 77,
+    &quot;medium&quot; =&gt; &quot;vacuum&quot;,
+);</code></pre><p>simple settings for point charge simulation with dummy constant impurity</p><pre><code class="language-julia hljs">simulation_settings = Dict(
+    &quot;method&quot; =&gt; &quot;SSD&quot;,
+    &quot;cached_name&quot; =&gt; &quot;&quot;, # a non-empty string will cache the simulation results
+);</code></pre><pre><code class="language-julia hljs">daq_settings = Dict(
+    &quot;preamp&quot; =&gt; Dict(
+        &quot;type&quot; =&gt; &quot;generic&quot;,
+        &quot;t_decay_in_us&quot; =&gt; 43, # from V04545A HADES data
+        &quot;t_rise_in_ns&quot; =&gt; 100, # by eye
+        &quot;gain_ADC_eV&quot; =&gt; 0.0138, # by eye from V04545A HADES data FEP @ 36100 ADC
+        &quot;offset_in_ADC&quot; =&gt; 11900, # from V04545A HADES data mean() of baseline
+        &quot;noise_sigma_in_keV&quot; =&gt; 2 # by eye
+    ),
+    &quot;fadc&quot; =&gt; Dict(
+        &quot;type&quot; =&gt; &quot;generic&quot;,
+        &quot;sampling_interval&quot; =&gt; 16 # ns, from HADES data
+    ),
+    &quot;trigger&quot; =&gt; Dict(
+        &quot;type&quot; =&gt; &quot;trapezoidal&quot;,
+        &quot;window_lengths&quot; =&gt; [250,250,250],
+        &quot;threshold&quot; =&gt; 9 # keV
+    ),
+    &quot;daq&quot; =&gt; Dict(
+        &quot;type&quot; =&gt; &quot;generic&quot;,
+        &quot;nsamples&quot; =&gt; 3748, # from HADES data
+        &quot;baseline_length&quot; =&gt; 1770 # by eye from data
+    )
+);</code></pre><pre><code class="language-julia hljs">noise_model = Dict(
+    &quot;type&quot; =&gt; &quot;sim&quot;
+);</code></pre><h2 id="Simulate-from-scratch-(pet-raw)"><a class="docs-heading-anchor" href="#Simulate-from-scratch-(pet-raw)">Simulate from scratch (<code>pet</code> -&gt; <code>raw</code>)</a><a id="Simulate-from-scratch-(pet-raw)-1"></a><a class="docs-heading-anchor-permalink" href="#Simulate-from-scratch-(pet-raw)" title="Permalink"></a></h2><pre><code class="language-julia hljs">raw_table = LegendGeSim.simulate_raw(detector_metadata_filename, path_to_pet_file, environment_settings, simulation_settings, daq_settings, noise_model; n_waveforms=10)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Table with 11 columns and 20 rows:
+      baseline  channel  energy       ievt  numtraces  packet_id  ⋯
+    ┌──────────────────────────────────────────────────────────────
+ 1  │ 11919.6   1        467.045 keV  2     1.0        0.0        ⋯
+ 2  │ 11918.4   1        225.733 keV  7     1.0        0.0        ⋯
+ 3  │ 11919.1   1        83.3866 keV  12    1.0        0.0        ⋯
+ 4  │ 11917.8   1        484.558 keV  13    1.0        0.0        ⋯
+ 5  │ 11915.8   1        553.126 keV  17    1.0        0.0        ⋯
+ 6  │ 11913.8   1        226.513 keV  40    1.0        0.0        ⋯
+ 7  │ 11917.1   1        2480.3 keV   44    1.0        0.0        ⋯
+ 8  │ 11913.1   1        337.395 keV  55    1.0        0.0        ⋯
+ 9  │ 11922.0   1        90.6322 keV  62    1.0        0.0        ⋯
+ 10 │ 11918.7   1        226.565 keV  64    1.0        0.0        ⋯
+ 11 │ 11912.5   2        468.379 keV  2     1.0        0.0        ⋯
+ 12 │ 11917.0   2        226.98 keV   7     1.0        0.0        ⋯
+ 13 │ 11918.7   2        83.3909 keV  12    1.0        0.0        ⋯
+ 14 │ 11913.9   2        483.679 keV  13    1.0        0.0        ⋯
+ 15 │ 11918.8   2        553.175 keV  17    1.0        0.0        ⋯
+ 16 │ 11917.4   2        226.535 keV  40    1.0        0.0        ⋯
+ 17 │ 11917.0   2        2480.6 keV   44    1.0        0.0        ⋯
+ ⋮  │    ⋮         ⋮          ⋮        ⋮        ⋮          ⋮      ⋱</code></pre><pre><code class="language-julia hljs">plot(raw_table.waveform)</code></pre><img src="55a9e3d4.svg" alt="Example block output"/><p>The file contains double the amount of waveforms (20) compared to what we asked to simulate (<code>n_waveforms = 10</code>). That&#39;s because at the pulse simulation level, n+ contact pulses are kept as well. The first 10 entries are p+ contact waveforms.</p><pre><code class="language-julia hljs">length(raw_table)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">20</code></pre><pre><code class="language-julia hljs">plot(raw_table.waveform[1:10], legend=false, title=&quot;only p+ contact waveforms&quot;)</code></pre><img src="e18ca966.svg" alt="Example block output"/><p>You can save simulated waveforms in a file that can be used later</p><pre><code class="language-julia hljs">using LegendHDF5IO</code></pre><pre><code class="language-julia hljs">raw_name = &quot;cache/test_100wfs_raw.hdf5&quot;
+lh5open(raw_name, &quot;w&quot;) do f
+    LegendHDF5IO.writedata(f.data_store, &quot;raw&quot;, raw_table[1:10])
+end</code></pre><h2 id="Simulate-from-pss-table-in-code"><a class="docs-heading-anchor" href="#Simulate-from-pss-table-in-code">Simulate from <code>pss</code> table in code</a><a id="Simulate-from-pss-table-in-code-1"></a><a class="docs-heading-anchor-permalink" href="#Simulate-from-pss-table-in-code" title="Permalink"></a></h2><p>Rather that simulating from scratch pet-&gt;raw, you may also input an already ready pss table with ideal pulses, and simulate only the pss-&gt;raw step, i.e. the DAQ chain simulation</p><pre><code class="language-julia hljs">pss_table, pss_truth = LegendGeSim.simulate_pulses(detector_metadata_filename, path_to_pet_file, environment_settings, simulation_settings, noise_model; n_waveforms=10);</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi"><span class="sgr36"><span class="sgr1">[ Info: </span></span>---------------------- pet -&gt; stp (stepping info)
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>No impurity curve found for the detector Public Inverted Coax, using default constant value of 0
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ LegendDataManagementSolidStateDetectorsExt ~/.julia/packages/LegendDataManagement/EhfoH/ext/LegendDataManagementSolidStateDetectorsExt.jl:629</span>
+Processing file: /home/runner/.julia/artifacts/11b2a7ab47d6f84b449b8f16112d0f3489ec697d/legend-exp-legend-testdata-cd70a8d/data/ldsim/single-invcoax-th228-geant4.csv for detector Public Inverted Coax
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>...clustering
+1411 hits before clustering
+  0.001204 seconds (16.68 k allocations: 1.497 MiB)
+244 hits after clustering
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>...removing hits with no energy deposits
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>...removing events outside of the detector
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>Simulation method: SSD
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>No crystal metadata path given. Simulation with dummy constant impurity density.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ LegendGeSim ~/work/LegendGeSim.jl/LegendGeSim.jl/src/pss.jl:74</span>
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>---------------------- stp -&gt; pss (ideal pulses)
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>_||_||_||_ Simulate detector
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>Simulating with SSD from scratch for given settings
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>DL = 0mm
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>No impurity curve found for the detector Public Inverted Coax, using default constant value of 0
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ LegendDataManagementSolidStateDetectorsExt ~/.julia/packages/LegendDataManagement/EhfoH/ext/LegendDataManagementSolidStateDetectorsExt.jl:629</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>You did not provide operating voltage in environment settings -&gt; taking recommended voltage from metadata
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ LegendGeSim ~/work/LegendGeSim.jl/LegendGeSim.jl/src/legend_detector_to_ssd.jl:45</span>
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>Simulating at 3800.0V
+...electric potential
+...electric field
+...weighting potential 1
+...weighting potential 2
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>//\//\//\ Adding fano noise
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>DL = 0mm
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>No impurity curve found for the detector Public Inverted Coax, using default constant value of 0
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ LegendDataManagementSolidStateDetectorsExt ~/.julia/packages/LegendDataManagement/EhfoH/ext/LegendDataManagementSolidStateDetectorsExt.jl:629</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>You did not provide operating voltage in environment settings -&gt; taking recommended voltage from metadata
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ LegendGeSim ~/work/LegendGeSim.jl/LegendGeSim.jl/src/legend_detector_to_ssd.jl:45</span>
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>Simulating at 3800.0V
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>~.~.~.~.~ Simulate charge pulses
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>~.~.~ SolidStateDetectors
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>Detector has 2 contacts
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>Table has 10 physics events (23 single charge depositions).
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>Generating waveforms...</code></pre><pre><code class="language-julia hljs">plot(pss_table.waveform[1:10])</code></pre><img src="ad8d7b43.svg" alt="Example block output"/><pre><code class="language-julia hljs">raw_table1 = LegendGeSim.pss_to_raw(pss_table, pss_truth, daq_settings, noise_model)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Table with 11 columns and 20 rows:
+      baseline  channel  energy       ievt  numtraces  packet_id  ⋯
+    ┌──────────────────────────────────────────────────────────────
+ 1  │ 11917.8   1        467.296 keV  2     1.0        0.0        ⋯
+ 2  │ 11917.6   1        225.511 keV  7     1.0        0.0        ⋯
+ 3  │ 11919.6   1        81.3233 keV  12    1.0        0.0        ⋯
+ 4  │ 11920.8   1        484.785 keV  13    1.0        0.0        ⋯
+ 5  │ 11913.0   1        552.824 keV  17    1.0        0.0        ⋯
+ 6  │ 11915.7   1        225.157 keV  40    1.0        0.0        ⋯
+ 7  │ 11919.1   1        2479.09 keV  44    1.0        0.0        ⋯
+ 8  │ 11917.6   1        338.892 keV  55    1.0        0.0        ⋯
+ 9  │ 11914.1   1        90.2276 keV  62    1.0        0.0        ⋯
+ 10 │ 11913.6   1        226.598 keV  64    1.0        0.0        ⋯
+ 11 │ 11918.3   2        466.945 keV  2     1.0        0.0        ⋯
+ 12 │ 11918.1   2        225.602 keV  7     1.0        0.0        ⋯
+ 13 │ 11919.7   2        82.411 keV   12    1.0        0.0        ⋯
+ 14 │ 11915.4   2        484.995 keV  13    1.0        0.0        ⋯
+ 15 │ 11916.3   2        553.56 keV   17    1.0        0.0        ⋯
+ 16 │ 11910.5   2        225.779 keV  40    1.0        0.0        ⋯
+ 17 │ 11914.7   2        2479.74 keV  44    1.0        0.0        ⋯
+ ⋮  │    ⋮         ⋮          ⋮        ⋮        ⋮          ⋮      ⋱</code></pre><pre><code class="language-julia hljs">plot(
+    plot(pss_table.waveform[1:10]),
+    plot(raw_table1.waveform[1:10]),
+    size=(800,400)
+)</code></pre><img src="733a22c3.svg" alt="Example block output"/><p>Save the pss file for the next section</p><pre><code class="language-julia hljs">using LegendHDF5IO</code></pre><pre><code class="language-julia hljs">pss_name = &quot;cache/test_100wfs_pss.hdf5&quot;
+lh5open(pss_name, &quot;w&quot;) do f
+    LegendHDF5IO.writedata(f.data_store, &quot;pss/pss&quot;, pss_table[1:10])
+    LegendHDF5IO.writedata(f.data_store, &quot;pss/truth&quot;, pss_truth[1:10])
+end</code></pre><h2 id="Simulate-from-pre-saved-pss-hdf5-file"><a class="docs-heading-anchor" href="#Simulate-from-pre-saved-pss-hdf5-file">Simulate from pre-saved <code>pss</code> hdf5 file</a><a id="Simulate-from-pre-saved-pss-hdf5-file-1"></a><a class="docs-heading-anchor-permalink" href="#Simulate-from-pre-saved-pss-hdf5-file" title="Permalink"></a></h2><p>Rather than simulating form scratch pet-&gt;raw, you may input the name of a pre-saved pss file containing pss and pss truth information</p><pre><code class="language-julia hljs">raw_table2 = LegendGeSim.pss_to_raw(pss_name, daq_settings, noise_model)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Table with 11 columns and 10 rows:
+      baseline  channel  energy       ievt  numtraces  packet_id  ⋯
+    ┌──────────────────────────────────────────────────────────────
+ 1  │ 11916.6   1        465.572 keV  2     1.0        0.0        ⋯
+ 2  │ 11918.2   1        225.791 keV  7     1.0        0.0        ⋯
+ 3  │ 11918.2   1        82.0408 keV  12    1.0        0.0        ⋯
+ 4  │ 11916.5   1        484.523 keV  13    1.0        0.0        ⋯
+ 5  │ 11919.6   1        553.101 keV  17    1.0        0.0        ⋯
+ 6  │ 11919.2   1        225.569 keV  40    1.0        0.0        ⋯
+ 7  │ 11912.4   1        2479.65 keV  44    1.0        0.0        ⋯
+ 8  │ 11914.1   1        338.765 keV  55    1.0        0.0        ⋯
+ 9  │ 11916.6   1        89.9051 keV  62    1.0        0.0        ⋯
+ 10 │ 11917.6   1        225.915 keV  64    1.0        0.0        ⋯</code></pre><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../simulate_ideal_pulses/">« Simulate Ideal Pulses</a><a class="docs-footer-nextpage" href="../../api/">API »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.11.0 on <span class="colophon-date" title="Saturday 10 May 2025 18:23">Saturday 10 May 2025</span>. Using Julia version 1.11.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
